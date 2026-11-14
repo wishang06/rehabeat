@@ -11,11 +11,18 @@ const FIRST_FRAME_TIMEOUT_MS = 10_000;
 
 const SIZE_EVENTS = ['loadedmetadata', 'loadeddata', 'resize', 'playing'] as const;
 
-function hasFrameSize(video: HTMLVideoElement): boolean {
-  return video.videoWidth > 0 && video.videoHeight > 0;
+/**
+ * Chrome shows a 2x2 black frame while a camera track is muted, which includes
+ * the moment before the first real frame arrives. Nothing that small is a picture.
+ */
+const PLACEHOLDER_FRAME_PX = 2;
+
+/** True when the video holds a real camera frame: not empty, and not the muted-track placeholder. */
+export function hasFrameSize(video: Pick<HTMLVideoElement, 'videoWidth' | 'videoHeight'>): boolean {
+  return video.videoWidth > PLACEHOLDER_FRAME_PX && video.videoHeight > PLACEHOLDER_FRAME_PX;
 }
 
-/** Resolves when the video reports non-zero dimensions. Aborting `signal` stops the wait. */
+/** Resolves when the video holds a real frame. Aborting `signal` stops the wait. */
 function waitForFrameSize(video: HTMLVideoElement, signal: AbortSignal): Promise<void> {
   if (hasFrameSize(video)) return Promise.resolve();
   return new Promise((resolve) => {
@@ -33,7 +40,7 @@ async function startPlayback(video: HTMLVideoElement, signal: AbortSignal): Prom
 
 /**
  * Opens the user-facing camera at 640x480 without audio, attaches it to
- * `video`, and resolves once the video is playing with non-zero dimensions.
+ * `video`, and resolves once the video is playing a real frame.
  * getUserMedia errors (NotAllowedError, NotFoundError, ...) propagate unchanged.
  */
 export async function openCamera(video: HTMLVideoElement): Promise<MediaStream> {

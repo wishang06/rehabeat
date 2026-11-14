@@ -1,6 +1,7 @@
 import { PoseLandmarker } from '@mediapipe/tasks-vision';
 import type { PoseSample } from '../types';
 import { AngleSmoother } from './angleSmoother';
+import { hasFrameSize } from './camera';
 import { LOCAL_WASM_FILESET, POSE_MODEL_URL } from './config';
 import type { WasmFileset } from './config';
 import { createErrorLogger } from './errorLog';
@@ -74,7 +75,7 @@ export async function createPoseTracker(options: PoseTrackerOptions): Promise<Po
   let fps = 0;
 
   const processFrame = (frameMs: number, callbackMs: number): void => {
-    if (video.readyState < HAVE_CURRENT_DATA || video.videoWidth === 0) return;
+    if (video.readyState < HAVE_CURRENT_DATA || !hasFrameSize(video)) return;
 
     if (lastCallbackMs !== null) fps = smoothFps(fps, callbackMs - lastCallbackMs);
     lastCallbackMs = callbackMs;

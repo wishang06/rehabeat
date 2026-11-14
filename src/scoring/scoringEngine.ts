@@ -90,20 +90,13 @@ export class ScoringEngine {
 
   /**
    * Feed every frame, in time order. Returns the results completed by this
-   * frame: usually none, one when a hold window has just closed.
+   * frame: usually none, one when a hold window has just closed. Results that
+   * tick() already returned are not returned again.
    */
   push(frame: PoseFrame, form: FormMetrics = NO_FORM): BeatResult[] {
     const t = frame.t - this.offsetSec;
     if (t < this.timeOfBeat(this.current.cycle.startBeat)) return [];
-
-    // Close out every hold window this frame has moved past. A long gap in
-    // frames can skip whole cycles; those score as a Miss with no frames.
-    const results: BeatResult[] = [];
-    for (;;) {
-      if (!this.finalized && t >= this.current.holdEnd) results.push(this.finalize());
-      if (t < this.current.end) break;
-      this.advance();
-    }
+    const results = this.closeUpTo(t);
 
     const { cycle, holdStart, holdEnd } = this.current;
     const phase: Phase = t < holdStart ? 'reach' : t < holdEnd ? 'hold' : 'release';
@@ -128,6 +121,46 @@ export class ScoringEngine {
       holdScore: phase === 'hold' ? this.holdSum / this.holdFrames : null,
       formNote: this.formNote,
     };
+    return results;
+  }
+
+  /**
+   * Tell the engine the time without giving it a frame, so results still arrive
+   * if the camera stalls. Closes every hold window that `clockTime` has passed.
+   * Pass a time slightly behind the present: frames reach the engine a little
+   * after they were captured, and a window closed too eagerly would drop them.
+   */
+  tick(clockTime: number): BeatResult[] {
+    const t = clockTime - this.offsetSec;
+    if (t < this.timeOfBeat(this.current.cycle.startBeat)) return [];
+
+    const before = this.current.cycle.index;
+    const results = this.closeUpTo(t);
+    if (this.current.cycle.index !== before) {
+      // No frame has been seen in the new cycle yet.
+      const { cycle, holdStart, holdEnd } = this.current;
+      this.liveState = {
+        cycle,
+        phase: t < holdStart ? 'reach' : t < holdEnd ? 'hold' : 'release',
+        frameScore: 0,
+        holdScore: null,
+        formNote: null,
+      };
+    }
+    return results;
+  }
+
+  /**
+   * Closes out every hold window that time `t` has moved past. A long gap can
+   * skip whole cycles; those score as a Miss with no frames.
+   */
+  private closeUpTo(t: number): BeatResult[] {
+    const results: BeatResult[] = [];
+    for (;;) {
+      if (!this.finalized && t >= this.current.holdEnd) results.push(this.finalize());
+      if (t < this.current.end) break;
+      this.advance();
+    }
     return results;
   }
 

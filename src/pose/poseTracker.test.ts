@@ -291,6 +291,26 @@ describe('createPoseTracker: the frame loop', () => {
     presentAt(video, 1_033);
     expect(onSample).toHaveBeenCalledTimes(1);
   });
+
+  it('skips the 2x2 placeholder frame of a muted camera track', async () => {
+    const landmarker = fakeLandmarker();
+    mocks.createFromOptions.mockResolvedValue(landmarker);
+    const video = fakeVideo();
+    const onSample = vi.fn();
+    const tracker = await createPoseTracker({ video: video.video, onSample });
+    tracker.start();
+
+    video.element.videoWidth = 2;
+    video.element.videoHeight = 2;
+    presentAt(video, 1_000);
+    expect(landmarker.detectForVideo).not.toHaveBeenCalled();
+    expect(onSample).not.toHaveBeenCalled();
+
+    video.element.videoWidth = 640;
+    video.element.videoHeight = 480;
+    presentAt(video, 1_033);
+    expect(onSample).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('createPoseTracker: stopping and restarting', () => {

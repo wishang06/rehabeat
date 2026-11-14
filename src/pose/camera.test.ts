@@ -90,6 +90,25 @@ describe('openCamera', () => {
     expect(tracks[0].stop).not.toHaveBeenCalled();
   });
 
+  it('keeps waiting through the 2x2 placeholder a muted camera track shows', async () => {
+    const { stream } = fakeStream();
+    stubGetUserMedia(async () => stream);
+    const video = fakeVideo();
+    let resolved = false;
+    const opening = openCamera(video.video).then((result) => {
+      resolved = true;
+      return result;
+    });
+
+    await settle();
+    video.deliverFrame(2, 2);
+    await settle();
+    expect(resolved).toBe(false);
+
+    video.deliverFrame(640, 480);
+    await expect(opening).resolves.toBe(stream);
+  });
+
   it('waits for non-zero dimensions before resolving', async () => {
     const { stream } = fakeStream();
     stubGetUserMedia(async () => stream);

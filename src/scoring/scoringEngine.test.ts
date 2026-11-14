@@ -189,6 +189,49 @@ describe('ScoringEngine', () => {
   });
 });
 
+describe('ScoringEngine.tick', () => {
+  it('closes a hold window when frames stop arriving', () => {
+    const target = engine();
+    // The camera stalls halfway through the hold.
+    play(target, 0, 2, () => ON_TARGET);
+    expect(target.tick(2.9)).toEqual([]);
+
+    const results = target.tick(3.1);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ moveId: 'side-arm-raise', score: 100, label: 'Perfect' });
+    expect(target.lastResult).toBe(results[0]);
+  });
+
+  it('never reports the same hold twice', () => {
+    const target = engine();
+    play(target, 0, 3, () => ON_TARGET);
+    expect(target.tick(3.1)).toHaveLength(1);
+    expect(target.tick(3.2)).toEqual([]);
+    expect(play(target, 3.2, 4, () => ON_TARGET)).toEqual([]);
+    expect(target.stats.total).toBe(1);
+  });
+
+  it('scores a move with no frames as a Miss and moves on to the next move', () => {
+    const target = engine();
+    const results = target.tick(4.1);
+    expect(results.map((r) => [r.moveId, r.label])).toEqual([['side-arm-raise', 'Miss']]);
+    expect(target.live).toMatchObject({ cycle: { index: 1 }, phase: 'reach', frameScore: 0, formNote: null });
+  });
+
+  it('does nothing before the routine starts', () => {
+    const target = new ScoringEngine({ routine: new Routine([sideRaise], 4), timeOfBeat });
+    expect(target.tick(1.5)).toEqual([]);
+    expect(target.live.cycle).toBeNull();
+  });
+
+  it('applies the calibration offset', () => {
+    const target = engine({ offsetMs: 400 });
+    // The hold ends at 3.0 s on the beat grid, which is 3.4 s in camera time.
+    expect(target.tick(3.3)).toEqual([]);
+    expect(target.tick(3.45)).toHaveLength(1);
+  });
+});
+
 describe('form guidance in the engine', () => {
   const leaning: FormMetrics = { trunkLeanDeg: 22, shoulderEarRatio: 0.3 };
 
