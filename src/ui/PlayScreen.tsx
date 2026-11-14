@@ -152,7 +152,7 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
       const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
       // The "music follows you" mechanic: the melody plays while you are in the pose,
       // and a stalled camera can't keep it playing.
-      engine.setMelodyActive(melody.update(now, fresh && melodyShouldPlay(scoring.live, scoring.lastResult)));
+      engine.setMelodyActive(melody.update(now, melodyShouldPlay(scoring.live, scoring.lastResult, fresh)));
 
       // Award points once per newly scored move.
       if (scoring.stats.total > run.stats.total && scoring.lastResult) {

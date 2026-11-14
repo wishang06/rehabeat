@@ -30,7 +30,7 @@ export const LIMB_OF_JOINT = Object.fromEntries(LIMBS.map((spec) => [spec.joint,
 
 /**
  * The lowest visibility of the three landmarks that measure `joint`, or null
- * without landmarks. A joint is scored only when this is at least MIN_VISIBILITY.
+ * without landmarks. A joint starts being scored when this reaches MIN_VISIBILITY, and stays scored down to KEEP_MEASURED_VISIBILITY.
  */
 export function jointVisibility(landmarks: Landmark[] | null, joint: JointName): number | null {
   if (!landmarks) return null;

@@ -1,6 +1,6 @@
 import { JOINT_NAMES } from '../types';
 import type { JointName, Landmark } from '../types';
-import { JOINT_TRIPLETS, KEEP_VISIBILITY, MIN_VISIBILITY } from './landmarks';
+import { JOINT_TRIPLETS, KEEP_MEASURED_VISIBILITY, MIN_VISIBILITY } from './landmarks';
 import { isVisible } from './visibility';
 
 export interface Point3 {
@@ -47,7 +47,7 @@ const NONE_MEASURED: ReadonlySet<JointName> = new Set();
  * Joint angles from WORLD landmarks (3D, metres). A joint is skipped unless
  * all three of its landmarks are at least `minVisibility` visible, or, for a
  * joint in `measuredBefore` (the joints measured in the previous frame), at
- * least KEEP_VISIBILITY.
+ * least KEEP_MEASURED_VISIBILITY.
  */
 export function computeJointAngles(
   world: Landmark[],
@@ -56,7 +56,7 @@ export function computeJointAngles(
 ): JointAngles {
   const angles: Partial<Record<JointName, number>> = {};
   const visible: JointName[] = [];
-  const keepVisibility = Math.min(minVisibility, KEEP_VISIBILITY);
+  const keepVisibility = Math.min(minVisibility, KEEP_MEASURED_VISIBILITY);
 
   for (const joint of JOINT_NAMES) {
     const [aIndex, vertexIndex, cIndex] = JOINT_TRIPLETS[joint];

@@ -131,7 +131,11 @@ export class ScoringEngine {
     const { cycle, holdStart, holdEnd } = this.current;
     const phase: Phase = t < holdStart ? 'reach' : t < holdEnd ? 'hold' : 'release';
     const score = scoreFrame(frame, cycle.move);
-    const before = previous && { t: previous.t, score: scoreFrame(previous.frame, cycle.move) };
+    // Across a camera stall nothing is known about when the pose was landed: start from this frame.
+    const before =
+      previous && t - previous.t <= MAX_FRAME_SPAN_SEC
+        ? { t: previous.t, score: scoreFrame(previous.frame, cycle.move) }
+        : null;
     this.lock.update({ t, score }, before);
 
     if (phase !== 'release') {
@@ -277,9 +281,15 @@ export class ScoringEngine {
  * - reach: once the player has landed the pose, or while the last move's
  *   result was Good or better, so a good hold carries through to the next one
  * - release: carries the result of the hold that just closed
- * - before the routine starts: never
+ * - before the routine starts, or while the camera sends no frames
+ *   (`cameraFresh` false): never, since `live` stops changing without frames
  */
-export function melodyShouldPlay(live: LiveState, lastResult: BeatResult | null): boolean {
+export function melodyShouldPlay(
+  live: LiveState,
+  lastResult: BeatResult | null,
+  cameraFresh: boolean,
+): boolean {
+  if (!cameraFresh) return false;
   const carried = (lastResult?.score ?? 0) >= GOOD_SCORE;
   const inPose = live.locked && live.frameScore >= GOOD_SCORE;
   switch (live.phase) {

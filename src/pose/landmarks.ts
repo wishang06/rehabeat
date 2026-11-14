@@ -27,7 +27,7 @@ export const MIN_VISIBILITY = 0.6;
  * this. Wrists and ankles near the frame edge hover around 0.6; without the
  * gap a joint would drop in and out of scoring from one frame to the next.
  */
-export const KEEP_VISIBILITY = 0.5;
+export const KEEP_MEASURED_VISIBILITY = 0.5;
 
 /**
  * For each scored joint, the three landmarks [a, vertex, c] whose angle at

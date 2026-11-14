@@ -25,7 +25,7 @@ export interface PoseSampleInput {
   fps: number;
   /**
    * The joints the previous frame measured. They stay measured down to
-   * KEEP_VISIBILITY, so a joint hovering at the cutoff does not flicker.
+   * KEEP_MEASURED_VISIBILITY, so a joint hovering at the cutoff does not flicker.
    */
   previousVisible?: readonly JointName[];
 }

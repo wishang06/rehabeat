@@ -50,7 +50,7 @@ The types live in `src/types/ui.ts` (`FeedbackFrame`, `LimbFeedback`, `LimbStatu
 | `score` | 0-100. The scoring engine's live frame score, while it is on the same move as `move`; 0 otherwise. |
 | `holdScore` | Time-weighted mean frame score over the hold so far (from the scoring engine). `null` outside the hold. |
 | `onTarget` | True in a reach or hold while `score` is Good (60) or better. The figure turns green on this. |
-| `lowVisibility` | True once any joint the move scores has been under the visibility cutoff (0.6) for more than 500 ms |
+| `lowVisibility` | True once any joint the move scores has been under the visibility cutoff (0.6, or 0.5 for a joint already being measured) for more than 500 ms |
 | `hiddenJoints` | Those joints |
 
 ### Limbs
@@ -64,7 +64,7 @@ Each limb is driven by one scored joint, so `limbs` covers every joint:
 | `leftThigh`, `rightThigh` | `leftHip`, `rightHip` |
 | `leftShin`, `rightShin` | `leftKnee`, `rightKnee` |
 
-`LimbFeedback` holds `status`, `scored`, `errorDeg` (`|current - target|`), `currentDeg`, `targetDeg` and `visibility`. `visibility` is the lowest visibility of the three landmarks that measure the joint; scoring needs at least 0.6.
+`LimbFeedback` holds `status`, `scored`, `errorDeg` (`|current - target|`), `currentDeg`, `targetDeg` and `visibility`. `visibility` is the lowest visibility of the three landmarks that measure the joint; scoring needs at least 0.6 to start measuring a joint and 0.5 to keep measuring it.
 
 `status` is one of:
 

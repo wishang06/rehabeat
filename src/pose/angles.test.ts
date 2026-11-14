@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { JOINT_NAMES } from '../types';
 import { angleBetween, computeJointAngles } from './angles';
-import { KEEP_VISIBILITY, MIN_VISIBILITY } from './landmarks';
+import { KEEP_MEASURED_VISIBILITY, MIN_VISIBILITY } from './landmarks';
 import { hiddenPose, point, standingPose, withLandmarks } from './poseFixtures';
 
 const ORIGIN = { x: 0, y: 0, z: 0 };
@@ -159,7 +159,7 @@ describe('computeJointAngles', () => {
       expect(computeJointAngles(hovering(0.55), MIN_VISIBILITY, new Set(['leftElbow'])).visible).toContain(
         'leftElbow',
       );
-      expect(computeJointAngles(hovering(KEEP_VISIBILITY), MIN_VISIBILITY, new Set(['leftElbow'])).visible).toContain(
+      expect(computeJointAngles(hovering(KEEP_MEASURED_VISIBILITY), MIN_VISIBILITY, new Set(['leftElbow'])).visible).toContain(
         'leftElbow',
       );
     });

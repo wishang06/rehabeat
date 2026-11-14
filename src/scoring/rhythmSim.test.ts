@@ -154,7 +154,7 @@ function simulate(plans: readonly CyclePlan[], options: SimOptions = {}): SimRun
     const angles = smoother.smooth(raw, t);
     const frame: PoseFrame = { t, angles, visible: ['leftShoulder', 'rightShoulder'] };
     results.push(...engine.push(frame));
-    const on = gate.update(t, melodyShouldPlay(engine.live, engine.lastResult));
+    const on = gate.update(t, melodyShouldPlay(engine.live, engine.lastResult, true));
     if (on !== playing) {
       melody.push({ t, on });
       playing = on;
