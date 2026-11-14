@@ -11,3 +11,4 @@ export {
   type MoveChange,
 } from './prescription';
 export { buildSession } from './session';
+export * from './analysis';
