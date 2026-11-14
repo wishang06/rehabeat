@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { MOVES, computeGhost, drawGhost } from '../moves';
-import { drawSkeleton } from '../pose';
+import { FeedbackTracker, feedbackStore } from '../engine';
+import { MOVES } from '../moves';
 import {
   GOOD_SCORE,
   Routine,
@@ -14,7 +14,8 @@ import {
 import type { Session } from '../session';
 import type { BeatResult, Move } from '../types';
 import { BeatDial } from './BeatDial';
-import { CANVAS_COLORS, prepareCanvas } from './canvas';
+import { prepareCanvas } from './canvas';
+import { PlayOverlay } from './overlay';
 
 /** Beats of lead-in before the first move starts. */
 const COUNT_IN_BEATS = 4;
@@ -120,6 +121,8 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
       offsetMs: calibration.offsetMs,
       shoulderEarBaseline: calibration.shoulderEarBaseline,
     });
+    const feedback = new FeedbackTracker(routine);
+    const overlay = new PlayOverlay();
 
     let lastSampleAt = performance.now();
     const unsubscribe = session.subscribe((sample) => {
@@ -150,35 +153,20 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
         live.cycle?.index === info.cycle.index &&
         live.frameScore >= GOOD_SCORE;
 
+      const current = feedback.update({
+        now: engine.clock.audibleNow(),
+        beat,
+        frame: sample?.frame ?? null,
+        world: sample?.worldLandmarks ?? null,
+        live,
+      });
+      feedbackStore.publish(current);
+
       const canvas = canvasRef.current;
       const surface = canvas && prepareCanvas(canvas);
       if (sample?.landmarks) lastSeen = performance.now();
-      if (surface && sample?.landmarks) {
-        const { ctx, width, height } = surface;
-        if (info) {
-          const fade =
-            info.phase === 'reach'
-              ? 0.5 + 0.5 * info.progress
-              : info.phase === 'hold'
-                ? 1
-                : 1 - info.progress;
-          drawGhost(
-            ctx,
-            computeGhost(info.cycle.move, sample.landmarks, { width, height }, sample.worldLandmarks),
-            {
-              color: matched ? CANVAS_COLORS.ghostMatched : CANVAS_COLORS.ghost,
-              alpha: fade,
-              lineWidth: width / 64,
-            },
-          );
-        }
-        drawSkeleton(ctx, sample.landmarks, {
-          width,
-          height,
-          lineColor: CANVAS_COLORS.skeletonLine,
-          jointColor: CANVAS_COLORS.skeletonJoint,
-          lineWidth: width / 200,
-        });
+      if (surface) {
+        overlay.draw(surface, current, sample?.landmarks ?? null, sample?.worldLandmarks ?? null, performance.now());
       }
 
       const element = hudRef.current;
@@ -229,6 +217,7 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
     return () => {
       cancelAnimationFrame(frame);
       unsubscribe();
+      feedbackStore.publish(null);
       engine.setMelodyActive(false);
       engine.stop();
       debugRef.current = null;
