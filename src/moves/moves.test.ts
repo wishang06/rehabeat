@@ -12,11 +12,19 @@ const valid = {
 };
 
 describe('moves.json', () => {
-  it('holds the three placeholder moves', () => {
+  it('holds the three placeholder moves, then the poses from the dataset', () => {
     expect(MOVES.map((move) => move.id)).toEqual([
       'overhead-arm-raise',
       'side-arm-raise',
       'standing-knee-raise',
+      'tree-pose',
+      'warrior-ii',
+      'goddess-pose',
+      'triangle-pose',
+      'half-moon',
+      'dancer-pose',
+      'downward-dog',
+      'bound-angle',
     ]);
   });
 

@@ -23,6 +23,7 @@ The first start downloads the pose model (about 6 MB) from Google's model storag
 | `npm run typecheck` | TypeScript, strict |
 | `npm run build` | Typecheck and production build |
 | `npm run songs` | Add, list, preview, move or remove songs (see [Song library](#song-library)) |
+| `npm run moves` | Rebuild the yoga moves from the pose dataset (see [Moves from the pose dataset](#moves-from-the-pose-dataset)) |
 | `npm run test:songs` | Adds a generated click track end to end with Demucs (needs the Python setup) |
 
 ### Smoke check
@@ -191,7 +192,18 @@ Joint names and how each angle is measured (left and right are the player's own)
 | `leftHip`, `rightHip` | shoulder, hip, knee | 180 = standing straight, 90 = thigh level |
 | `leftKnee`, `rightKnee` | hip, knee, ankle | 180 = straight |
 
-The three moves in the file now (overhead arm raise, side arm raise, standing knee raise) are placeholders.
+The first three moves in the file (overhead arm raise, side arm raise, standing knee raise) are placeholders. The eight after them come from the pose dataset.
+
+### Moves from the pose dataset
+
+`tools/moves/poses/` holds one CSV per yoga pose: about 60 photos each, with the 33 MediaPipe landmarks of every photo. `npm run moves` turns each CSV into a move and prints what it found; `npm run moves -- --write` merges the moves into `moves.json`, replacing moves with the same id and leaving the others alone. For each pose it:
+
+1. measures the game's eight joint angles in every photo, in the image plane, from the landmark columns. The CSVs' own angle columns are measured differently and aren't used. The photos' z values are rough depth guesses, and with them straight limbs read as 30-40° bent.
+2. mirrors photos of one-sided poses (tree, warrior, dancer, half moon) so they're all on the same side, the side most photos show.
+3. scores only the joints that at least 60% of the photos show and whose middle half agree within 40°. The arms in Tree Pose (overhead in some photos, at the chest in others) and Goddess Pose aren't scored. Downward Dog photos are taken side-on, so only the right side is scored and the player has to stand with their right side to the camera.
+4. sets the target to the median angle, and the tolerance so that 75% of the photos would hold at Good, between 20° and 35°.
+
+Ids, names and form rules for each pose are in `POSES` in [`tools/moves/dataset.ts`](tools/moves/dataset.ts); to add a pose, add its CSV and a line there.
 
 ## Song tools (`tools/`)
 
