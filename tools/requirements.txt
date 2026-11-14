@@ -1,0 +1,8 @@
+# Dependencies for tools/make_beatmap.py (beat detection only).
+#   python -m pip install -r tools/requirements.txt
+
+librosa>=0.10.2
+numpy>=1.26
+# The soundfile wheels bundle libsndfile >= 1.1, which decodes mp3 as well as
+# wav/flac/ogg, so ffmpeg is not needed for the usual formats.
+soundfile>=0.12.1

@@ -1,0 +1,13 @@
+# Optional: only needed for `make_beatmap.py --stems` (drums / melody separation).
+#   python -m pip install -r tools/requirements-stems.txt
+#
+# Demucs depends on PyTorch, so this is a large download.
+# Keep the ffmpeg executable on PATH as well: Demucs 4.1 falls back to it for
+# input formats it cannot decode itself, and Demucs 4.0 prefers it for every
+# input. ffmpeg is not a pip package:
+#   Windows: winget install Gyan.FFmpeg
+#   macOS:   brew install ffmpeg
+#   Linux:   sudo apt install ffmpeg
+
+-r requirements.txt
+demucs>=4.0.1
