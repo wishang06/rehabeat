@@ -208,6 +208,11 @@ async function happyPath(url) {
       fpsSamples.push(Number(await page.getByTestId('debug-fps').textContent()));
       detectSamples.push(Number(await page.getByTestId('debug-detect-ms').textContent()));
     }
+    // The readout only changes when a frame is processed. If it never moved, the
+    // camera stalled after it started, and the numbers are stale.
+    if (new Set(detectSamples).size === 1 && new Set(fpsSamples).size === 1) {
+      throw new CameraStalled('the pose readout did not change for 5 s');
+    }
     const mean = (values) => Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
     measured.fps = mean(fpsSamples);
     measured.detectMs = mean(detectSamples);
