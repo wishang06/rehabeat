@@ -142,7 +142,10 @@ The test is `armTorsoOverlap`: the fraction of either arm that comes within 0.12
 
 `PlayOverlay.draw(surface, frame, landmarks, world, nowMs)` draws, in order:
 
-1. **The target figure.** A gold fill at 55%, a 3 px brighter edge and a soft glow. It turns green while `onTarget`. It is stroked and cut out on a scratch canvas, only inside the figure's bounding box, so overlapping parts show no seams.
+1. **The target figure.** A gold fill at 55%, a 3 px brighter edge and a soft glow. It turns green while `onTarget`.
+   - The glow and edge are fills of grown copies of the silhouette (`inflateSilhouette`). The real silhouette is then cut out with `destination-out` and filled, so overlapping parts show no seams.
+   - The cut-out erases whatever is beneath it, so the figure is always drawn first on the freshly cleared canvas.
+   - The figure avoids a scratch canvas and wide strokes on purpose. Measured per frame on an Intel Iris Xe, which MediaPipe also runs on: compositing a scratch canvas cost about 14 ms, and stroking the glow cost about 2.5 ms.
 2. **The player's body.** The same capsule style at half the figure's width, coloured by limb status. Lost scored limbs are drawn grey with a dashed edge, at the detector's best guess.
 3. **The hint.** A label beside the limb, with an arrow to the part it names: the elbow for "arm" hints, the knee for "knee" hints. The label stays out of the HUD corners and off the figure.
 4. **The low-visibility banner.** "Step back so your whole body is in frame", placed so it doesn't cover the scored limbs.
@@ -157,7 +160,7 @@ The test is `armTorsoOverlap`: the fraction of either arm that comes within 0.12
 | --- | --- |
 | `feedback.test.ts` | Frame building: phases, limb status, hint and visibility timing |
 | `hints.test.ts` | Hint selection and wording |
-| `silhouette.test.ts` | Figure geometry: scored angles, widths, winding, legibility |
+| `silhouette.test.ts` | Figure geometry: scored angles, widths, winding, legibility, inflation |
 | `placement.test.ts` | The overlap rule and the beside-the-player offset |
 | `ease.test.ts` | Easing |
 | `overlayLayout.test.ts` | Player capsules, hint callout and banner placement |
