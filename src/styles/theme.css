@@ -136,8 +136,11 @@
   .fig [data-part='arm-r'] {
     transform: rotate(calc(var(--arm-r, 8) * 1deg));
   }
-  .fig [data-part='fore'] {
-    transform: rotate(4deg);
+  .fig [data-part='fore-l'] {
+    transform: rotate(calc(var(--fore-l, 4) * 1deg));
+  }
+  .fig [data-part='fore-r'] {
+    transform: rotate(calc(var(--fore-r, 4) * 1deg));
   }
   .fig [data-part='leg-l'] {
     transform: rotate(calc(var(--leg-l, 5) * 1deg));

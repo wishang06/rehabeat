@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode, Ref } from 'react';
 import { cn } from 'cn';
+import type { JointName } from '../types';
 
 /** The poses the DOM figure can strike. They mirror the routine's moves. */
 export type FigurePose = 'rest' | 'overhead' | 'side' | 'knee';
@@ -18,13 +19,38 @@ export function armAngle(pose: FigurePose): number {
   return POSE[pose]['--arm-l'] ?? ARM_REST;
 }
 
-/** The pose for one of the routine's moves, by its id in moves.json. */
-export function poseForMove(moveId: string | null | undefined): FigurePose {
-  if (!moveId) return 'rest';
-  if (moveId.includes('overhead')) return 'overhead';
-  if (moveId.includes('side')) return 'side';
-  if (moveId.includes('knee')) return 'knee';
-  return 'rest';
+/** A move's target angles, as moves.json writes them: degrees at each scored joint. */
+export type FigureJoints = Partial<Record<JointName, number>>;
+
+/**
+ * The limb angles for a move's targets. A shoulder angle is how far the arm
+ * is lifted from the side; an elbow, hip or knee angle is 180 when straight,
+ * so the limb turns by what is missing from 180. Joints the move does not
+ * score stay at rest. It is a front-on sketch for a card, not the measured
+ * figure the canvas draws.
+ */
+function anglesForJoints(joints: FigureJoints): Record<string, number> {
+  const angles: Record<string, number> = {};
+  const set = (name: string, value: number | undefined) => {
+    if (value !== undefined) angles[name] = Math.round(value);
+  };
+  const bend = (angle: number | undefined) => (angle === undefined ? undefined : 180 - angle);
+  set('--arm-l', joints.leftShoulder);
+  set('--arm-r', joints.rightShoulder);
+  set('--fore-l', bend(joints.leftElbow));
+  set('--fore-r', bend(joints.rightElbow));
+  set('--leg-l', bend(joints.leftHip));
+  set('--leg-r', bend(joints.rightHip));
+  const shin = (knee: number | undefined) => (knee === undefined ? undefined : -(180 - knee));
+  set('--shin-l', shin(joints.leftKnee));
+  set('--shin-r', shin(joints.rightKnee));
+  return angles;
+}
+
+/** True when a limb reaches far enough sideways to need the wide box. */
+function reachesWide(angles: Record<string, number>): boolean {
+  const out = (angle: number | undefined) => angle !== undefined && angle > 30 && angle < 150;
+  return out(angles['--arm-l']) || out(angles['--arm-r']) || out(angles['--leg-l']) || out(angles['--leg-r']);
 }
 
 /** A tapered capsule hanging from (0,0) to (0,len): radius `ra` at the joint, `rb` at the tip. */
@@ -46,7 +72,7 @@ const arm = (side: 'l' | 'r') => (
   <g data-part={`arm-${side}`}>
     <path d={UPPER_ARM} />
     <g transform="translate(0 66)">
-      <g data-part="fore">
+      <g data-part={`fore-${side}`}>
         <path d={FOREARM} />
       </g>
     </g>
@@ -82,6 +108,8 @@ function body(layer: string): ReactNode {
 
 interface FigureProps {
   pose?: FigurePose;
+  /** A move's target angles. When given, they set the pose instead of `pose`. */
+  joints?: FigureJoints;
   /** A tube of light (outline, dark inside) instead of a solid shape. The default. */
   solid?: boolean;
   /** Add the glow. Leave it off for small or dimmed figures. */
@@ -106,6 +134,7 @@ interface FigureProps {
  */
 export function Figure({
   pose = 'rest',
+  joints,
   solid = false,
   glow = true,
   wide = false,
@@ -114,12 +143,13 @@ export function Figure({
   style,
   ref,
 }: FigureProps) {
+  const angles = joints ? anglesForJoints(joints) : POSE[pose];
   return (
     <svg
       ref={ref}
       className={cn('fig', !solid && 'fig--tube', glow && 'fig--glow', className)}
-      viewBox={wide || pose === 'side' ? WIDE_BOX : NARROW_BOX}
-      style={{ ...(POSE[pose] as CSSProperties), ...style }}
+      viewBox={wide || reachesWide(angles) ? WIDE_BOX : NARROW_BOX}
+      style={{ ...(angles as CSSProperties), ...style }}
       {...(label ? { role: 'img', 'aria-label': label } : { 'aria-hidden': true })}
     >
       {solid ? (

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { MoveUp } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/react';
-import { Figure, poseForMove } from '@/components/Figure';
+import { Figure } from '@/components/Figure';
 import { useFeedbackFrame } from '../../engine';
 import { MOVES } from '../../moves';
 import { GOOD_SCORE, PERFECT_SCORE } from '../../scoring';
@@ -103,6 +103,7 @@ function MoveCards({ frames, moveNumber, moveCount }: MoveCardsProps) {
   // During the count-in there is no current move: the first one is "up first".
   const now = moveName ?? nextName;
   const nowId = moveId ?? nextId;
+  const jointsOf = (id: string | null) => MOVES.find((move) => move.id === id)?.joints;
 
   return (
     <aside className="hud-moves">
@@ -113,13 +114,13 @@ function MoveCards({ frames, moveNumber, moveCount }: MoveCardsProps) {
         <span className="hud-move__name display" data-testid="move-name">
           {now}
         </span>
-        <Figure pose={poseForMove(nowId)} wide={false} />
+        <Figure joints={jointsOf(nowId)} />
       </div>
       {moveName && nextName && (
         <div className="hud-move hud-move--next slab slab-edge">
           <span className="hud-move__tag label">Next</span>
           <span className="hud-move__name display">{nextName}</span>
-          <Figure pose={poseForMove(nextId)} glow={false} />
+          <Figure joints={jointsOf(nextId)} glow={false} />
         </div>
       )}
     </aside>
