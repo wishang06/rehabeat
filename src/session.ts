@@ -108,6 +108,18 @@ export function describeStartError(error: unknown): string {
     case 'AbortError':
       return 'The camera is busy in another app. Close that app, then try again.';
     default:
-      return `Rehabeat couldn't start${error instanceof Error && error.message ? `: ${error.message}` : '.'} Check your connection and try again.`;
+      break;
   }
+
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('did not deliver any video frames')) {
+    return 'The camera opened but sent no picture. Check that nothing else is using or covering it, then try again.';
+  }
+  // A failed download surfaces as a TypeError from fetch.
+  if (name === 'TypeError' || /fetch|network/i.test(message)) {
+    return "Rehabeat couldn't download pose tracking. Check your connection, then try again.";
+  }
+  return message
+    ? `Rehabeat couldn't start: ${message.replace(/\.$/, '')}. Try again.`
+    : "Rehabeat couldn't start. Try again.";
 }

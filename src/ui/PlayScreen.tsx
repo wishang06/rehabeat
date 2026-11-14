@@ -13,10 +13,22 @@ import {
 } from '../scoring';
 import type { Session } from '../session';
 import type { BeatResult, Move } from '../types';
+import { BeatDial } from './BeatDial';
 import { CANVAS_COLORS, prepareCanvas } from './canvas';
 
 /** Beats of lead-in before the first move starts. */
 const COUNT_IN_BEATS = 4;
+/** How long the player can be out of view before the HUD says so. */
+const BODY_LOST_MS = 1200;
+/** A camera sample older than this is not drawn: the camera has stalled. */
+const STALE_SAMPLE_MS = 500;
+/**
+ * How far behind the present the scoring engine is ticked. Frames reach it a
+ * little after they were captured; this keeps a hold window open for them.
+ */
+const TICK_GRACE_SEC = 0.3;
+/** Arriving within this of the first hold beat counts as in time. */
+const IN_TIME_MS = 150;
 
 /** Live values the debug panel reads while the Play screen is up. */
 export interface PlayDebug {
@@ -35,10 +47,14 @@ interface PlayScreenProps {
 
 interface Hud {
   phase: Phase | 'ready';
+  /** 1-based position in the routine, or 0 during the count-in. */
+  moveNumber: number;
   moveName: string;
   upNext: string | null;
+  phaseBeats: number;
   beatsLeft: number;
   formNote: string | null;
+  bodyLost: boolean;
   result: BeatResult | null;
   stats: Stats;
 }
@@ -50,18 +66,43 @@ const PHASE_LABEL: Record<Hud['phase'], string> = {
   release: 'RELEASE',
 };
 
+const PHASE_CUE: Record<Hud['phase'], string> = {
+  ready: 'Listen for the beat',
+  reach: 'Move into the pose',
+  hold: 'Stay with it',
+  release: 'Ease back to rest',
+};
+
 const INITIAL_HUD: Hud = {
   phase: 'ready',
+  moveNumber: 0,
   moveName: MOVES[0].name,
   upNext: null,
+  phaseBeats: COUNT_IN_BEATS,
   beatsLeft: COUNT_IN_BEATS,
   formNote: null,
+  bodyLost: false,
   result: null,
   stats: initialStats(),
 };
 
 function hudKey(hud: Hud): string {
-  return [hud.phase, hud.moveName, hud.upNext, hud.beatsLeft, hud.formNote, hud.stats.total].join('|');
+  return [
+    hud.phase,
+    hud.moveNumber,
+    hud.upNext,
+    hud.beatsLeft,
+    hud.formNote,
+    hud.bodyLost,
+    hud.stats.total,
+  ].join('|');
+}
+
+function timingNote(result: BeatResult): string | null {
+  if (result.label === 'Miss') return null;
+  return result.timingOffsetMs > IN_TIME_MS
+    ? `${(result.timingOffsetMs / 1000).toFixed(1)} s late`
+    : 'In time';
 }
 
 export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlayScreenProps) {
@@ -80,24 +121,38 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
       shoulderEarBaseline: calibration.shoulderEarBaseline,
     });
 
+    let lastSampleAt = performance.now();
     const unsubscribe = session.subscribe((sample) => {
+      lastSampleAt = performance.now();
       scoring.push(sample.frame, sample.form);
-      // The "music follows you" mechanic: the melody stays in while the hold score is Good or better.
-      engine.setMelodyActive(melodyShouldPlay(scoring.live, scoring.lastResult));
     });
 
     let shownKey = hudKey(INITIAL_HUD);
+    let lastSeen = performance.now();
     let frame = requestAnimationFrame(function draw() {
       frame = requestAnimationFrame(draw);
 
       // Visuals run on what is audible now; scoring runs on offset-corrected frame times.
       const beat = engine.beatPosition();
       const info = routine.phaseAt(beat);
+      // Results must keep coming even if the camera stops delivering frames.
+      scoring.tick(engine.clock.audibleNow() - TICK_GRACE_SEC);
+      // The "music follows you" mechanic: the melody stays in while the hold score is Good or better.
+      engine.setMelodyActive(melodyShouldPlay(scoring.live, scoring.lastResult));
+
       const live = scoring.live;
-      const sample = session.latest();
+      const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
+      const sample = fresh ? session.latest() : null;
+      // "On target" only means something while the player is meant to be in the pose.
+      const matched =
+        info !== null &&
+        info.phase !== 'release' &&
+        live.cycle?.index === info.cycle.index &&
+        live.frameScore >= GOOD_SCORE;
 
       const canvas = canvasRef.current;
       const surface = canvas && prepareCanvas(canvas);
+      if (sample?.landmarks) lastSeen = performance.now();
       if (surface && sample?.landmarks) {
         const { ctx, width, height } = surface;
         if (info) {
@@ -107,7 +162,6 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
               : info.phase === 'hold'
                 ? 1
                 : 1 - info.progress;
-          const matched = live.cycle?.index === info.cycle.index && live.frameScore >= GOOD_SCORE;
           drawGhost(
             ctx,
             computeGhost(info.cycle.move, sample.landmarks, { width, height }, sample.worldLandmarks),
@@ -123,15 +177,21 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
           height,
           lineColor: CANVAS_COLORS.skeletonLine,
           jointColor: CANVAS_COLORS.skeletonJoint,
-          lineWidth: width / 160,
+          lineWidth: width / 200,
         });
       }
 
-      const sinceBeat = beat - Math.floor(beat);
-      const style = hudRef.current?.style;
-      style?.setProperty('--pulse', ((1 - sinceBeat) ** 2).toFixed(3));
-      style?.setProperty('--progress', (info ? info.progress : beat / COUNT_IN_BEATS).toFixed(4));
-      style?.setProperty('--match', (live.frameScore / 100).toFixed(3));
+      const element = hudRef.current;
+      if (element) {
+        const sinceBeat = beat - Math.floor(beat);
+        element.style.setProperty('--pulse', ((1 - sinceBeat) ** 2).toFixed(3));
+        element.style.setProperty(
+          '--progress',
+          Math.min(1, Math.max(0, info ? info.progress : beat / COUNT_IN_BEATS)).toFixed(4),
+        );
+        element.style.setProperty('--match', (live.frameScore / 100).toFixed(3));
+        if (element.dataset.matched !== String(matched)) element.dataset.matched = String(matched);
+      }
 
       debugRef.current = {
         move: info?.cycle.move ?? null,
@@ -140,19 +200,24 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
         beat,
       };
 
+      const bodyLost = performance.now() - lastSeen > BODY_LOST_MS;
       const next: Hud = info
         ? {
             phase: info.phase,
+            moveNumber: (info.cycle.index % MOVES.length) + 1,
             moveName: info.cycle.move.name,
             upNext: info.phase === 'release' ? routine.cycle(info.cycle.index + 1).move.name : null,
+            phaseBeats: info.cycle.move.beats[info.phase],
             beatsLeft: info.beatsLeft,
             formNote: live.formNote,
+            bodyLost,
             result: scoring.lastResult,
             stats: scoring.stats,
           }
         : {
             ...INITIAL_HUD,
-            beatsLeft: Math.max(1, Math.ceil(COUNT_IN_BEATS - beat)),
+            beatsLeft: Math.min(COUNT_IN_BEATS, Math.max(1, Math.ceil(COUNT_IN_BEATS - beat))),
+            bodyLost,
           };
       const key = hudKey(next);
       if (key !== shownKey) {
@@ -171,18 +236,21 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
   }, [session, calibration, canvasRef, debugRef]);
 
   const { stats, result } = hud;
+  const timing = result && timingNote(result);
 
   return (
     <div className="hud" ref={hudRef} data-phase={hud.phase} data-testid="play-screen">
       <div className="hud__move">
-        <p className="hud__eyebrow">{hud.phase === 'ready' ? 'First up' : 'Now'}</p>
+        <p className="hud__eyebrow">
+          {hud.moveNumber > 0 ? `Move ${hud.moveNumber} of ${MOVES.length}` : 'First up'}
+        </p>
         <p className="hud__move-name" data-testid="move-name">
           {hud.moveName}
         </p>
-        {hud.upNext && <p className="hud__next">Next: {hud.upNext}</p>}
         <div className="hud__match" aria-hidden="true">
           <span className="hud__match-fill" />
         </div>
+        {hud.upNext && <p className="hud__next">Next: {hud.upNext}</p>}
       </div>
 
       <dl className="hud__stats">
@@ -201,37 +269,39 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
       </dl>
 
       {result && (
-        <p
-          key={stats.total}
-          className="hud__result"
-          data-label={result.label}
-          data-testid="result-label"
-          role="status"
-        >
-          {result.label}
-          <span className="hud__result-score">{Math.round(result.score)}</span>
+        <p key={stats.total} className="hud__result" data-label={result.label} role="status">
+          <span className="hud__result-label" data-testid="result-label">
+            {result.label}
+            <span className="hud__result-score">{Math.round(result.score)}</span>
+          </span>
+          {timing && <span className="hud__result-timing">{timing}</span>}
         </p>
       )}
 
-      <div className="ring">
-        <svg viewBox="0 0 120 120" aria-hidden="true">
-          <circle className="ring__pulse" cx="60" cy="60" r="50" />
-          <circle className="ring__track" cx="60" cy="60" r="50" />
-          <circle className="ring__progress" cx="60" cy="60" r="50" pathLength={1} />
-        </svg>
-        <div className="ring__text">
-          <span className="ring__phase" data-testid="phase-label">
+      <div className="hud__now">
+        <BeatDial ticks={hud.phaseBeats} lit={hud.phaseBeats - hud.beatsLeft + 1}>
+          <span className="dial__count">{hud.beatsLeft}</span>
+        </BeatDial>
+        <div>
+          <p className="hud__phase" data-testid="phase-label">
             {PHASE_LABEL[hud.phase]}
-          </span>
-          <span className="ring__count">{hud.beatsLeft}</span>
+          </p>
+          <p className="hud__cue">{PHASE_CUE[hud.phase]}</p>
         </div>
       </div>
 
-      {hud.formNote && (
-        <p className="hud__form" role="status" data-testid="form-note">
-          <span className="hud__form-tag">Form guidance</span>
-          {hud.formNote}
+      {hud.bodyLost ? (
+        <p className="hud__note" role="status" data-testid="body-lost">
+          <span className="hud__note-tag">Can't see you</span>
+          Step back until your head and knees are in the picture.
         </p>
+      ) : (
+        hud.formNote && (
+          <p className="hud__note" role="status" data-testid="form-note">
+            <span className="hud__note-tag">Form guidance</span>
+            {hud.formNote}
+          </p>
+        )
       )}
     </div>
   );

@@ -56,10 +56,10 @@ export function App() {
       <header className="app__bar">
         <span className="app__wordmark">Rehabeat</span>
         {session && (
-          <nav className="app__steps" aria-label="Progress">
-            <span data-current={screen === 'calibrate'}>Calibrate</span>
-            <span data-current={screen === 'play'}>Play</span>
-          </nav>
+          <ol className="app__steps" aria-label="Progress">
+            <li aria-current={screen === 'calibrate' ? 'step' : undefined}>Calibrate</li>
+            <li aria-current={screen === 'play' ? 'step' : undefined}>Play</li>
+          </ol>
         )}
         <div className="app__actions">
           {screen === 'play' && (

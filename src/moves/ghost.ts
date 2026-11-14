@@ -158,7 +158,19 @@ export interface GhostStyle {
   lineWidth?: number;
 }
 
-/** Draws ghost limbs as a bright core line over a wide translucent glow. */
+/**
+ * Stroke passes, widest first, as [width multiplier, opacity]. Stacking a few
+ * translucent strokes reads as a glow without a blur filter, which matters
+ * because this runs every frame next to the pose model on the same GPU.
+ */
+const GLOW_PASSES: readonly (readonly [number, number])[] = [
+  [3.4, 0.09],
+  [2.3, 0.14],
+  [1.4, 0.26],
+  [0.5, 0.95],
+];
+
+/** Draws ghost limbs as a bright core line inside a soft translucent glow. */
 export function drawGhost(
   ctx: CanvasRenderingContext2D,
   limbs: GhostLimb[],
@@ -172,30 +184,27 @@ export function drawGhost(
   ctx.lineJoin = 'round';
   ctx.strokeStyle = style.color;
   ctx.fillStyle = style.color;
-  ctx.shadowColor = style.color;
 
-  const trace = (limb: GhostLimb) => {
-    ctx.beginPath();
-    ctx.moveTo(limb[0].x, limb[0].y);
-    for (let i = 1; i < limb.length; i++) ctx.lineTo(limb[i].x, limb[i].y);
-    ctx.stroke();
-  };
+  for (const [widthScale, opacity] of GLOW_PASSES) {
+    ctx.globalAlpha = style.alpha * opacity;
+    ctx.lineWidth = width * widthScale;
+    for (const limb of limbs) {
+      ctx.beginPath();
+      ctx.moveTo(limb[0].x, limb[0].y);
+      for (let i = 1; i < limb.length; i++) ctx.lineTo(limb[i].x, limb[i].y);
+      ctx.stroke();
+    }
+  }
 
+  // Dots mark where each joint should end up: small at the elbow or knee, larger at the end.
+  ctx.globalAlpha = style.alpha * 0.95;
   for (const limb of limbs) {
-    ctx.globalAlpha = style.alpha * 0.28;
-    ctx.lineWidth = width * 2.6;
-    ctx.shadowBlur = width * 2.5;
-    trace(limb);
-
-    ctx.globalAlpha = style.alpha * 0.9;
-    ctx.lineWidth = width * 0.45;
-    ctx.shadowBlur = width;
-    trace(limb);
-
-    const end = limb[limb.length - 1];
-    ctx.beginPath();
-    ctx.arc(end.x, end.y, width * 0.75, 0, Math.PI * 2);
-    ctx.fill();
+    for (let i = 1; i < limb.length; i++) {
+      const radius = width * (i === limb.length - 1 ? 0.8 : 0.5);
+      ctx.beginPath();
+      ctx.arc(limb[i].x, limb[i].y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   ctx.restore();

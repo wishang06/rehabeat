@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { CalibrationSession } from '../audio';
 import { drawSkeleton } from '../pose';
 import { ShrugBaselineCollector, saveCalibration, type Calibration } from '../scoring';
 import type { Session } from '../session';
+import { BeatDial } from './BeatDial';
 import { CANVAS_COLORS, prepareCanvas } from './canvas';
 import { useAnimationFrame } from './useAnimationFrame';
 
@@ -40,7 +41,7 @@ export function CalibrateScreen({ session, canvasRef, saved, onDone }: Calibrate
         height: surface.height,
         lineColor: CANVAS_COLORS.skeletonLine,
         jointColor: CANVAS_COLORS.skeletonJoint,
-        lineWidth: surface.width / 160,
+        lineWidth: surface.width / 200,
       });
     }
   });
@@ -98,55 +99,65 @@ export function CalibrateScreen({ session, canvasRef, saved, onDone }: Calibrate
   const skip = () => onDone(saved ?? { offsetMs: 0, shoulderEarBaseline: null });
 
   return (
-    <section className="panel" aria-live="polite" data-testid="calibrate-screen">
-      {status === 'idle' && (
-        <>
-          <h2 className="panel__title">Calibrate your timing</h2>
-          <p className="panel__text">
-            You'll hear four clicks. Raise one arm out to the side so it arrives on each click, and
-            lower it in between.
+    <section className="panel" data-status={status} aria-live="polite" data-testid="calibrate-screen">
+      <div className="panel__body">
+        {status === 'idle' && (
+          <>
+            <h2 className="panel__title">Calibrate your timing</h2>
+            <p className="panel__text">
+              You'll hear four clicks. Raise one arm out to the side so it arrives on each click, and
+              lower it in between.
+            </p>
+          </>
+        )}
+
+        {status === 'running' && (
+          <div className="panel__run">
+            <BeatDial
+              ticks={CLICK_COUNT}
+              lit={clicks}
+              style={{ '--progress': clicks / CLICK_COUNT, '--pulse': 0 } as CSSProperties}
+            >
+              <span className="dial__count">{Math.min(clicks, CLICK_COUNT)}</span>
+            </BeatDial>
+            <div>
+              <h2 className="panel__title panel__title--large">Raise your arm on each click</h2>
+              <p className="panel__text">
+                Click {Math.min(clicks, CLICK_COUNT)} of {CLICK_COUNT}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {status === 'measured' && measured && (
+          <>
+            <p className="panel__label">Measured offset</p>
+            <p className="panel__figure" data-testid="measured-offset">
+              {formatOffset(measured.offsetMs)}
+            </p>
+            <p className="panel__text">
+              The gap between each click and your arm arriving on camera. Scoring shifts your hold
+              window by this much.
+            </p>
+          </>
+        )}
+
+        {status === 'failed' && (
+          <>
+            <h2 className="panel__title">That didn't register</h2>
+            <p className="panel__text">
+              Fewer than three arm raises lined up with the clicks. Keep your shoulders and hips in
+              the picture and lift your arm to shoulder height or above.
+            </p>
+          </>
+        )}
+
+        {!inView && status !== 'measured' && (
+          <p className="panel__hint" data-testid="in-view-hint">
+            Step back until your shoulders and hips are in the picture.
           </p>
-        </>
-      )}
-
-      {status === 'running' && (
-        <>
-          <h2 className="panel__title">Raise your arm on each click</h2>
-          <ol className="clicks" aria-label={`Click ${Math.min(clicks, CLICK_COUNT)} of ${CLICK_COUNT}`}>
-            {Array.from({ length: CLICK_COUNT }, (_, index) => (
-              <li key={index} className="clicks__dot" data-on={index < clicks} />
-            ))}
-          </ol>
-        </>
-      )}
-
-      {status === 'measured' && measured && (
-        <>
-          <h2 className="panel__title">
-            Measured offset: <span data-testid="measured-offset">{formatOffset(measured.offsetMs)}</span>
-          </h2>
-          <p className="panel__text">
-            That's the gap between each click and your arm arriving on camera. Scoring shifts your
-            hold window by it.
-          </p>
-        </>
-      )}
-
-      {status === 'failed' && (
-        <>
-          <h2 className="panel__title">That didn't register</h2>
-          <p className="panel__text">
-            Fewer than three arm raises lined up with the clicks. Keep your shoulders and hips in the
-            picture and lift your arm to shoulder height or above.
-          </p>
-        </>
-      )}
-
-      {!inView && status !== 'measured' && (
-        <p className="panel__hint" data-testid="in-view-hint">
-          Step back until your shoulders and hips are in the picture.
-        </p>
-      )}
+        )}
+      </div>
 
       {status !== 'running' && (
         <div className="panel__actions">

@@ -1,9 +1,12 @@
 /** Colours used on the overlay canvas. Keep in step with the tokens in index.css. */
 export const CANVAS_COLORS = {
-  skeletonLine: 'rgba(244, 241, 234, 0.85)',
-  skeletonJoint: '#f4f1ea',
-  ghost: '#ffb454',
-  ghostMatched: '#7be0a4',
+  /** --chalk: the player's own skeleton. */
+  skeletonLine: 'rgba(246, 241, 231, 0.82)',
+  skeletonJoint: '#f6f1e7',
+  /** --brass: the target to reach for. */
+  ghost: '#f2b24c',
+  /** --on-target: the target, once the player is within Good range. */
+  ghostMatched: '#86dba6',
 };
 
 /**

@@ -4,8 +4,11 @@
 //   npm run smoke                 headless, synthetic test-pattern camera
 //   npm run smoke -- --headed     visible window (uses the real GPU; use this for FPS numbers)
 //   npm run smoke -- --video path/to/clip.mjpeg   feed a recorded clip as the camera
+//   npm run smoke -- --video clip.mjpeg --expect-hit   also require the clip to land a Good or Perfect hold
+//   npm run smoke -- --sound      let the browser play through the speakers (muted by default)
 //   npm run smoke -- --url http://localhost:5173  use a server that is already running
 
+import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,11 +25,40 @@ const option = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : u
 const headed = flag('--headed');
 const videoFile = option('--video');
 const externalUrl = option('--url');
+const expectHit = flag('--expect-hit');
+
+// What the beat engine should report, given the optional audio files present in public/.
+const hasBeatmap = existsSync(path.join(root, 'public', 'beatmap.json'));
+const hasStems = ['drums.mp3', 'melody.mp3'].every((name) => existsSync(path.join(root, 'public', 'stems', name)));
+const expectedAudio = `${hasStems ? 'stems' : 'click'}, ${hasBeatmap ? 'file' : 'generated'} beatmap`;
 
 // MediaPipe's WASM runtime writes its own log lines through console.error.
 // They are status messages, not failures.
 const BENIGN_CONSOLE = [/^INFO: /, /^[IWE]\d{4} /, /Created TensorFlow Lite XNNPACK delegate/, /gl_context/i, /OpenGL error checking is disabled/];
 const isBenign = (text) => BENIGN_CONSOLE.some((pattern) => pattern.test(text));
+
+// Chrome's fake camera sometimes opens and then delivers almost no frames
+// (seen in about a third of headless launches on the machine this was written
+// on, with a bare <video> and none of the app's code involved). That is the
+// test camera failing, not the app, so the run is retried in a fresh browser.
+const MAX_CAMERA_ATTEMPTS = 4;
+class CameraStalled extends Error {}
+
+/** Counts the frames the page's camera <video> presents over 1.5 s. */
+function framesDelivered(page) {
+  return page.getByTestId('camera').evaluate(
+    (video) =>
+      new Promise((resolve) => {
+        let frames = 0;
+        const count = () => {
+          frames += 1;
+          video.requestVideoFrameCallback(count);
+        };
+        video.requestVideoFrameCallback(count);
+        setTimeout(() => resolve(frames), 1500);
+      }),
+  );
+}
 
 const checks = [];
 function check(name, passed, detail = '') {
@@ -36,6 +68,7 @@ function check(name, passed, detail = '') {
 
 async function launch(extraArgs) {
   const launchArgs = ['--use-fake-device-for-media-stream', ...extraArgs];
+  if (!flag('--sound')) launchArgs.push('--mute-audio');
   if (videoFile) launchArgs.push(`--use-file-for-fake-video-capture=${path.resolve(videoFile)}`);
   let lastError;
   for (const channel of ['chrome', 'msedge', undefined]) {
@@ -80,8 +113,16 @@ async function happyPath(url) {
 
     // Starting asks for the camera; the fake-UI flag answers "allow".
     await page.getByTestId('start-button').click();
-    await page.getByTestId('calibrate-screen').waitFor({ timeout: 90_000 });
-    check('camera permission granted and Calibrate screen shown', true);
+    const startError = await Promise.race([
+      page.getByTestId('calibrate-screen').waitFor({ timeout: 90_000 }).then(() => null),
+      page.getByTestId('start-error').waitFor({ timeout: 90_000 }).then(() => page.getByTestId('start-error').textContent()),
+    ]);
+    if (startError?.includes('sent no picture')) throw new CameraStalled(startError);
+    check('camera permission granted and Calibrate screen shown', startError === null, startError ?? '');
+    if (startError !== null) throw new Error(`The app did not start: ${startError}`);
+
+    const frames = await framesDelivered(page);
+    if (frames < 5) throw new CameraStalled(`the fake camera delivered ${frames} frame(s) in 1.5 s`);
 
     const camera = await page.getByTestId('camera').evaluate((video) => {
       const track = video.srcObject?.getVideoTracks()[0];
@@ -138,7 +179,20 @@ async function happyPath(url) {
     });
     check('pose loop is running', measured.fps > 5 && measured.detectMs > 0, `${measured.fps} fps, ${measured.detectMs} ms per detection, ${measured.delegate}`);
     if (videoFile) check('pose found in the camera clip', measured.poseFound);
-    check('beat engine is on its fallback click track', /click, generated beatmap, 72 BPM/.test(measured.audio ?? ''), measured.audio ?? '');
+    check(`beat engine reports "${expectedAudio}"`, (measured.audio ?? '').startsWith(expectedAudio), measured.audio ?? '');
+
+    if (expectHit) {
+      // The clip should land at least one hold; with stems, that brings the melody in.
+      const hit = await page
+        .waitForFunction(() => /^(Good|Perfect)/.test(document.querySelector('[data-testid="result-label"]')?.textContent ?? ''), null, { timeout: 45_000 })
+        .then(() => true, () => false);
+      measured.hit = hit ? (await result.textContent())?.trim() : 'none';
+      check('the camera clip lands a Good or Perfect hold', hit, measured.hit);
+      if (hasStems) {
+        measured.melody = await page.getByTestId('debug-melody').textContent();
+        check('melody stem is in after a Good hold', measured.melody === 'in', measured.melody ?? '');
+      }
+    }
     await page.screenshot({ path: path.join(outDir, '4-play-debug.png') });
 
     // Run a real calibration pass. A synthetic camera has nobody in it, so the
@@ -188,7 +242,17 @@ console.log(`Smoke check against ${url} (${headed ? 'headed' : 'headless'}${vide
 
 let exitCode = 1;
 try {
-  const { measured, ignored } = await happyPath(url);
+  let outcome;
+  for (let attempt = 1; !outcome; attempt++) {
+    try {
+      outcome = await happyPath(url);
+    } catch (error) {
+      if (!(error instanceof CameraStalled) || attempt === MAX_CAMERA_ATTEMPTS) throw error;
+      console.log(`RETRY ${error.message}; relaunching the browser (attempt ${attempt + 1} of ${MAX_CAMERA_ATTEMPTS})\n`);
+      checks.length = 0;
+    }
+  }
+  const { measured, ignored } = outcome;
   await deniedPath(url);
 
   console.log('\nMeasured:', JSON.stringify(measured, null, 2));
