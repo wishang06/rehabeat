@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -20,6 +21,7 @@ from pathlib import Path
 import librosa
 import numpy as np
 import pytest
+import scipy.signal
 import soundfile as sf
 
 import make_beatmap
@@ -342,51 +344,76 @@ def test_click_track_marks_each_beat_and_accents_downbeats(tmp_path):
     assert np.abs(samples).max() < PCM16_FULL_SCALE
 
 
-# --------------------------------------------------------------------------- stems (Demucs faked)
+# --------------------------------------------------------------------------- stems
+# Demucs is always faked (a real separation takes minutes); ffmpeg is faked except in the
+# last test.
 
 
-def fake_demucs(returncode: int = 0, write: tuple[str, ...] = ("drums.mp3", "no_drums.mp3")):
-    """A stand-in for subprocess.run that behaves like the Demucs CLI."""
+def fake_tools(
+    demucs_returncode: int = 0,
+    write: tuple[str, ...] = ("drums.wav", "no_drums.wav"),
+    ffmpeg_returncode: int = 0,
+):
+    """A stand-in for subprocess.run that behaves like the Demucs CLI and like ffmpeg.
+
+    Fake Demucs writes its WAV stems; fake ffmpeg "encodes" by copying the name of its
+    input into its output, so a test can tell which stem ended up where.
+    """
     calls: list[list[str]] = []
 
     def run(command, **kwargs):
-        calls.append(list(command))
-        track_name = Path(command[-1]).name.rsplit(".", 1)[0]
-        folder = Path(command[command.index("-o") + 1]) / "htdemucs" / track_name
-        folder.mkdir(parents=True, exist_ok=True)
-        for name in write:
-            (folder / name).write_bytes(name.encode())
-        return subprocess.CompletedProcess(command, returncode)
+        command = list(command)
+        calls.append(command)
+        if "demucs" in command:
+            track_name = Path(command[-1]).name.rsplit(".", 1)[0]
+            folder = Path(command[command.index("-o") + 1]) / "htdemucs" / track_name
+            folder.mkdir(parents=True, exist_ok=True)
+            for name in write:
+                (folder / name).write_bytes(name.encode())
+            return subprocess.CompletedProcess(command, demucs_returncode)
+        source = Path(command[command.index("-i") + 1])
+        if ffmpeg_returncode == 0:
+            Path(command[-1]).write_bytes(b"mp3 of " + source.name.encode())
+        return subprocess.CompletedProcess(command, ffmpeg_returncode)
 
     return run, calls
 
 
-def test_stems_flag_copies_drums_and_melody(track, tmp_path, monkeypatch, capsys):
-    run, calls = fake_demucs()
+@pytest.fixture
+def ffmpeg_on_path(monkeypatch):
+    """Pretend ffmpeg is installed, so the faked tests do not depend on the machine."""
+    monkeypatch.setattr(make_beatmap.shutil, "which", lambda name: name)
+
+
+def test_stems_flag_writes_drums_and_melody(track, tmp_path, monkeypatch, capsys, ffmpeg_on_path):
+    run, calls = fake_tools()
     monkeypatch.setattr(make_beatmap.subprocess, "run", run)
     monkeypatch.setattr(make_beatmap, "SEPARATED_DIR", tmp_path / "separated")
     monkeypatch.setattr(make_beatmap, "STEMS_DIR", tmp_path / "stems")
 
     run_tool(track.wav, tmp_path / "beatmap.json", "--stems")
 
-    assert (tmp_path / "stems" / "drums.mp3").read_bytes() == b"drums.mp3"
-    assert (tmp_path / "stems" / "melody.mp3").read_bytes() == b"no_drums.mp3"
-    (command,) = calls
-    assert command[:3] == [sys.executable, "-m", "demucs"]
-    assert "--two-stems=drums" in command and "--mp3" in command
-    assert command[-1] == str(track.wav)
+    assert (tmp_path / "stems" / "drums.mp3").read_bytes() == b"mp3 of drums.wav"
+    assert (tmp_path / "stems" / "melody.mp3").read_bytes() == b"mp3 of no_drums.wav"
+    demucs, *encodes = calls
+    assert demucs[:3] == [sys.executable, "-m", "demucs"]
+    assert "--two-stems=drums" in demucs and demucs[-1] == str(track.wav)
+    # Demucs's own MP3 writer plays 25 ms late (see encode_mp3), so it must not be used.
+    assert "--mp3" not in demucs
+    assert len(encodes) == 2 and all(command[0] == "ffmpeg" for command in encodes)
     assert "Demucs" in capsys.readouterr().out  # the elapsed time is reported
 
 
 @pytest.mark.parametrize(
-    ("returncode", "write", "message"),
+    ("kwargs", "message"),
     [
-        (1, ("drums.mp3", "no_drums.mp3"), "exit code 1"),
-        (0, ("drums.mp3",), "no_drums.mp3"),
+        ({"demucs_returncode": 1}, "exit code 1"),
+        ({"write": ("drums.wav",)}, "no_drums.wav"),
+        ({"ffmpeg_returncode": 1}, "ffmpeg"),
     ],
 )
-def test_stems_failure_is_a_clear_error(tmp_path, monkeypatch, returncode, write, message):
-    run, _ = fake_demucs(returncode, write)
+def test_stems_failure_is_a_clear_error(tmp_path, monkeypatch, ffmpeg_on_path, kwargs, message):
+    run, _ = fake_tools(**kwargs)
     monkeypatch.setattr(make_beatmap.subprocess, "run", run)
     song = tmp_path / "my song.mp3"
     song.write_bytes(b"")
@@ -394,6 +421,36 @@ def test_stems_failure_is_a_clear_error(tmp_path, monkeypatch, returncode, write
     with pytest.raises(make_beatmap.BeatmapError, match=message):
         make_beatmap.separate_stems(song, tmp_path / "separated", tmp_path / "stems")
     assert not (tmp_path / "stems" / "melody.mp3").exists()
+
+
+def test_stems_need_ffmpeg_and_say_so_before_the_slow_part(tmp_path, monkeypatch):
+    run, calls = fake_tools()
+    monkeypatch.setattr(make_beatmap.subprocess, "run", run)
+    monkeypatch.setattr(make_beatmap.shutil, "which", lambda name: None)
+    song = tmp_path / "song.mp3"
+    song.write_bytes(b"")
+
+    with pytest.raises(make_beatmap.BeatmapError, match="ffmpeg"):
+        make_beatmap.separate_stems(song, tmp_path / "separated", tmp_path / "stems")
+    assert calls == []  # Demucs was not started
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg on PATH")
+def test_encoded_mp3_plays_in_time_with_its_wav(track, tmp_path):
+    # The stems are what the player hears, and the beat grid was measured on the song.
+    # An MP3 encoder adds a start-up delay; unless the file records it, the stem plays
+    # late (Demucs's built-in MP3 writer: 1105 samples, 25 ms). This runs the real ffmpeg.
+    mp3 = tmp_path / "stem.mp3"
+
+    make_beatmap.encode_mp3(track.wav, mp3)
+
+    original, sr = librosa.load(str(track.wav), sr=None, mono=True)
+    decoded, mp3_sr = librosa.load(str(mp3), sr=None, mono=True)
+    assert mp3_sr == sr
+    n = min(len(original), len(decoded))
+    correlation = scipy.signal.correlate(decoded[:n], original[:n], mode="full", method="fft")
+    lag_samples = int(correlation.argmax()) - (n - 1)
+    assert abs(lag_samples) / sr <= 0.001
 
 
 # --------------------------------------------------------------------------- CLI edges

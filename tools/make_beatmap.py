@@ -79,6 +79,7 @@ CLICK_SECONDS = 0.05
 PEAK_LIMIT = 0.95  # the check file is scaled down, if needed, to peak here
 
 DEMUCS_MODEL = "htdemucs"
+STEM_BITRATE = "192k"
 
 
 class BeatmapError(Exception):
@@ -354,20 +355,44 @@ def write_click_track(samples: np.ndarray, sr: int, beats, downbeats, out_path: 
     return out_path
 
 
+def encode_mp3(wav_path: Path, mp3_path: Path) -> None:
+    """Encode a WAV to MP3 with ffmpeg, in time with the WAV.
+
+    Every MP3 encoder adds a start-up delay. ffmpeg records it in the file's header, so
+    players trim it and the MP3 starts where the WAV does. Demucs's own --mp3 writer
+    leaves that header out: its stems play 1105 samples (25 ms) behind the song the beat
+    grid was measured on, which is more than the game's timing budget.
+    """
+    command = [
+        "ffmpeg", "-y", "-v", "error",
+        "-i", str(wav_path),
+        "-codec:a", "libmp3lame", "-b:a", STEM_BITRATE,
+        str(mp3_path),
+    ]  # fmt: skip
+    result = subprocess.run(command)
+    if result.returncode != 0 or not Path(mp3_path).is_file():
+        raise BeatmapError(
+            f"ffmpeg could not encode {Path(wav_path).name} (exit code {result.returncode})"
+        )
+
+
 def separate_stems(
     audio_path: Path, separated_dir: Path | None = None, stems_dir: Path | None = None
 ) -> Stems:
-    """Split the song with Demucs and copy drums.mp3 / melody.mp3 into stems_dir.
+    """Split the song with Demucs and write drums.mp3 / melody.mp3 into stems_dir.
 
-    Slow: on a laptop CPU it can take longer than the song lasts.
+    Slow: on a laptop CPU it takes most of the song's own length.
     """
     audio_path = Path(audio_path)
     separated_dir = Path(separated_dir or SEPARATED_DIR)
     stems_dir = Path(stems_dir or STEMS_DIR)
 
-    # Demucs writes <out>/<model>/<file name up to its last dot>/{drums,no_drums}.mp3
+    if shutil.which("ffmpeg") is None:  # checked first: Demucs needs it too, minutes later
+        raise BeatmapError("ffmpeg is not on PATH; --stems needs it (see tools/README.md)")
+
+    # Demucs writes <out>/<model>/<file name up to its last dot>/{drums,no_drums}.wav
     track_dir = separated_dir / DEMUCS_MODEL / audio_path.name.rsplit(".", 1)[0]
-    produced = {"drums.mp3": track_dir / "drums.mp3", "melody.mp3": track_dir / "no_drums.mp3"}
+    produced = {"drums.mp3": track_dir / "drums.wav", "melody.mp3": track_dir / "no_drums.wav"}
     for stale in produced.values():
         stale.unlink(missing_ok=True)  # an earlier run's files must not pass for this one's
 
@@ -375,7 +400,6 @@ def separate_stems(
         sys.executable, "-m", "demucs",
         "-n", DEMUCS_MODEL,
         "--two-stems=drums",
-        "--mp3", "--mp3-bitrate", "192",
         "-o", str(separated_dir),
         str(audio_path),
     ]  # fmt: skip
@@ -392,8 +416,8 @@ def separate_stems(
         raise BeatmapError(f"Demucs finished but did not write {', '.join(missing)} in {track_dir}")
 
     stems_dir.mkdir(parents=True, exist_ok=True)
-    for name, source in produced.items():
-        shutil.copyfile(source, stems_dir / name)
+    for name, wav in produced.items():
+        encode_mp3(wav, stems_dir / name)
     return Stems(stems_dir / "drums.mp3", stems_dir / "melody.mp3", seconds)
 
 
@@ -485,7 +509,7 @@ def run(args: argparse.Namespace) -> None:
         say(f"Click check:     {check}")
 
     if args.stems:
-        say("Running Demucs (slow: it can take longer than the song lasts)...")
+        say("Running Demucs (slow: most of the song's own length on a laptop CPU)...")
         stems = separate_stems(audio_path, SEPARATED_DIR, STEMS_DIR)
         say(f"Demucs time:     {stems.seconds:.1f} s for {len(samples) / sr:.1f} s of audio")
         say(f"Stems:           {stems.drums}")
