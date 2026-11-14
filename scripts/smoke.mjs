@@ -173,10 +173,22 @@ async function happyPath(url) {
   const measured = {};
 
   try {
+    // The landing page is at /, and its Play now button leads to the game at /play.
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     check('app loads', (await page.title()) === 'Rehabeat');
+    const headline = (await page.getByRole('heading', { level: 1 }).textContent())?.replace(/\s+/g, ' ').trim();
+    check('landing page shows its headline', headline === 'Your home stretching routine, as a rhythm game', headline);
+    const landingCredit = ((await page.getByTestId('landing-credit').textContent()) ?? '').replace(/^Music\s*/, '');
+    check('landing page carries the Past Sadness credit', landingCredit === readJson(DEFAULT_SONG, 'meta.json').creditLine, landingCredit);
+    await page.screenshot({ path: path.join(outDir, '0-landing.png') });
+    await page.getByTestId('landing-play').click();
+    await page.getByTestId('title-screen').waitFor({ timeout: 15_000 });
+    check('Play now leads to the title screen at /play', new URL(page.url()).pathname === '/play');
+    check('title screen shows the XP bar and the daily streak', (await page.getByTestId('xp-bar').first().isVisible()) && (await page.getByTestId('streak-meter').first().isVisible()));
+    await page.screenshot({ path: path.join(outDir, '0-title.png') });
+    await page.keyboard.press('Enter');
     await page.getByTestId('song-menu').waitFor({ timeout: 15_000 });
-    check('song menu shown on the start screen', true);
+    check('Enter on the title screen opens the song menu', true);
     await checkCredit(page, 'start', DEFAULT_SONG);
 
     // Every catalogue, open in turn. An empty one must say so rather than vanish.
@@ -347,6 +359,21 @@ async function happyPath(url) {
       check('a catalogue other than the default one has a song to pick', false, 'add one with npm run songs');
     }
 
+    // Finish the run: the results screen grades it and banks XP, and Change song goes back to the menu.
+    if (await page.getByTestId('play-screen').isVisible()) {
+      await page.getByTestId('finish-button').click();
+      await page.getByTestId('results-screen').waitFor({ timeout: 10_000 });
+      const grade = (await page.getByTestId('run-grade').textContent())?.trim();
+      check('results screen shows a grade', /^[SABC]$/.test(grade ?? ''), grade);
+      const stored = await page.evaluate(() => localStorage.getItem('rehabeat.progress.v1'));
+      check('results screen is reached and progress is kept in localStorage or the run scored nothing', stored !== null || (await page.getByTestId('run-points').textContent())?.trim() === '0', stored ?? 'nothing stored');
+      await page.waitForTimeout(1800);
+      await page.screenshot({ path: path.join(outDir, '7-results.png') });
+      await page.getByTestId('change-song').click();
+      await page.getByTestId('song-menu').waitFor({ timeout: 10_000 });
+      check('Change song goes back to the song menu', true);
+    }
+
 
     check('no console errors', log.errors.length === 0, log.errors.join(' | '));
   } finally {
@@ -361,7 +388,9 @@ async function deniedPath(url) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-fake-device-for-media-stream', '--deny-permission-prompts'] }).catch(() => launch(['--deny-permission-prompts']));
   const page = await browser.newPage();
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    // Straight to /play, as a bookmark or a reload would.
+    await page.goto(new URL('/play', url).href, { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('title-start').click();
     await page.getByTestId(`song-card-${DEFAULT_SONG}`).click();
     const error = page.getByTestId('start-error');
     await error.waitFor({ timeout: 30_000 });

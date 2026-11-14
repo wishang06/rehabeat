@@ -1,0 +1,182 @@
+/*
+ * Attract Mode: the tokens and shared pieces every screen is built from.
+ * The page is an arcade cabinet's screen: slanted panels, light as the
+ * material, LED digits. The rules are in .interface-design/system.md.
+ */
+@import 'tailwindcss';
+
+@theme {
+  /* Only these colours exist. */
+  --color-*: initial;
+  /* Grounds, darkest first. Panels step up in tone; nothing is separated by a line. */
+  --color-void: #05060c;
+  --color-deck: #0c1020;
+  --color-deck-2: #151c36;
+  --color-deck-3: #242d50;
+  /* Light. Gold: the figure, the primary action, the selected thing, Perfect. */
+  --color-gold: #ffd23f;
+  /* Cyan: labels, information, Reach, Good. */
+  --color-cyan: #27e0f0;
+  /* Pink: Miss and warnings. */
+  --color-pink: #ff2e88;
+  --color-white: #eef2ff;
+  --color-dim: rgb(238 242 255 / 0.68);
+  --color-faint: rgb(238 242 255 / 0.44);
+  /* Text on a gold block. */
+  --color-gold-ink: #1b1300;
+  /* Behind the camera picture. */
+  --color-cam: #020308;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-sans: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-led: 'Doto', ui-monospace, 'Cascadia Code', monospace;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Display sizes are fluid: they are read from two metres on any laptop. */
+  --text-headline: clamp(2.125rem, 6.5vw, 6.5rem);
+  --text-section: clamp(2.75rem, 6.4vw, 6.25rem);
+  --text-phase: clamp(4.125rem, 11vw, 10.5rem);
+  --text-pop: clamp(4rem, 11vw, 10.625rem);
+  --text-count: clamp(11.25rem, 34vw, 31.25rem);
+}
+
+@layer base {
+  :root {
+    --gutter-page: clamp(18px, 3vw, 44px);
+    /* Every panel leans this way. */
+    --slant: -10deg;
+    --focus: var(--color-cyan);
+    color-scheme: dark;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 4px;
+  }
+}
+
+@layer components {
+  /* Display type: Barlow Condensed 800 Italic, always uppercase. The slant of the italic matches the panels. */
+  .display {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.94;
+    letter-spacing: 0.005em;
+    text-wrap: balance;
+  }
+
+  /* Every number that counts is set in LED dots. */
+  .led {
+    font-family: var(--font-led);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Cabinet labels: small, upright, spaced. */
+  .label {
+    font: 700 1rem/1 var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+
+  /*
+   * A slanted panel. The skew is on a pseudo-element so the content stays
+   * upright. --slab is its colour, --slab-skew its lean, --slab-glow its light.
+   */
+  .slab {
+    position: relative;
+    isolation: isolate;
+  }
+  .slab::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background: var(--slab, var(--color-deck));
+    box-shadow: var(--slab-glow, none);
+    transform: skewX(var(--slab-skew, var(--slant)));
+  }
+
+  /* A lit bar along the top edge of a slab, in --tone. */
+  .slab-edge::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: var(--edge, 6px);
+    background: var(--tone, var(--color-gold));
+    box-shadow: 0 0 22px var(--tone, var(--color-gold));
+    transform: skewX(var(--slab-skew, var(--slant)));
+    transform-origin: bottom;
+  }
+
+  /* A row of LED segments, for bars and meters. */
+  .segments {
+    transform: skewX(-20deg);
+    mask: repeating-linear-gradient(90deg, #000 0 8px, transparent 8px 11px);
+  }
+
+  /*
+   * The gold figure (src/components/Figure.tsx). Each limb turns about its
+   * joint by an angle held in a custom property, so a pose is a set of
+   * numbers and an animation only has to tween them.
+   */
+  .fig {
+    display: block;
+    overflow: visible;
+    fill: var(--fig, var(--color-gold));
+  }
+  .fig [data-part='arm-l'] {
+    transform: rotate(calc(var(--arm-l, 8) * 1deg));
+  }
+  .fig [data-part='arm-r'] {
+    transform: rotate(calc(var(--arm-r, 8) * 1deg));
+  }
+  .fig [data-part='fore-l'] {
+    transform: rotate(calc(var(--fore-l, 4) * 1deg));
+  }
+  .fig [data-part='fore-r'] {
+    transform: rotate(calc(var(--fore-r, 4) * 1deg));
+  }
+  .fig [data-part='leg-l'] {
+    transform: rotate(calc(var(--leg-l, 5) * 1deg));
+  }
+  .fig [data-part='leg-r'] {
+    transform: rotate(calc(var(--leg-r, 5) * 1deg));
+  }
+  .fig [data-part='shin-l'] {
+    transform: rotate(calc(var(--shin-l, -4) * 1deg));
+  }
+  .fig [data-part='shin-r'] {
+    transform: rotate(calc(var(--shin-r, -4) * 1deg));
+  }
+
+  /*
+   * The figure as a tube of light: the outline of the whole body, a dark
+   * inside, and a faint tint. Three stacked copies do it without a filter:
+   * strokes first, then fills in the ground colour to hide the inner strokes.
+   */
+  .fig--tube [data-layer='stroke'] {
+    fill: none;
+    stroke: var(--fig, var(--color-gold));
+    stroke-width: 7;
+    stroke-linejoin: round;
+  }
+  .fig--tube [data-layer='fill'] {
+    fill: var(--fig-bg, var(--color-void));
+  }
+  .fig--tube [data-layer='tint'] {
+    opacity: 0.2;
+  }
+  .fig--glow {
+    filter: drop-shadow(0 0 12px color-mix(in srgb, var(--fig, var(--color-gold)) 55%, transparent));
+  }
+}
+
+@utility px-page {
+  padding-inline: var(--gutter-page);
+}

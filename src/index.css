@@ -1,86 +1,82 @@
 /*
- * Rehabeat is read from about two metres away by someone whose arms are busy.
- * The palette is a physio studio at dusk: mat charcoal, chalk, the brass of a
- * metronome, and resistance-band green for "you're on it".
+ * The game shell at /play: the bar, the stage (camera, canvas, and whatever
+ * screen is laid over them), the calibration strip, the debug panel and the
+ * leaderboard. Rehabeat is read from about two metres away by someone whose
+ * arms are busy.
+ *
+ * The look is Attract Mode: an arcade cabinet's screen. Tokens and the shared
+ * pieces (.display, .led, .label, .slab) are in src/styles/theme.css; the
+ * rules are in .interface-design/system.md. The song menu has its own file
+ * (src/ui/menu/menu.css), as do the play HUD (src/ui/hud/hud.css) and the
+ * title and results screens (src/ui/screens.css).
  */
 :root {
-  --studio: #14110e;
-  --mat: #1e1a16;
-  --seam: rgb(246 241 231 / 0.1);
-  --seam-strong: rgb(246 241 231 / 0.24);
-  --chalk: #f6f1e7;
-  --chalk-soft: rgb(246 241 231 / 0.74);
-  --chalk-faint: rgb(246 241 231 / 0.52);
-  --brass: #f2b24c;
-  --brass-bright: #ffc76a;
-  --brass-ink: #2b1a04;
-  --on-target: #86dba6;
-  --off-target: #f29079;
-  /* The studio colour as channels, for translucent scrims over the camera. */
-  --scrim: 20 17 14;
-
-  --font: 'Archivo Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-
-  --radius-panel: 0.875rem;
-  --radius-stage: 1.125rem;
-  --bar-height: 3.25rem;
+  --bar-height: 4rem;
   --gutter: 1rem;
-
-  color-scheme: dark;
+  /* The void as channels, for translucent scrims over the camera. */
+  --scrim: 5 6 12;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-void);
+    color: var(--color-white);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  p,
+  h1,
+  h2,
+  h3,
+  ol,
+  ul,
+  dl,
+  dd {
+    margin: 0;
+  }
+
+  ol,
+  ul {
+    padding: 0;
+    list-style: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  kbd {
+    font: 700 0.8125rem/1 var(--font-display);
+    padding: 0.3rem 0.5rem;
+    background: var(--color-deck-3);
+    color: var(--color-white);
+  }
 }
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  font-family: var(--font);
-  background: var(--studio);
-  color: var(--chalk);
-  -webkit-font-smoothing: antialiased;
-}
-
-p,
-h1,
-h2,
-ol,
-ul,
-dl,
-dd {
-  margin: 0;
-}
-
-ol,
-ul {
-  padding: 0;
-  list-style: none;
-}
-
-h1,
-h2 {
-  text-wrap: balance;
-}
-
-p {
-  text-wrap: pretty;
-}
-
-kbd {
-  font: 600 0.75rem/1 var(--font);
-  padding: 0.2rem 0.4rem;
-  border-radius: 0.3rem;
-  box-shadow: 0 0 0 1px var(--seam-strong);
+.route-loading {
+  height: 100dvh;
+  background: var(--color-void);
 }
 
 /* App shell */
@@ -91,6 +87,9 @@ kbd {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--bar-height) minmax(0, 1fr);
   height: 100dvh;
+  background: var(--color-void);
+  color: var(--color-white);
+  font: 400 1rem/1.5 var(--font-sans);
 }
 
 .app[data-credit='true'] {
@@ -104,7 +103,6 @@ kbd {
   justify-content: center;
   min-height: var(--footer-height);
   padding: 0.5rem var(--gutter);
-  box-shadow: 0 -1px 0 var(--seam);
 }
 
 /* Music credit (CC BY attribution) */
@@ -112,72 +110,84 @@ kbd {
 .credit {
   font-size: 0.8125rem;
   line-height: 1.4;
-  color: var(--chalk-faint);
+  color: var(--color-faint);
   text-align: center;
 }
 
 .credit__tag {
-  margin-right: 0.25rem;
-  font-weight: 600;
-  color: var(--chalk-soft);
+  margin-right: 0.375rem;
+  font: 700 0.95em/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-cyan);
 }
 
 .credit a {
-  color: var(--chalk-soft);
+  color: var(--color-dim);
   text-decoration: underline;
-  text-decoration-color: var(--seam-strong);
+  text-decoration-color: var(--color-faint);
   text-underline-offset: 0.2em;
   transition: color 160ms var(--ease-out);
 }
 
 .credit a:hover {
-  color: var(--chalk);
+  color: var(--color-white);
   text-decoration-color: currentColor;
 }
 
-.credit a:focus-visible {
-  outline: 2px solid var(--chalk);
-  outline-offset: 2px;
-  border-radius: 0.2rem;
-}
+/* The marquee: the wordmark, where you are, and what you can do from here. */
 
 .app__bar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  padding: 0 var(--gutter);
-  box-shadow: 0 1px 0 var(--seam);
+  gap: 1.75rem;
+  padding: 0 var(--gutter-page);
+  background: var(--color-deck);
+}
+
+/* A row of bulbs along the bottom of the marquee. They chase on the menus and sit still in play. */
+.app__bar::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 -5px;
+  z-index: 2;
+  height: 10px;
+  background: radial-gradient(circle, rgb(255 210 63 / 0.32) 3px, transparent 3.6px) 0 0 / 28px 10px repeat-x;
+  pointer-events: none;
 }
 
 .app__wordmark {
-  font-size: 1.125rem;
-  font-weight: 800;
-  font-stretch: 82%;
-  letter-spacing: -0.01em;
+  font: italic 800 2rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-gold);
+  text-decoration: none;
 }
 
 .app__steps {
   display: flex;
-  gap: 0.5rem;
-  color: var(--chalk-faint);
-  font-size: 0.875rem;
-  font-weight: 500;
+  gap: 0.625rem;
+  font: 700 0.9375rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-faint);
 }
 
 .app__steps li + li::before {
-  content: '→';
-  margin-right: 0.5rem;
-  color: var(--chalk-faint);
+  content: '/';
+  margin-right: 0.625rem;
+  color: var(--color-deck-3);
 }
 
 .app__steps [aria-current='step'] {
-  color: var(--chalk);
+  color: var(--color-cyan);
 }
 
 .app__actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.125rem;
   margin-left: auto;
 }
 
@@ -185,8 +195,10 @@ kbd {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--chalk-faint);
-  font-size: 0.8125rem;
+  font: 700 0.8125rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-faint);
 }
 
 .app__main {
@@ -199,60 +211,81 @@ kbd {
   padding: var(--gutter);
 }
 
-/* Buttons */
-
-.button {
-  min-height: 3rem;
-  padding: 0 1.375rem;
-  font: 600 1rem/1 var(--font);
-  color: var(--chalk);
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  box-shadow: inset 0 0 0 1px var(--seam-strong);
-  cursor: pointer;
-  transition:
-    background-color 160ms var(--ease-out),
-    transform 120ms var(--ease-out);
+/* The menus take the whole space under the marquee; the camera screens keep the picture's shape. */
+.app[data-screen='title'] .app__main,
+.app[data-screen='menu'] .app__main,
+.app[data-screen='results'] .app__main {
+  padding: 0;
 }
 
-.button:hover {
-  background: rgb(246 241 231 / 0.08);
+/* Buttons: slanted panels. The skew is on a pseudo-element so the label stays upright. */
+
+.button {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 3.25rem;
+  padding: 0 1.875rem;
+  font: italic 800 1.4375rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--color-white);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  transition: transform 100ms var(--ease-out);
+}
+
+.button::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--button, var(--color-deck-3));
+  box-shadow: var(--button-glow, none);
+  transform: skewX(var(--slant));
+  transition: filter 150ms var(--ease-out);
+}
+
+.button:hover::before {
+  filter: brightness(1.25);
 }
 
 .button:active {
-  transform: scale(0.97);
-}
-
-.button:focus-visible {
-  outline: 2px solid var(--chalk);
-  outline-offset: 3px;
+  transform: translateY(2px);
 }
 
 .button:disabled {
   cursor: progress;
-  opacity: 0.8;
+  opacity: 0.7;
   transform: none;
 }
 
+/* The primary action: the only button that glows. */
 .button--primary {
-  color: var(--brass-ink);
-  background: var(--brass);
-  box-shadow: none;
-}
-
-.button--primary:hover {
-  background: var(--brass-bright);
-}
-
-.button--primary:disabled {
-  background: var(--brass);
+  --button: var(--color-gold);
+  --button-glow: 0 0 30px rgb(255 210 63 / 0.5);
+  color: var(--color-gold-ink);
 }
 
 .button--quiet {
   min-height: 2.5rem;
-  padding: 0 1rem;
-  font-size: 0.875rem;
+  padding: 0 1.25rem;
+  font-size: 1.125rem;
+}
+
+.button--accent {
+  color: var(--color-cyan);
+}
+
+.button kbd {
+  font-style: normal;
+  letter-spacing: 0.06em;
+  background: var(--color-void);
 }
 
 /* Stage: mirrored camera, mirrored canvas, unmirrored overlay */
@@ -267,10 +300,17 @@ kbd {
   );
   aspect-ratio: var(--aspect);
   overflow: hidden;
-  border-radius: var(--radius-stage);
-  background: var(--mat);
-  box-shadow: 0 0 0 1px var(--seam);
+  background: var(--color-cam);
   container-type: size;
+}
+
+.app[data-screen='title'] .stage,
+.app[data-screen='menu'] .stage,
+.app[data-screen='results'] .stage {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  background: var(--color-void);
 }
 
 .stage__video,
@@ -286,11 +326,19 @@ kbd {
   object-fit: cover;
 }
 
-.stage[data-live='false'] .stage__video {
+/* The menus are opaque screens of their own: the picture and whatever was last drawn on it stay out of sight. */
+.stage[data-live='false'] .stage__video,
+.app:is([data-screen='title'], [data-screen='menu'], [data-screen='results']) :is(.stage__video, .stage__canvas) {
   visibility: hidden;
 }
 
 .stage__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+/* A screen coming in rides the lane: see ScreenTransition in App.tsx. */
+.screen {
   position: absolute;
   inset: 0;
 }
@@ -317,20 +365,19 @@ kbd {
 
 .dial__track {
   fill: rgb(var(--scrim) / 0.62);
-  stroke: rgb(246 241 231 / 0.2);
+  stroke: var(--color-deck-3);
   stroke-width: 7;
 }
 
 .dial__progress {
-  stroke: var(--brass);
+  stroke: var(--color-gold);
   stroke-width: 7;
-  stroke-linecap: round;
   stroke-dasharray: 1;
   stroke-dashoffset: calc(1 - var(--progress, 0));
 }
 
 .dial__pulse {
-  stroke: var(--chalk);
+  stroke: var(--color-cyan);
   stroke-width: 2.5;
   opacity: calc(var(--pulse, 0) * 0.85);
   transform-origin: center;
@@ -338,13 +385,12 @@ kbd {
 }
 
 .dial__tick {
-  stroke: rgb(246 241 231 / 0.32);
+  stroke: rgb(238 242 255 / 0.3);
   stroke-width: 4;
-  stroke-linecap: round;
 }
 
 .dial__tick[data-lit='true'] {
-  stroke: var(--chalk);
+  stroke: var(--color-cyan);
 }
 
 .dial__center {
@@ -355,158 +401,46 @@ kbd {
 }
 
 .dial__count {
-  font-size: clamp(1.75rem, 6.2cqw, 4rem);
-  font-weight: 700;
-  font-stretch: 80%;
+  font: 900 clamp(1.75rem, 6.2cqw, 4rem) / 1 var(--font-led);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-
-/* Welcome */
-
-.welcome {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  align-items: center;
-  gap: clamp(1.5rem, 5cqw, 4rem);
-  height: 100%;
-  padding: clamp(1.25rem, 6cqw, 4rem);
-  overflow-y: auto;
-}
-
-.welcome__intro {
-  display: grid;
-  justify-items: start;
-  gap: 1.25rem;
-}
-
-.welcome__title {
-  font-size: clamp(3rem, 11cqw, 6.5rem);
-  font-weight: 800;
-  font-stretch: 75%;
-  line-height: 0.9;
-  letter-spacing: -0.025em;
-}
-
-.welcome__lede {
-  max-width: 30ch;
-  font-size: clamp(1.0625rem, 2.5cqw, 1.375rem);
-  line-height: 1.4;
-}
-
-.welcome__steps {
-  display: grid;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  color: var(--chalk-soft);
-  line-height: 1.4;
-  counter-reset: step;
-}
-
-.welcome__steps li {
-  display: grid;
-  grid-template-columns: 1.25rem 1fr;
-  counter-increment: step;
-}
-
-.welcome__steps li::before {
-  content: counter(step);
-  color: var(--brass);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.welcome__error {
-  max-width: 34rem;
-  color: var(--off-target);
-  line-height: 1.45;
-}
-
-.welcome__moves {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(0.5rem, 2cqw, 1.5rem);
-}
-
-.welcome__move {
-  display: grid;
-  justify-items: center;
-  gap: 0.25rem;
-  text-align: center;
-}
-
-.welcome__move-name {
-  margin-top: 0.5rem;
-  font-size: clamp(0.8125rem, 1.7cqw, 1rem);
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.welcome__move-beats {
-  font-size: clamp(0.75rem, 1.4cqw, 0.875rem);
-  font-variant-numeric: tabular-nums;
-  color: var(--chalk-faint);
-}
-
-.glyph {
-  width: 100%;
-  max-width: 9rem;
-  overflow: visible;
-}
-
-.glyph__body {
-  fill: none;
-  stroke: var(--chalk-faint);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.glyph__target {
-  fill: none;
-  stroke: var(--brass);
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.glyph__glow {
-  stroke-width: 12;
-  opacity: 0.2;
-}
-
-.glyph__joint {
-  fill: var(--brass);
-  stroke: none;
-}
-
-@container (max-width: 40rem) {
-  .welcome {
-    grid-template-columns: minmax(0, 1fr);
-    align-content: center;
-  }
-
-  .welcome__moves {
-    display: none;
-  }
 }
 
 /* Calibration: a strip along the bottom of the stage, so the upper body stays in view */
 
 .panel {
   position: absolute;
-  left: var(--inset);
-  right: var(--inset);
+  left: calc(var(--inset) + 0.75rem);
+  right: calc(var(--inset) + 0.75rem);
   bottom: var(--inset);
+  isolation: isolate;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem 2rem;
-  padding: 1.25rem 1.5rem;
-  border-radius: var(--radius-panel);
-  background: rgb(var(--scrim) / 0.9);
-  box-shadow: 0 0 0 1px var(--seam);
+  padding: 1.375rem 2.25rem 1.5rem;
+}
+
+/* The strip is a slanted panel with a lit top edge. */
+.panel::before,
+.panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: skewX(-5deg);
+}
+
+.panel::before {
+  background: rgb(12 16 32 / 0.94);
+}
+
+.panel::after {
+  bottom: auto;
+  height: 5px;
+  background: var(--color-cyan);
+  box-shadow: 0 0 22px var(--color-cyan);
+  transform-origin: bottom;
 }
 
 .panel__body {
@@ -523,273 +457,47 @@ kbd {
 }
 
 .panel__title {
-  font-size: 1.375rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font: italic 800 clamp(1.625rem, 3.4cqw, 2.25rem) / 1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
 }
 
 .panel__title--large {
-  font-size: clamp(1.5rem, 4.4cqw, 2.75rem);
-  font-stretch: 82%;
-  line-height: 1.05;
+  font-size: clamp(1.75rem, 5cqw, 3.25rem);
+  line-height: 0.96;
 }
 
 .panel__text {
-  color: var(--chalk-soft);
+  color: var(--color-dim);
   line-height: 1.5;
 }
 
 .panel__label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--chalk-soft);
+  font: 700 0.9375rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-cyan);
 }
 
 .panel__figure {
-  font-size: clamp(2.5rem, 7cqw, 4.25rem);
-  font-weight: 800;
-  font-stretch: 75%;
+  font: 900 clamp(2.5rem, 7cqw, 4.25rem) / 1 var(--font-led);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
-  color: var(--brass);
+  color: var(--color-gold);
+  text-shadow: 0 0 26px rgb(255 210 63 / 0.6);
 }
 
+/* "Step back": the one warning on this screen. */
 .panel__hint {
-  color: var(--brass);
-  font-weight: 500;
+  font: italic 800 1.375rem/1.1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-pink);
 }
 
 .panel__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-/* Play HUD: type set straight onto the camera, with the phase lockup as the one focal point */
-
-.hud {
-  --pulse: 0;
-  --progress: 0;
-  --match: 0;
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to bottom, rgb(var(--scrim) / 0.72), transparent 30%),
-    linear-gradient(to top, rgb(var(--scrim) / 0.8), transparent 38%);
-  text-shadow:
-    0 1px 2px rgb(var(--scrim) / 0.55),
-    0 0 1.5rem rgb(var(--scrim) / 0.45);
-  pointer-events: none;
-}
-
-.hud__move {
-  position: absolute;
-  top: var(--inset);
-  left: var(--inset);
-  display: grid;
-  gap: 0.25rem;
-  max-width: 46%;
-}
-
-.hud__eyebrow,
-.hud__stats dt {
-  font-size: clamp(0.75rem, 1.5cqw, 0.9375rem);
-  font-weight: 500;
-  color: var(--chalk-soft);
-}
-
-.hud__move-name {
-  font-size: clamp(1.375rem, 3.8cqw, 2.625rem);
-  font-weight: 700;
-  font-stretch: 88%;
-  line-height: 1.05;
-  letter-spacing: -0.015em;
-}
-
-.hud__next {
-  margin-top: 0.25rem;
-  font-size: clamp(0.875rem, 1.9cqw, 1.1875rem);
-  color: var(--chalk-soft);
-}
-
-/* How close the current frame is to the target, with marks at Good (60) and Perfect (85). */
-.hud__match {
-  position: relative;
-  width: clamp(8rem, 22cqw, 15rem);
-  height: 0.5rem;
-  margin-top: 0.5rem;
-  border-radius: 999px;
-  background: rgb(246 241 231 / 0.2);
-  overflow: hidden;
-}
-
-.hud__match::before,
-.hud__match::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: rgb(var(--scrim) / 0.85);
-  z-index: 1;
-}
-
-.hud__match::before {
-  left: 60%;
-}
-
-.hud__match::after {
-  left: 85%;
-}
-
-.hud__match-fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  transform-origin: left;
-  transform: scaleX(var(--match));
-  background: var(--brass);
-}
-
-.hud[data-matched='true'] .hud__match-fill,
-.hud[data-matched='true'] .dial__progress {
-  background-color: var(--on-target);
-  stroke: var(--on-target);
-}
-
-.hud[data-phase='ready'] .hud__match,
-.hud[data-phase='release'] .hud__match {
-  display: none;
-}
-
-.hud__stats {
-  position: absolute;
-  top: var(--inset);
-  right: var(--inset);
-  display: flex;
-  gap: clamp(1rem, 3cqw, 2.25rem);
-  text-align: right;
-}
-
-.hud__stats dd {
-  font-size: clamp(1.375rem, 3.4cqw, 2.375rem);
-  font-weight: 700;
-  font-stretch: 85%;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.hud__now {
-  position: absolute;
-  left: var(--inset);
-  bottom: var(--inset);
-  display: flex;
-  align-items: center;
-  gap: clamp(0.75rem, 2.4cqw, 1.5rem);
-}
-
-.hud__phase {
-  font-size: clamp(2.5rem, 8.4cqw, 5.75rem);
-  font-weight: 800;
-  font-stretch: 70%;
-  line-height: 0.88;
-  letter-spacing: 0.005em;
-}
-
-.hud__cue {
-  margin-top: 0.35em;
-  font-size: clamp(0.875rem, 2cqw, 1.25rem);
-  font-weight: 500;
-  color: var(--chalk-soft);
-}
-
-.hud__result {
-  position: absolute;
-  top: 25%;
-  left: 50%;
-  display: grid;
-  justify-items: center;
-  gap: 0.15em;
-  white-space: nowrap;
-  text-shadow: 0 2px 1.75rem rgb(var(--scrim) / 0.7);
-  animation: result-pop 1700ms var(--ease-out) both;
-}
-
-.hud__result-label {
-  display: flex;
-  align-items: baseline;
-  gap: 0.3em;
-  font-size: clamp(3rem, 11cqw, 7.5rem);
-  font-weight: 900;
-  font-stretch: 70%;
-  line-height: 0.9;
-  text-transform: uppercase;
-}
-
-.hud__result[data-label='Perfect'] {
-  color: var(--brass-bright);
-}
-
-.hud__result[data-label='Good'] {
-  color: var(--on-target);
-}
-
-.hud__result[data-label='Miss'] {
-  color: var(--off-target);
-}
-
-.hud__result-score {
-  font-size: 0.36em;
-  font-weight: 700;
-  font-stretch: 85%;
-  font-variant-numeric: tabular-nums;
-}
-
-.hud__result-timing {
-  font-size: clamp(0.9375rem, 2.2cqw, 1.375rem);
-  font-weight: 600;
-  color: var(--chalk);
-}
-
-@keyframes result-pop {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -42%) scale(0.95);
-  }
-  10% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  72% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -58%) scale(1);
-  }
-}
-
-.hud__note {
-  position: absolute;
-  right: var(--inset);
-  bottom: var(--inset);
-  display: grid;
-  gap: 0.2rem;
-  max-width: 38%;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-panel);
-  background: rgb(var(--scrim) / 0.88);
-  box-shadow: 0 0 0 1px var(--seam);
-  font-size: clamp(0.9375rem, 2cqw, 1.25rem);
-  line-height: 1.3;
-  text-shadow: none;
-}
-
-.hud__note-tag {
-  font-size: 0.75em;
-  font-weight: 600;
-  color: var(--brass);
+  gap: 1rem;
 }
 
 /* Debug panel: sits beside the stage so it never covers the HUD; overlays it on narrow screens */
@@ -800,9 +508,7 @@ kbd {
   max-height: 100%;
   overflow: auto;
   padding: 0.875rem 1rem;
-  border-radius: var(--radius-panel);
-  background: var(--mat);
-  box-shadow: 0 0 0 1px var(--seam);
+  background: var(--color-deck);
   font: 0.75rem/1.5 var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
@@ -814,7 +520,7 @@ kbd {
 }
 
 .debug__grid dt {
-  color: var(--chalk-faint);
+  color: var(--color-faint);
 }
 
 .debug__grid dd {
@@ -840,16 +546,196 @@ kbd {
 }
 
 .debug__joints thead th {
-  color: var(--chalk-faint);
-  box-shadow: 0 1px 0 var(--seam);
+  color: var(--color-cyan);
 }
 
 .debug__joints tbody tr {
-  color: var(--chalk-faint);
+  color: var(--color-faint);
 }
 
 .debug__joints tr[data-targeted='true'] {
-  color: var(--brass);
+  color: var(--color-gold);
+}
+
+/* Song menu: header and loading state. The menu's own styles are in src/ui/menu/menu.css. */
+
+.menu-header {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.menu-header__title {
+  font: 700 0.9375rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-cyan);
+}
+
+.menu-header__lede {
+  max-width: 56ch;
+  color: var(--color-dim);
+  line-height: 1.45;
+}
+
+/* Start-up progress, as a blinking cabinet message. */
+.menu-header__status {
+  font: 900 1.125rem/1.2 var(--font-led);
+  color: var(--color-gold);
+  animation: status-blink 0.84s steps(1) infinite;
+}
+
+@keyframes status-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.menu-header__error {
+  max-width: 56ch;
+  color: var(--color-pink);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.menu-loading {
+  display: grid;
+  place-content: center;
+  height: 100%;
+  padding: var(--gutter);
+  font: 900 1.125rem/1.2 var(--font-led);
+  color: var(--color-dim);
+  text-align: center;
+}
+
+/* Accounts */
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.account__name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar {
+  flex: none;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar--initial {
+  display: inline-grid;
+  place-items: center;
+  font: italic 800 1rem/1 var(--font-display);
+  color: var(--color-gold-ink);
+  background: var(--color-gold);
+}
+
+/* Leaderboard: a high-score table */
+
+.board {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.board__row {
+  display: grid;
+  grid-template-columns: 2rem auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--color-deck-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.board__row[data-me='true'] {
+  background: var(--color-deck-3);
+  box-shadow: inset 4px 0 0 var(--color-gold);
+}
+
+.board__rank {
+  font: 900 1.125rem/1 var(--font-led);
+  color: var(--color-faint);
+  text-align: right;
+}
+
+.board__row:first-child .board__rank {
+  color: var(--color-gold);
+}
+
+.board__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.board__runs {
+  font: 700 0.8125rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-faint);
+}
+
+.board__points {
+  min-width: 4.5rem;
+  font: 900 1.25rem/1 var(--font-led);
+  text-align: right;
+  color: var(--color-gold);
+}
+
+.board__empty {
+  color: var(--color-faint);
+}
+
+.board-dialog {
+  width: min(34rem, calc(100vw - 2 * var(--gutter)));
+  max-height: calc(100dvh - 4rem);
+  padding: 0;
+  color: var(--color-white);
+  background: var(--color-deck);
+  border: 0;
+  box-shadow:
+    0 -5px 0 var(--color-cyan),
+    0 0 60px rgb(39 224 240 / 0.25);
+}
+
+.board-dialog::backdrop {
+  background: rgb(var(--scrim) / 0.8);
+}
+
+.board-dialog__body {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem 1.75rem 1.75rem;
+}
+
+.board-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Toasts (sonner), in the cabinet's voice. */
+.toast {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--color-deck-3) !important;
+  color: var(--color-white) !important;
+  font: 600 1rem/1.3 var(--font-sans) !important;
+  box-shadow:
+    inset 0 4px 0 var(--color-gold),
+    0 0 30px rgb(255 210 63 / 0.25) !important;
 }
 
 /* Before the camera is live there is no picture to match, so on small screens the stage fills the space. */
@@ -866,10 +752,20 @@ kbd {
   .app__hint {
     display: none;
   }
-}
 
-@container (max-width: 30rem) {
-  .hud__stats > div:last-child {
+  .app__bar {
+    gap: 0.75rem;
+  }
+
+  .board__runs {
+    display: none;
+  }
+
+  .board__row {
+    grid-template-columns: 1.5rem auto minmax(0, 1fr) auto;
+  }
+
+  .account__name {
     display: none;
   }
 }
@@ -885,8 +781,27 @@ kbd {
   }
 }
 
+/* The marquee bulbs chase on the menus, one step per beat of the default song. */
+@media (prefers-reduced-motion: no-preference) {
+  .app:is([data-screen='title'], [data-screen='menu'], [data-screen='results']) .app__bar::after {
+    background:
+      radial-gradient(circle, var(--color-gold) 3px, transparent 3.6px) 0 0 / 112px 10px repeat-x,
+      radial-gradient(circle, rgb(255 210 63 / 0.32) 3px, transparent 3.6px) 0 0 / 28px 10px repeat-x;
+    animation: bulb-chase 3.332s steps(4) infinite;
+  }
+}
+
+@keyframes bulb-chase {
+  to {
+    background-position:
+      112px 0,
+      0 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .button {
+  .button,
+  .button::before {
     transition: none;
   }
 
@@ -898,250 +813,7 @@ kbd {
     transform: scale(1.12);
   }
 
-  .hud__result {
-    animation-name: result-fade;
-  }
-
-  @keyframes result-fade {
-    0%,
-    100% {
-      opacity: 0;
-      transform: translate(-50%, -50%);
-    }
-    10%,
-    72% {
-      opacity: 1;
-      transform: translate(-50%, -50%);
-    }
-  }
-}
-
-/* Song menu: header and loading state. The menu's own styles are in src/ui/menu/menu.css. */
-
-.menu-header {
-  display: grid;
-  gap: 0.375rem;
-}
-
-.menu-header__title {
-  font-size: clamp(1.75rem, 5cqw, 3rem);
-  font-weight: 800;
-  font-stretch: 75%;
-  line-height: 0.95;
-  letter-spacing: -0.02em;
-}
-
-.menu-header__lede {
-  max-width: 48ch;
-  color: var(--chalk-soft);
-  line-height: 1.45;
-}
-
-.menu-header__status {
-  color: var(--brass);
-  font-weight: 600;
-}
-
-.menu-header__error {
-  max-width: 48ch;
-  color: var(--off-target);
-  line-height: 1.45;
-}
-
-.menu-loading {
-  display: grid;
-  place-content: center;
-  height: 100%;
-  padding: var(--gutter);
-  color: var(--chalk-soft);
-  text-align: center;
-}
-
-/* Once the camera is live, the menu sits over the player's own picture: dim it so the menu stays readable. */
-.app[data-screen='menu'] .stage[data-live='true'] .stage__overlay {
-  background: rgb(var(--scrim) / 0.88);
-  backdrop-filter: blur(8px);
-/* Accounts */
-
-.button--accent {
-  color: var(--brass);
-  box-shadow: inset 0 0 0 1px var(--brass);
-}
-
-.account {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.account__name {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.avatar {
-  flex: none;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 0 0 1px var(--seam-strong);
-}
-
-.avatar--initial {
-  display: inline-grid;
-  place-items: center;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--brass-ink);
-  background: var(--brass);
-}
-
-/* Results */
-
-.panel--results {
-  top: var(--inset);
-  align-items: stretch;
-  overflow: auto;
-}
-
-.results {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem 3rem;
-  width: 100%;
-}
-
-.results__score {
-  display: grid;
-  align-content: start;
-  gap: 0.75rem;
-  flex: 1 1 16rem;
-}
-
-.results__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 2rem;
-}
-
-.results__stats dt {
-  font-size: 0.8125rem;
-  color: var(--chalk-faint);
-}
-
-.results__stats dd {
-  font-size: 1.375rem;
-  font-weight: 700;
-  font-stretch: 85%;
-  font-variant-numeric: tabular-nums;
-}
-
-.results__board {
-  display: grid;
-  align-content: start;
-  gap: 0.75rem;
-  flex: 1 1 18rem;
-}
-
-/* Leaderboard */
-
-.board {
-  display: grid;
-  gap: 0.25rem;
-}
-
-.board__row {
-  display: grid;
-  grid-template-columns: 1.75rem auto minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.board__row[data-me='true'] {
-  background: rgb(242 178 76 / 0.12);
-  box-shadow: inset 0 0 0 1px rgb(242 178 76 / 0.4);
-}
-
-.board__rank {
-  font-weight: 700;
-  color: var(--chalk-faint);
-  text-align: right;
-}
-
-.board__row:first-child .board__rank {
-  color: var(--brass);
-}
-
-.board__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
-.board__runs {
-  font-size: 0.8125rem;
-  color: var(--chalk-faint);
-}
-
-.board__points {
-  min-width: 4.5rem;
-  font-weight: 800;
-  font-stretch: 85%;
-  text-align: right;
-  color: var(--brass);
-}
-
-.board__empty {
-  color: var(--chalk-faint);
-}
-
-.board-dialog {
-  width: min(32rem, calc(100vw - 2 * var(--gutter)));
-  max-height: calc(100dvh - 4rem);
-  padding: 0;
-  color: var(--chalk);
-  background: var(--mat);
-  border: 0;
-  border-radius: var(--radius-panel);
-  box-shadow: 0 0 0 1px var(--seam-strong), 0 1.5rem 4rem rgb(0 0 0 / 0.5);
-}
-
-.board-dialog::backdrop {
-  background: rgb(var(--scrim) / 0.7);
-}
-
-.board-dialog__body {
-  display: grid;
-  gap: 1rem;
-  padding: 1.25rem 1.5rem 1.5rem;
-}
-
-.board-dialog__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-@media (max-width: 40rem) {
-  .board__runs {
-    display: none;
-  }
-
-  .board__row {
-    grid-template-columns: 1.5rem auto minmax(0, 1fr) auto;
-  }
-
-  .account__name {
-    display: none;
+  .menu-header__status {
+    animation: none;
   }
 }

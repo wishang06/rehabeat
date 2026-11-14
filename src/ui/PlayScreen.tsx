@@ -15,8 +15,9 @@ import {
 import type { BeatEngine } from '../audio';
 import type { Session } from '../session';
 import type { BeatResult, Move } from '../types';
-import { BeatDial } from './BeatDial';
 import { prepareCanvas } from './canvas';
+import { PlayHud } from './hud/PlayHud';
+import type { HudRun } from './hud/types';
 import { PlayOverlay } from './overlay';
 
 /** Beats of lead-in before the first move starts. */
@@ -73,20 +74,6 @@ interface Hud {
   stats: Stats;
   points: number;
 }
-
-const PHASE_LABEL: Record<Hud['phase'], string> = {
-  ready: 'READY',
-  reach: 'REACH',
-  hold: 'HOLD',
-  release: 'RELEASE',
-};
-
-const PHASE_CUE: Record<Hud['phase'], string> = {
-  ready: 'Listen for the beat',
-  reach: 'Move into the pose',
-  hold: 'Stay with it',
-  release: 'Ease back to rest',
-};
 
 const INITIAL_HUD: Hud = {
   phase: 'ready',
@@ -250,77 +237,20 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
   }, [session, engine, calibration, canvasRef, debugRef, runRef]);
 
   const { stats, result } = hud;
-  const timing = result && timingNote(result);
+  // The scoring engine's state, in the shape the HUD takes. Per-frame values reach the HUD through feedbackStore.
+  const run: HudRun = {
+    points: hud.points,
+    combo: stats.combo,
+    perfectStreak: stats.streak,
+    accuracy: stats.total > 0 ? stats.accuracy : null,
+    moveNumber: hud.moveNumber,
+    moveCount: MOVES.length,
+    result: result
+      ? { serial: stats.total, label: result.label, score: result.score, timing: timingNote(result) }
+      : null,
+    formNote: hud.formNote,
+    bodyLost: hud.bodyLost,
+  };
 
-  return (
-    <div className="hud" ref={hudRef} data-phase={hud.phase} data-testid="play-screen">
-      <div className="hud__move">
-        <p className="hud__eyebrow">
-          {hud.moveNumber > 0 ? `Move ${hud.moveNumber} of ${MOVES.length}` : 'First up'}
-        </p>
-        <p className="hud__move-name" data-testid="move-name">
-          {hud.moveName}
-        </p>
-        <div className="hud__match" aria-hidden="true">
-          <span className="hud__match-fill" />
-        </div>
-        {hud.upNext && <p className="hud__next">Next: {hud.upNext}</p>}
-      </div>
-
-      <dl className="hud__stats">
-        <div>
-          <dt>Points</dt>
-          <dd data-testid="points">{hud.points.toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Combo</dt>
-          <dd data-testid="combo">{stats.combo}</dd>
-        </div>
-        <div>
-          <dt>Accuracy</dt>
-          <dd data-testid="accuracy">{stats.total > 0 ? `${Math.round(stats.accuracy)}%` : '–'}</dd>
-        </div>
-        <div>
-          <dt>Perfect streak</dt>
-          <dd data-testid="streak">{stats.streak}</dd>
-        </div>
-      </dl>
-
-      {result && (
-        <p key={stats.total} className="hud__result" data-label={result.label} role="status">
-          <span className="hud__result-label" data-testid="result-label">
-            {result.label}
-            <span className="hud__result-score">{Math.round(result.score)}</span>
-          </span>
-          {timing && <span className="hud__result-timing">{timing}</span>}
-        </p>
-      )}
-
-      <div className="hud__now">
-        <BeatDial ticks={hud.phaseBeats} lit={hud.phaseBeats - hud.beatsLeft + 1}>
-          <span className="dial__count">{hud.beatsLeft}</span>
-        </BeatDial>
-        <div>
-          <p className="hud__phase" data-testid="phase-label">
-            {PHASE_LABEL[hud.phase]}
-          </p>
-          <p className="hud__cue">{PHASE_CUE[hud.phase]}</p>
-        </div>
-      </div>
-
-      {hud.bodyLost ? (
-        <p className="hud__note" role="status" data-testid="body-lost">
-          <span className="hud__note-tag">Can't see you</span>
-          Step back until your head and knees are in the picture.
-        </p>
-      ) : (
-        hud.formNote && (
-          <p className="hud__note" role="status" data-testid="form-note">
-            <span className="hud__note-tag">Form guidance</span>
-            {hud.formNote}
-          </p>
-        )
-      )}
-    </div>
-  );
+  return <PlayHud ref={hudRef} frames={feedbackStore} run={run} />;
 }
