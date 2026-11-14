@@ -176,6 +176,9 @@
 }
 
 .stats__error {
+  /* One line is kept free, so the message arriving does not resize the dialog. */
+  min-height: 1.5em;
+  line-height: 1.5;
   color: var(--color-pink);
 }
 

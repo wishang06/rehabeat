@@ -6,7 +6,7 @@ import type { BeatEngine } from './audio';
 import { useAuth } from './lib/auth';
 import { takePendingRun } from './lib/scores';
 import { supabase } from './lib/supabase';
-import { estimateKcal, loadHistory, recordRun, recordRunStats, type RunGains } from './progress';
+import { countedSeconds, estimateKcal, loadHistory, recordRun, recordRunStats, type RunGains } from './progress';
 import {
   DEFAULT_CALIBRATION,
   initialStats,
@@ -64,7 +64,7 @@ export function App() {
   /** What the last finished run earned. Null for a run restored after the redirect: it was banked before leaving. */
   const [gains, setGains] = useState<RunGains | null>(null);
   /** The last run's estimated calories. A restored run was logged before the redirect, so it is only estimated again here. */
-  const [kcal, setKcal] = useState(() => (run && run.moves > 0 ? estimateKcal(run.durationSec, loadHistory().weightKg) : 0));
+  const [kcal, setKcal] = useState(() => (run && run.moves > 0 ? estimateKcal(countedSeconds(run.durationSec), loadHistory().weightKg) : 0));
   const [library, setLibrary] = useState<Library | null>(null);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState(DEFAULT_SONG_ID);

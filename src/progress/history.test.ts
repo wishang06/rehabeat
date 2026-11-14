@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   HISTORY_KEY,
   MAX_LOGGED_RUNS,
+  MAX_RUN_SECONDS,
   NEW_HISTORY,
+  countedSeconds,
   lastDays,
   createHistoryStore,
   loadHistory,
@@ -33,7 +35,23 @@ describe('logRun', () => {
 
   it('uses the weight that is set when the run ends', () => {
     const heavy: History = { ...NEW_HISTORY, weightKg: 100 };
-    expect(logRun(heavy, { moves: 1, durationSec: 3600 }, noon(14)).kcal).toBeCloseTo(230, 2);
+    expect(logRun(heavy, { moves: 1, durationSec: 1800 }, noon(14)).kcal).toBeCloseTo(115, 2);
+  });
+
+  it('counts at most 30 minutes of a run left looping', () => {
+    const { history, kcal } = logRun(NEW_HISTORY, { moves: 40, durationSec: 2 * 3600 }, noon(14));
+    expect(history.runs[0].seconds).toBe(MAX_RUN_SECONDS);
+    expect(MAX_RUN_SECONDS).toBe(1800);
+    // 2.3 MET x 70 kg x half an hour.
+    expect(kcal).toBeCloseTo(80.5, 2);
+    expect(history.totals.seconds).toBe(1800);
+  });
+
+  it('counts a run under the limit in full', () => {
+    expect(countedSeconds(1799.6)).toBe(1800);
+    expect(countedSeconds(600)).toBe(600);
+    expect(countedSeconds(Number.NaN)).toBe(0);
+    expect(countedSeconds(-4)).toBe(0);
   });
 
   it('does not log a run with no scored moves', () => {
@@ -171,7 +189,7 @@ describe('createHistoryStore', () => {
     const store = createHistoryStore(() => storage);
     store.setWeight(100, 'lb');
     expect(loadHistory(storage)).toMatchObject({ weightKg: 100, unit: 'lb' });
-    expect(store.recordRun({ moves: 1, durationSec: 3600 }, noon(14))).toBeCloseTo(230, 2);
+    expect(store.recordRun({ moves: 1, durationSec: 1800 }, noon(14))).toBeCloseTo(115, 2);
     store.setWeight(null, 'kg');
     expect(store.get()).toMatchObject({ weightKg: null, unit: 'kg' });
   });

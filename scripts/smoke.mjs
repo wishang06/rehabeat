@@ -401,10 +401,18 @@ async function happyPath(url) {
         `${earned} kcal, ${afterRuns} runs`,
       );
       const debugBefore = await page.getByTestId('debug-panel').isVisible();
+      const closeButton = page.getByTestId('stats-dialog').getByRole('button', { name: 'Close' });
+      const closeBefore = await closeButton.boundingBox();
       await page.getByTestId('stats-weight').click();
       await page.keyboard.type('abd');
       await page.keyboard.press('Enter');
       check('a weight that is not a number is refused', await page.getByTestId('stats-weight-error').isVisible());
+      const closeAfter = await closeButton.boundingBox();
+      check(
+        'the refusal does not move the dialog under the pointer',
+        closeBefore !== null && closeAfter !== null && Math.abs(closeAfter.y - closeBefore.y) < 1,
+        `Close moved ${closeBefore && closeAfter ? Math.abs(closeAfter.y - closeBefore.y) : '?'} px`,
+      );
       check(
         'typing in the weight field is not taken as a shortcut',
         (await page.getByTestId('debug-panel').isVisible()) === debugBefore && (await page.getByTestId('results-screen').isVisible()),
@@ -414,6 +422,15 @@ async function happyPath(url) {
       const weight = await page.evaluate(() => JSON.parse(localStorage.getItem('rehabeat.history.v1') ?? '{}').weightKg);
       check('a valid weight is saved in this browser', weight === 80 && (await page.getByTestId('stats-weight-error').count()) === 0, String(weight));
       await page.screenshot({ path: path.join(outDir, '8-stats.png') });
+      // A number typed before the unit is chosen is read in the unit chosen: 154 then lb is 154 lb, not 154 kg.
+      await page.getByTestId('stats-weight').fill('154');
+      await page.getByTestId('stats-unit-lb').click();
+      const pounds = await page.evaluate(() => JSON.parse(localStorage.getItem('rehabeat.history.v1') ?? '{}'));
+      check(
+        'a weight typed before choosing lb is read as pounds',
+        (await page.getByTestId('stats-weight').inputValue()) === '154' && pounds.unit === 'lb' && Math.abs(pounds.weightKg - 69.85) < 0.01,
+        `${pounds.weightKg} kg, ${pounds.unit}`,
+      );
       await page.keyboard.press('Escape');
       await page.getByTestId('stats-panel').waitFor({ state: 'detached', timeout: 5_000 });
       check('Esc closes Stats and stays on the results', await page.getByTestId('results-screen').isVisible());

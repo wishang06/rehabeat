@@ -5,13 +5,13 @@ import {
   MAX_WEIGHT_KG,
   MIN_WEIGHT_KG,
   lastDays,
-  readWeight,
   setWeight,
   showWeight,
   useHistory,
   type DayTotal,
   type WeightUnit,
 } from '../progress';
+import { leaveField, openField, switchFieldUnit, typeInField } from './weightField';
 import './stats.css';
 
 type ChartMode = 'runs' | 'kcal';
@@ -134,20 +134,18 @@ function weightRange(unit: WeightUnit): [number, number] {
 }
 
 /**
- * The optional body weight. It saves when the field is left or Enter is
- * pressed; a value that is not a weight is refused and the saved one kept.
+ * The optional body weight. It saves when focus leaves the field and its
+ * unit switch, or on Enter; a value that is not a weight is refused and the
+ * saved one kept. The rules are in weightField.ts.
  */
 function WeightField({ weightKg, unit }: { weightKg: number | null; unit: WeightUnit }) {
-  const [draft, setDraft] = useState(weightKg === null ? '' : showWeight(weightKg, unit));
-  const [refused, setRefused] = useState(false);
+  const [field, setField] = useState(() => openField(weightKg, unit));
   const [low, high] = weightRange(unit);
 
   const save = () => {
-    const reading = readWeight(draft, unit);
-    setRefused(!reading.ok);
-    if (!reading.ok) return;
-    setWeight(reading.kg, unit);
-    setDraft(reading.kg === null ? '' : showWeight(reading.kg, unit));
+    const left = leaveField(field, unit);
+    setField(left.state);
+    if (left.save) setWeight(left.save.kg, left.save.unit);
   };
 
   const onSubmit = (event: FormEvent) => {
@@ -155,12 +153,11 @@ function WeightField({ weightKg, unit }: { weightKg: number | null; unit: Weight
     save();
   };
 
-  /** Shows the saved weight in the other unit. What was typed and refused is dropped. */
   const switchUnit = (next: WeightUnit) => {
     if (next === unit) return;
-    setWeight(weightKg, next);
-    setDraft(weightKg === null ? '' : showWeight(weightKg, next));
-    setRefused(false);
+    const switched = switchFieldUnit(field, weightKg, next);
+    setField(switched.state);
+    setWeight(switched.save.kg, switched.save.unit);
   };
 
   return (
@@ -168,7 +165,13 @@ function WeightField({ weightKg, unit }: { weightKg: number | null; unit: Weight
       <label className="label" htmlFor="stats-weight">
         Body weight
       </label>
-      <div className="stats__weight-row">
+      {/* Saving waits until focus leaves the row, so a number typed before the unit is chosen is read in that unit. */}
+      <div
+        className="stats__weight-row"
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) save();
+        }}
+      >
         <input
           id="stats-weight"
           className="stats__input led"
@@ -177,10 +180,9 @@ function WeightField({ weightKg, unit }: { weightKg: number | null; unit: Weight
           autoComplete="off"
           maxLength={6}
           placeholder={showWeight(DEFAULT_WEIGHT_KG, unit)}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onBlur={save}
-          aria-invalid={refused}
+          value={field.draft}
+          onChange={(event) => setField(typeInField(field, event.target.value))}
+          aria-invalid={field.refused}
           aria-describedby="stats-weight-note"
           data-testid="stats-weight"
         />
@@ -191,6 +193,8 @@ function WeightField({ weightKg, unit }: { weightKg: number | null; unit: Weight
               type="button"
               className="button button--quiet"
               aria-pressed={unit === option}
+              // Keep focus in the field: some browsers do not focus a clicked button, which would look like leaving the row.
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => switchUnit(option)}
               data-testid={`stats-unit-${option}`}
             >
@@ -199,11 +203,14 @@ function WeightField({ weightKg, unit }: { weightKg: number | null; unit: Weight
           ))}
         </div>
       </div>
-      {refused && (
-        <p className="stats__error" role="alert" data-testid="stats-weight-error">
-          Enter a weight between {low} and {high} {unit}.
-        </p>
-      )}
+      {/* The line is always there, so a refusal does not move the dialog under the pointer. */}
+      <p className="stats__error" role="alert">
+        {field.refused && (
+          <span data-testid="stats-weight-error">
+            Enter a weight between {low} and {high} {unit}.
+          </span>
+        )}
+      </p>
       <p className="stats__note" id="stats-weight-note">
         Optional. Calories are an estimate from time played and body weight, using {showWeight(DEFAULT_WEIGHT_KG, unit)}{' '}
         {unit} until you enter yours. Your weight stays in this browser.

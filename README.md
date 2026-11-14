@@ -52,7 +52,7 @@ The landing page (`/`) explains the game; **Play now** goes to `/play`, which op
 
 Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo, the estimated calories and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
 
-**Stats** (on the title screen, and in the top bar everywhere except Play) shows your runs, minutes and estimated calories over all time, and a bar for each of the last 14 days that switches between runs and calories. The calories are an estimate from time played: 2.3 MET (the [2024 Adult Compendium of Physical Activities](https://pacompendium.com/conditioning-exercise) value for Hatha yoga and mild stretching) × body weight × hours, so a three-minute song is about 8 kcal at 70 kg. You can enter your weight in kg or lb to fit the estimate to you; until you do it uses 70 kg. A run with no scored moves is not logged.
+**Stats** (on the title screen, and in the top bar everywhere except Play) shows your runs, minutes and estimated calories over all time, and a bar for each of the last 14 days that switches between runs and calories. The calories are an estimate from time played: 2.3 MET (the [2024 Adult Compendium of Physical Activities](https://pacompendium.com/conditioning-exercise) value for Hatha yoga and mild stretching) × body weight × hours, so a three-minute song is about 8 kcal at 70 kg. You can enter your weight in kg or lb to fit the estimate to you; until you do it uses 70 kg. A run with no scored moves is not logged, and at most 30 minutes of one run are counted, so a game left looping does not log hours.
 
 ## Architecture
 
@@ -298,7 +298,7 @@ Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) a
 
 - The landing page and the game screens were checked in Chromium at 1440 x 900 and at 390 px wide, with a synthetic camera. The play HUD has not yet been read from two metres by a real player on a real laptop.
 - XP, levels, the daily streak, the run log and the body weight live in `localStorage`: they do not follow a player to another browser, and clearing site data resets them. The run log starts from the first run after Stats shipped; earlier runs have no dates to chart.
-- The calorie figure is a rough estimate by time, not a measurement. It uses one rate for every move and counts the whole run, including time spent standing still.
+- The calorie figure is a rough estimate by time, not a measurement. It uses one rate for every move and counts the whole run up to 30 minutes, including time spent standing still.
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.

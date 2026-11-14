@@ -10,6 +10,11 @@ import { dayKey, isDayKey } from './streak';
 export const HISTORY_KEY = 'rehabeat.history.v1';
 /** Runs kept in the log. Older ones drop off; the totals keep counting them. */
 export const MAX_LOGGED_RUNS = 1000;
+/**
+ * The most of one run that is counted. The routine loops until Finish run is
+ * pressed, so a game left running would otherwise log hours of play.
+ */
+export const MAX_RUN_SECONDS = 30 * 60;
 /** Days on the Stats chart. */
 export const CHART_DAYS = 14;
 
@@ -65,6 +70,11 @@ function parseRun(raw: unknown): LoggedRun | null {
   return { at, day, seconds, moves, kcal };
 }
 
+/** The whole seconds of a run that count towards the log and the calorie estimate. */
+export function countedSeconds(durationSec: number): number {
+  return Math.min(Math.round(amount(durationSec)), MAX_RUN_SECONDS);
+}
+
 /** Reads whatever was stored, keeping only what is valid. */
 export function parseHistory(raw: unknown): History {
   if (typeof raw !== 'object' || raw === null) return NEW_HISTORY;
@@ -97,7 +107,7 @@ export function parseHistory(raw: unknown): History {
  */
 export function logRun(history: History, run: RunToLog, now: Date): { history: History; kcal: number } {
   if (!(run.moves > 0)) return { history, kcal: 0 };
-  const seconds = Math.round(amount(run.durationSec));
+  const seconds = countedSeconds(run.durationSec);
   const kcal = hundredths(estimateKcal(seconds, history.weightKg));
   const logged: LoggedRun = { at: now.getTime(), day: dayKey(now), seconds, moves: run.moves, kcal };
   return {

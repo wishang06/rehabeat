@@ -84,3 +84,11 @@ Calories are worked out and stored when the run ends, with the weight set at tha
 ## Left to the builder
 
 File and component names, CSS details within the design system, and the exact copy, kept short and readable.
+
+## Changes after the code review (2026-11-14)
+
+- **A run counts for at most 30 minutes.** The routine loops until Finish run is pressed, so a game left running would have logged hours and flattened the chart. `MAX_RUN_SECONDS` in `src/progress/history.ts`.
+- **The unit switch reads an unsaved number in the unit chosen.** Typing 154 and then choosing lb is 154 lb. A saved weight is converted. The field saves when focus leaves the field and its unit switch, or on Enter, and writes nothing if it was not typed in.
+- **The refusal line always has its space**, so the message does not move the dialog.
+- **The results tiles**: Best combo and Est. kcal stack in the first column so the XP bar keeps its width.
+- **Bars** fill whole LED segments (12 per column) instead of a continuous height.
