@@ -48,7 +48,7 @@ The types live in `src/types/ui.ts` (`FeedbackFrame`, `LimbFeedback`, `LimbStatu
 | `hint` | `{ joint, limb, text, status }` once a joint has been out of tolerance for 300 ms in a reach or hold. `text` is 2 to 4 words, such as "left arm higher" or "straighten right elbow". `null` in a release, during the count-in, and while `lowVisibility` is set. |
 | `holdProgress` | 0 before the hold, rising to 1 through it, and 1 after it |
 | `score` | 0-100. The scoring engine's live frame score, while it is on the same move as `move`; 0 otherwise. |
-| `holdScore` | Mean frame score over the hold so far (from the scoring engine). `null` outside the hold. |
+| `holdScore` | Time-weighted mean frame score over the hold so far (from the scoring engine). `null` outside the hold. |
 | `onTarget` | True in a reach or hold while `score` is Good (60) or better. The figure turns green on this. |
 | `lowVisibility` | True once any joint the move scores has been under the visibility cutoff (0.6) for more than 500 ms |
 | `hiddenJoints` | Those joints |

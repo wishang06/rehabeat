@@ -50,7 +50,7 @@ The landing page (`/`) explains the game; **Play now** goes to `/play`, which op
 2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
 3. **Play.** The routine loops through the three moves. A gold figure shows the pose to hit, on your own body or, when its arms rest at its sides, beside you. It turns green when you are on it. Your own limbs are coloured green, amber or red by how far each is from its target, and a short hint ("left arm higher") points at the one to fix. If part of you is out of view, those limbs go grey and the screen tells you to step back. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
-Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
+Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, pose latency (how far behind the audible beat each pose frame arrives), the camera's size and frame rate, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
 
 ## Architecture
 
@@ -62,7 +62,7 @@ Esc (or **Songs** in the top bar) returns to the menu; after the first calibrati
             angles from 3D          hold-window score,         HUD, overlay,
             world landmarks,        form guidance,             beat dial
             One Euro smoothing      combo / accuracy
-                                         │ hold score ≥ 60
+                                         │ in the pose (PoseLock)
                                          ▼
                                     src/audio
                        AudioContext master clock, beat grid,
@@ -73,10 +73,10 @@ The rule that holds it together: **`AudioContext.currentTime` is the only clock.
 
 ### Pose (`src/pose/`)
 
-- MediaPipe `PoseLandmarker`: lite model, GPU delegate (falls back to CPU if it can't be created), VIDEO mode, one pose, 640x480 webcam.
+- MediaPipe `PoseLandmarker`: lite model, GPU delegate (falls back to CPU if it can't be created), VIDEO mode, one pose, 640x480 webcam at 30 fps. The size and frame rate are asked for as `ideal`, so a camera that can't do them still opens, and one that offers several frame rates picks 30: every frame interval is time in which a beat can't be measured. (Chrome's fake test camera tops out at 20 fps unless started with `--use-fake-device-for-media-stream=fps=30`.)
 - Detection runs inside `requestVideoFrameCallback`. Each frame is stamped with the callback's capture time (`captureTime`, falling back to `expectedDisplayTime`), then mapped onto the audio clock through `AudioContext.getOutputTimestamp()`, so a frame's time is the audio that was audible when it was captured.
-- Joint angles come from `worldLandmarks` (3D, metres), not pixel positions, so they don't change with where you stand in the frame. A joint is skipped when any of its three landmarks has visibility below 0.6.
-- Angles are smoothed with a One Euro filter (`oneEuro.ts`, written for this repo and unit-tested).
+- Joint angles come from `worldLandmarks` (3D, metres), not pixel positions, so they don't change with where you stand in the frame. A joint is measured once all three of its landmarks reach 0.6 visibility, and stays measured until one drops below 0.5 (`KEEP_VISIBILITY`), so a wrist or ankle hovering at the cutoff doesn't drop in and out of scoring from frame to frame.
+- Angles are smoothed with a One Euro filter (`oneEuro.ts`, written for this repo and unit-tested) at `minCutoff 1.0`, `beta 0.05`, `dCutoff 1.0` (`angleSmoother.ts`). On a simulated reach with 2-4° of landmark noise, the smoothed angle crosses the Good line 18-25 ms after the real one; the earlier settings (1.5, 0.02) took 35-46 ms, for 4-11% less jitter at rest.
 - Output per frame: `PoseFrame { t, angles, visible }`.
 
 ### Moves (`src/moves/`)
@@ -100,8 +100,9 @@ UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws
 
 - Each move is a cycle: reach for N beats, hold for N, release for N.
 - **Frame score** (0-100) comes from the mean absolute angle error over the move's joints only: `100 - 40 × error / tolerance`, clamped. So an error equal to the move's `tolerance` scores exactly 60. A target joint that isn't visible counts as a zero-score error.
-- **Move score** is the mean frame score inside the hold window only, after shifting frames by the calibration offset. 85 and up is Perfect, 60 and up is Good, anything else is a Miss.
-- Output per move: `BeatResult { moveId, score, label, timingOffsetMs, formNote? }`. `timingOffsetMs` is how late (positive) or early (negative) the player first reached a Good pose relative to the first hold beat; if they never reached it, it is the length of the hold.
+- **Move score** is the time-weighted mean frame score inside the hold window only, after shifting frames by the calibration offset. Each frame's score stands from its own time until the next frame, for at most 0.2 s (`MAX_FRAME_SPAN_SEC`, so a stalled camera can't stretch one frame), which judges the hold by time on the beat grid: a frame-rate dip in half of a hold doesn't re-weight it. 85 and up is Perfect, 60 and up is Good, anything else is a Miss.
+- **In the pose** (`PoseLock`): the frame score has been Good for 100 ms, and hasn't since spent 150 ms under 50. The dwell keeps a limb sweeping through the pose from counting; the gap between 60 and 50 keeps a pose held right at the Good line from flickering. The scoring engine exposes it as `live.locked`.
+- Output per move: `BeatResult { moveId, score, label, timingOffsetMs, formNote? }`. `timingOffsetMs` is how late (positive) or early (negative) the player first landed a Good pose relative to the first hold beat: the start of the first lock, placed between frames where the score crossed 60, so it is measured to a few milliseconds rather than to the frame. A pose landed too close to the end of the hold for the lock to engage still counts. If they never reached it, it is the length of the hold.
 - **Form guidance** (guidance, never framed as safety): two rules, each flagged only after it has applied continuously for more than 500 ms.
   - `trunk-lean`: the shoulder midpoint tilts more than 15° sideways from the hip midpoint.
   - `shoulder-shrug`: the ear-to-shoulder distance shrinks more than 20% below the resting baseline captured during calibration. Without a calibration baseline this rule is off.
@@ -111,12 +112,18 @@ UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws
 ### Audio (`src/audio/`)
 
 - Each song gets its own `BeatEngine`, loading `public/songs/<id>/beatmap.json` (`{ bpm, offset, beats }`) and the song's two stems, on one `AudioContext` shared with the menu's previews. If a beatmap is missing or malformed it falls back to a generated 72 BPM grid.
-- **Stems mode**: the drums play throughout and the melody fades in over 300 ms only while the hold score is 60 or above. This is the "music follows you" mechanic. Between holds the melody follows the last move's result, so a good hold carries it through the release and the next reach.
+- **Stems mode**: the drums play throughout and the melody fades in over 300 ms only while you are in the pose. This is the "music follows you" mechanic (`melodyShouldPlay` and `MelodyGate`):
+  - in a hold, it plays while you are in the pose (`live.locked`), whatever came before;
+  - in a reach, it plays as soon as you land the next pose, or while the last move was Good or better, so a good hold carries it on;
+  - in a release, it carries the result of the hold that just closed;
+  - it comes in at once but only goes out after the rule has said no for half a beat, so landing a fraction late, letting go a fraction early or a wobble doesn't cut the tune; and a camera that stops sending frames can't keep it playing.
+
+  In a simulation at 72 BPM it comes in within 0.25 s of a player who lands a beat late (the old rule, which followed the hold's running mean, took 1.2 s) and goes out within 0.8 s of one who lets go half-way (the old rule played on for 1.1 s). `src/scoring/rhythmSim.test.ts` runs a seeded player through the whole path from smoothing to the melody.
   - Both stems are raised 2.5x (`STEM_GAIN` in `beatEngine.ts`). `npm run songs` levels every song's stems so drums plus melody peak at -12 dBFS, so the mix peaks at about -4 dBFS whatever the song. `npm run smoke` fails if any song would clip.
   - The stems loop where the last full beat in `beatmap.json` ends, not at the end of the file. A song is rarely a whole number of beats long; looping the whole file made Past Sadness's beat at the seam 59 ms too long and left the grid off for every pass after.
 - **Click mode** (when a song has no stems): a synthesized click on every beat, accented every fourth.
 - **Sound effects** (`sfx.ts`, `uiSounds.ts`): arcade blips synthesized on their own `AudioContext`, no files. One set of document listeners gives every button, tab, link and song card a hover tick, a keyboard-navigation blip, a press click (a coin-in chirp for primary actions and song cards) and a downward chirp for Esc and back buttons; `data-sfx="<name>"` or `data-sfx="none"` overrides one. In play, `HudSounds` knocks the 3-2-1, shouts GO, whooshes each reach, pings each hold and the moment it hits Perfect, gives Perfect / Good / Miss their own sounds, climbs a run every fifth combo and beeps when you step out of frame. Results ta-da, slam the grade, chime each star, tick as the numbers roll and fanfare a level-up. **M** turns them off and on (remembered in `localStorage`).
-- **Calibration**: four clicks; for each, the time the raised arm arrives is compared with the click time. The median difference is stored as `offsetMs` (in `localStorage`) and applied in scoring. It needs only the clock, so it runs before a song is loaded.
+- **Calibration**: four clicks; for each, the time the raised arm arrives is compared with the click time. The median difference is stored as `offsetMs` (in `localStorage`) and applied in scoring. It needs only the clock, so it runs before a song is loaded. The offset includes the smoothing filter's lag, so a calibration saved before the filter was retuned is about 20 ms generous until it is run again.
 
 ### UI (`src/ui/`, `src/landing/`)
 
@@ -299,7 +306,7 @@ Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) a
 - Loop points are checked against the beat grid, not by ear. The loop cuts the audio with no crossfade, so listen for a click where each song wraps.
 - Song previews and in-game audio were checked in a muted browser; levels were measured, not listened to.
 - The target figure draws arms in the image plane and legs as seen from the front. A knee raise is drawn with the thigh canted outward so it reads as a raise, which is not exactly how a straight-ahead knee raise looks on camera.
-- MediaPipe often guesses landmarks just outside the frame with high confidence. The step-back warning only appears once a scored joint's visibility actually drops below 0.6, which in testing needed a good part of a limb out of view.
+- MediaPipe often guesses landmarks just outside the frame with high confidence. The step-back warning only appears once a scored joint's visibility actually drops below the cutoff (0.6, or 0.5 for a joint that was already measured), which in testing needed a good part of a limb out of view.
 - Only Chromium browsers have been tested.
 
 ---

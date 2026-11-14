@@ -20,7 +20,7 @@
 | One Euro lag at arrival (min-jerk reach 10→90°, 30 fps, 2° noise) | **35 ms (0.6 s move) / 46 ms (1.2 s move)** | `OneEuroFilter`, 300 seeded trials |
 | Same with `minCutoff 1.0, beta 0.05, dCutoff 1.0` | **18 ms / 25 ms**, rest jitter 104% (2° noise), 110% (4°) | same grid search |
 | `getOutputTimestamp` perf→audio mapping jitter (Chromium) | 0.06 ms sd: **no work needed** | Playwright probe |
-| Camera frame rate with no `frameRate` constraint (Chromium fake camera) | **20 fps** | `track.getSettings()` |
+| Camera frame rate with no `frameRate` constraint (Chromium fake camera) | 20 fps, but that is the fake device's maximum; with a 30 fps-capable fake device, `ideal: 30` gets 30. Real webcams were not available to test the default | `track.getSettings()`, `getCapabilities()` |
 | Hold score | mean over **frame count**, so a frame-rate dip re-weights the hold | code reading |
 | Arrival time | first single frame ≥ 60: quantised to the frame (33 ms) and set off by a pass-through | code reading |
 
