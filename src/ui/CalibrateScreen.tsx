@@ -59,7 +59,8 @@ export function CalibrateScreen({ session, canvasRef, saved, onDone }: Calibrate
 
   const run = () => {
     stopRun.current?.();
-    const calibrator = new CalibrationSession(session.engine, { clicks: CLICK_COUNT });
+    // Calibration only needs the clock and a click, so it runs before any song is loaded.
+    const calibrator = new CalibrationSession(session, { clicks: CLICK_COUNT });
     const baseline = new ShrugBaselineCollector();
     const unsubscribe = session.subscribe((sample) => {
       calibrator.pushFrame(sample.frame);

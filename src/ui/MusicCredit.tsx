@@ -1,19 +1,22 @@
-import { TRACK_CREDIT } from '../audio/trackCredit';
+import { creditParts, type SongMeta } from '../songs/model';
 
-/** The CC BY attribution for the shipped track. Links open in a new tab so a running session is not lost. */
-export function MusicCredit() {
-  const { title, artist, sourceName, sourceUrl, licenceName, licenceUrl, changes } = TRACK_CREDIT;
+/**
+ * A song's attribution, with its source site and licence as links. Links open
+ * in a new tab so a running session is not lost.
+ */
+export function MusicCredit({ song }: { song: SongMeta }) {
   return (
-    <p className="credit" data-testid="music-credit">
-      <span className="credit__tag">Music</span> “{title}” by {artist} (
-      <a href={sourceUrl} target="_blank" rel="noopener noreferrer">
-        {sourceName}
-      </a>
-      ),{' '}
-      <a href={licenceUrl} target="_blank" rel="noopener noreferrer">
-        {licenceName}
-      </a>
-      . {changes}
+    <p className="credit" data-testid="music-credit" data-song={song.id}>
+      <span className="credit__tag">Music</span>{' '}
+      {creditParts(song).map((part, index) =>
+        part.href ? (
+          <a key={index} href={part.href} target="_blank" rel="noopener noreferrer">
+            {part.text}
+          </a>
+        ) : (
+          <span key={index}>{part.text}</span>
+        ),
+      )}
     </p>
   );
 }

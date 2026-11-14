@@ -1,0 +1,784 @@
+/*
+ * Song menu. The catalogues hang on a metronome's tempo rod (slow at the top,
+ * as on a real one) with a brass weight on the selected song's tempo. Each
+ * card's lamp blinks at its song's BPM. Brass marks selection and Play, and
+ * nothing else.
+ *
+ * This file loads before index.css (App is imported first in main.tsx), so
+ * rules that meet index.css's .button are scoped under .menu to win on
+ * specificity rather than order.
+ */
+
+.menu {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--seam-strong) transparent;
+  container: song-menu / inline-size;
+}
+
+.menu__frame {
+  /* Read by SongMenu's key handling: 'side' or 'top'. */
+  --menu-rail: side;
+  --menu-pad: clamp(1rem, 4cqw, 2.5rem);
+  /* One catalogue's height on the rod. */
+  --rail-step: 4.25rem;
+  /* Where the rod runs, from the rail's left edge. */
+  --rod-x: 2.375rem;
+  /* Card surfaces: a breath of chalk on the mat, a breath of brass when selected. */
+  --tile: rgb(246 241 231 / 0.035);
+  --tile-hover: rgb(246 241 231 / 0.055);
+  --tile-lit: rgb(242 178 76 / 0.07);
+
+  display: grid;
+  grid-template-columns: clamp(12.5rem, 26cqw, 15.5rem) minmax(0, 1fr);
+  grid-template-areas:
+    'header header'
+    'rail panel';
+  align-content: start;
+  gap: clamp(1.25rem, 3cqw, 2rem) clamp(1.5rem, 4cqw, 3rem);
+  min-height: 100%;
+  padding: var(--menu-pad);
+}
+
+.menu__header {
+  grid-area: header;
+  min-width: 0;
+}
+
+/* Rail: the tempo rod */
+
+.menu-rail {
+  grid-area: rail;
+  position: sticky;
+  top: var(--menu-pad);
+  align-self: start;
+  min-width: 0;
+}
+
+.menu-rail__tabs {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-rail__tab {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 0.25rem;
+  height: var(--rail-step);
+  padding: 0 0.875rem 0 calc(var(--rod-x) + 1.25rem);
+  font: inherit;
+  color: var(--chalk-soft);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The tab's fill and focus ring sit right of the rod, so the scale stays clear. */
+.menu-rail__tab::before {
+  content: '';
+  position: absolute;
+  inset: 0.25rem 0 0.25rem calc(var(--rod-x) + 0.625rem);
+  border-radius: 0.625rem;
+  transition:
+    background-color 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .menu-rail__tab:hover::before {
+    background: rgb(246 241 231 / 0.04);
+  }
+}
+
+.menu-rail__tab[aria-selected='true'] {
+  color: var(--chalk);
+}
+
+.menu-rail__tab[aria-selected='true']::before {
+  background: rgb(246 241 231 / 0.07);
+}
+
+.menu-rail__tab:focus-visible {
+  outline: none;
+}
+
+.menu-rail__tab:focus-visible::before {
+  box-shadow: 0 0 0 2px var(--chalk);
+}
+
+.menu-rail__tab--credits {
+  height: auto;
+  min-height: 3.5rem;
+  margin-top: 1.25rem;
+}
+
+.menu-rail__name,
+.menu-rail__meta {
+  position: relative;
+}
+
+.menu-rail__name {
+  font-size: 1.0625rem;
+  font-weight: 650;
+  font-stretch: 88%;
+  line-height: 1.15;
+}
+
+.menu-rail__meta {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--chalk-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-rail__range + .menu-rail__detail::before {
+  content: ' · ';
+}
+
+.menu-rail__rod {
+  position: absolute;
+  top: 0;
+  left: var(--rod-x);
+  width: 1px;
+  height: calc(var(--rod-items) * var(--rail-step));
+  background: var(--seam-strong);
+  pointer-events: none;
+}
+
+/* A BPM mark at each catalogue boundary, labelled to the left of the rod. */
+.menu-rail__mark {
+  position: absolute;
+  top: calc(var(--at) * var(--rail-step));
+  left: 0;
+  width: 0.625rem;
+  height: 1px;
+  background: var(--seam-strong);
+  transform: translateX(-50%);
+}
+
+.menu-rail__mark-bpm {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 0.375rem);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--chalk-faint);
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+}
+
+/* A notch for every song, at its tempo. */
+.menu-rail__notch {
+  position: absolute;
+  top: calc(var(--at) * var(--rail-step));
+  left: 0;
+  width: 0.4375rem;
+  height: 1px;
+  background: var(--chalk-faint);
+  transform: translateY(-50%);
+}
+
+/* The metronome weight: a brass slider with the rod running through it. */
+.menu-rail__weight {
+  position: absolute;
+  top: 0;
+  left: 0.5px;
+  width: 1.25rem;
+  height: 0.75rem;
+  background:
+    linear-gradient(
+      90deg,
+      transparent calc(50% - 0.5px),
+      var(--brass-ink) calc(50% - 0.5px) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    ),
+    var(--brass);
+  clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%);
+  transform: translate(-50%, calc(var(--at) * var(--rail-step) - 50%));
+  transition: transform 240ms var(--ease-out);
+}
+
+/* Panel: the catalogue's songs, or the credits */
+
+.menu__panel {
+  grid-area: panel;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.menu__lede {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.menu__title {
+  font-size: clamp(2rem, 6cqw, 3.25rem);
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+}
+
+.menu__about {
+  max-width: 36rem;
+  font-size: clamp(0.9375rem, 1.7cqw, 1.0625rem);
+  line-height: 1.45;
+  color: var(--chalk-soft);
+}
+
+.menu__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  min-height: 1.75rem;
+  font-size: 0.8125rem;
+  color: var(--chalk-faint);
+}
+
+.menu__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 160ms var(--ease-out);
+}
+
+.menu__hint-icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+.menu__hint-cone {
+  fill: currentColor;
+}
+
+.menu__hint-wave {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.menu__hint[data-state='playing'] {
+  color: var(--chalk-soft);
+}
+
+.menu__hint[data-state='playing'] .menu__hint-icon {
+  color: var(--brass);
+}
+
+.menu__hint-song {
+  font-weight: 600;
+  color: var(--chalk);
+}
+
+.menu__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.menu__keys > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.menu__keys kbd {
+  font-size: 0.6875rem;
+  color: var(--chalk-soft);
+}
+
+.menu__keys > span > kbd:last-child {
+  margin-right: 0.125rem;
+}
+
+.menu__on-touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .menu .menu__on-pointer {
+    display: none;
+  }
+
+  .menu .menu__on-touch {
+    display: inline;
+  }
+}
+
+.menu__note {
+  font-size: 0.8125rem;
+  color: var(--chalk-faint);
+}
+
+/* Song cards */
+
+.menu__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.75rem;
+}
+
+.menu-card__slot {
+  display: flex;
+  min-width: 0;
+}
+
+.menu .menu-card {
+  --lamp: var(--chalk-faint);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 11rem;
+  padding: 1rem 1rem 1rem 1.125rem;
+  font: inherit;
+  color: var(--chalk);
+  text-align: left;
+  background: var(--tile);
+  border: 0;
+  border-radius: var(--radius-panel);
+  box-shadow: inset 0 0 0 1px var(--seam);
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--ease-out),
+    box-shadow 160ms var(--ease-out),
+    transform 120ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .menu .menu-card:hover {
+    background: var(--tile-hover);
+  }
+}
+
+.menu .menu-card[data-selected='true'] {
+  --lamp: var(--brass);
+  background: var(--tile-lit);
+  box-shadow: inset 0 0 0 1.5px var(--brass);
+}
+
+.menu .menu-card:active {
+  transform: scale(0.98);
+}
+
+.menu .menu-card:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 3px;
+}
+
+.menu-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--chalk-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-card__tempo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+}
+
+.menu-card__bpm {
+  margin-left: 0.25rem;
+  font-weight: 700;
+  color: var(--chalk);
+}
+
+.menu-card__time {
+  color: var(--chalk-faint);
+}
+
+/* The beat lamp: a sharp blink on each beat, decaying to a glow. */
+.menu-card__lamp {
+  position: relative;
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--lamp);
+  animation: menu-beat var(--beat, 1s) linear infinite;
+}
+
+/* While its preview plays, a ring spreads from the lamp on the beat. It always
+   runs and is only shown, so it stays in step with the lamp. */
+.menu-card__lamp::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--brass);
+  visibility: hidden;
+  animation: menu-beat-ring var(--beat, 1s) var(--ease-out) infinite;
+}
+
+.menu .menu-card[data-previewing='true'] .menu-card__lamp::after {
+  visibility: visible;
+}
+
+@keyframes menu-beat {
+  0% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+  30%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+}
+
+@keyframes menu-beat-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: scale(2.75);
+  }
+}
+
+.menu-card__title {
+  margin-top: 1.25rem;
+  font-size: clamp(1.375rem, 3cqw, 1.75rem);
+  font-weight: 800;
+  font-stretch: 78%;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.menu-card__artist {
+  margin-top: 0.375rem;
+  font-size: 0.9375rem;
+  color: var(--chalk-soft);
+}
+
+.menu-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 1rem;
+}
+
+/* Difficulty: one, two or three rising bars, and the word. */
+.menu-card__level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--chalk-soft);
+}
+
+.menu-card__pips {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 0.75rem;
+}
+
+.menu-card__pip {
+  width: 0.3125rem;
+  height: 50%;
+  border-radius: 1px;
+  background: var(--seam-strong);
+}
+
+.menu-card__pip:nth-child(2) {
+  height: 75%;
+}
+
+.menu-card__pip:nth-child(3) {
+  height: 100%;
+}
+
+.menu-card__pip[data-on='true'] {
+  background: var(--chalk-soft);
+}
+
+.menu .menu-card[data-selected='true'] .menu-card__pip[data-on='true'] {
+  background: var(--chalk);
+}
+
+/* Play: shown on the selected card. The card itself is the button. */
+.menu .menu-card__play {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-height: 2.25rem;
+  padding: 0 0.9375rem 0 0.8125rem;
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out),
+    background-color 160ms var(--ease-out);
+  pointer-events: none;
+}
+
+.menu .menu-card[data-selected='true'] .menu-card__play {
+  opacity: 1;
+  transform: none;
+}
+
+@media (hover: hover) {
+  .menu .menu-card[data-selected='true']:hover .menu-card__play {
+    background: var(--brass-bright);
+  }
+}
+
+.menu-card__play-icon {
+  width: 0.5625rem;
+  height: 0.6875rem;
+  /* Optical centring: a triangle's weight sits left of its box. */
+  margin-left: 1px;
+  fill: currentColor;
+}
+
+/* An empty catalogue */
+
+.menu-empty {
+  display: grid;
+  justify-items: start;
+  gap: 0.75rem;
+  max-width: 34rem;
+  padding: clamp(1.25rem, 4cqw, 2rem);
+  border-radius: var(--radius-panel);
+  background: var(--tile);
+  box-shadow: inset 0 0 0 1px var(--seam);
+}
+
+.menu-empty:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 3px;
+}
+
+/* The catalogue's tempo band as an empty ruler: room for songs, none on it yet. */
+.menu-empty__band {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  max-width: 20rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--chalk-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.menu-empty__ruler {
+  flex: 1;
+  height: 0.625rem;
+  background: repeating-linear-gradient(
+    to right,
+    var(--seam-strong) 0 1px,
+    transparent 1px calc(100% / var(--steps, 3))
+  );
+  box-shadow:
+    inset 0 -1px 0 var(--seam-strong),
+    inset -1px 0 0 var(--seam-strong);
+}
+
+.menu-empty__title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  font-stretch: 88%;
+  line-height: 1.15;
+}
+
+.menu-empty__text {
+  line-height: 1.5;
+  color: var(--chalk-soft);
+}
+
+.menu .menu-empty .button {
+  margin-top: 0.25rem;
+}
+
+/* Credits */
+
+.menu-credits {
+  display: grid;
+  gap: 1.75rem;
+  max-width: 46rem;
+  border-radius: 0.5rem;
+}
+
+.menu-credits:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 6px;
+}
+
+.menu-credits__catalogue {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--chalk-faint);
+}
+
+.menu-credits__song {
+  padding: 0.875rem 0;
+  box-shadow: inset 0 1px 0 var(--seam);
+}
+
+.menu-credits__title {
+  font-size: 1.0625rem;
+  font-weight: 650;
+}
+
+.menu-credits__line {
+  margin-top: 0.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--chalk-soft);
+}
+
+.menu-credits__line a {
+  color: var(--chalk);
+  text-decoration: underline;
+  text-decoration-color: var(--seam-strong);
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color 160ms var(--ease-out);
+}
+
+.menu-credits__line a:hover {
+  text-decoration-color: currentColor;
+}
+
+.menu-credits__line a:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+
+.menu-credits__none {
+  color: var(--chalk-soft);
+}
+
+/* Narrow: the rail becomes a tab strip above the cards */
+
+@container song-menu (max-width: 40rem) {
+  .menu__frame {
+    --menu-rail: top;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'header'
+      'rail'
+      'panel';
+  }
+
+  .menu-rail {
+    position: static;
+  }
+
+  /* A small grid rather than a scrolling strip, so every catalogue is in sight. */
+  .menu-rail__tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: 0.375rem;
+  }
+
+  .menu-rail__rod,
+  .menu-rail__detail {
+    display: none;
+  }
+
+  .menu-rail__tab {
+    height: auto;
+    min-height: 3.5rem;
+    padding: 0.5rem 0.875rem;
+  }
+
+  .menu-rail__tab::before {
+    inset: 0;
+    box-shadow: inset 0 0 0 1px var(--seam);
+  }
+
+  .menu-rail__tab[aria-selected='true']::before {
+    box-shadow:
+      inset 0 0 0 1px var(--seam),
+      inset 0 -2px 0 var(--brass);
+  }
+
+  .menu-rail__tab:focus-visible::before {
+    box-shadow: 0 0 0 2px var(--chalk);
+  }
+
+  .menu-rail__tab--credits {
+    min-height: 3.5rem;
+    margin: 0;
+  }
+
+  /* With no count beside it, Credits keeps to its name. */
+  .menu-rail__tab--credits .menu-rail__meta {
+    display: none;
+  }
+
+  .menu-card__title {
+    margin-top: 0.875rem;
+  }
+
+  .menu .menu-card {
+    min-height: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .menu-rail__tab:focus-visible {
+    outline: 2px solid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-card__lamp,
+  .menu-card__lamp::after {
+    animation: none;
+  }
+
+  .menu .menu-card[data-previewing='true'] .menu-card__lamp::after {
+    opacity: 0.6;
+    transform: scale(2);
+  }
+
+  .menu-rail__weight {
+    transition: none;
+  }
+
+  .menu .menu-card {
+    transition:
+      background-color 160ms var(--ease-out),
+      box-shadow 160ms var(--ease-out);
+  }
+
+  .menu .menu-card:active,
+  .menu .menu-card__play {
+    transform: none;
+  }
+}
