@@ -131,4 +131,16 @@ describe('buildPoseSample', () => {
     // No easing in from the pose before the gap.
     expect(frame.angles.leftShoulder).toBeCloseTo(90, 6);
   });
+
+  it("uses the previous frame's visible joints as hysteresis", () => {
+    const hovering = withLandmarks(standingPose(), { leftWrist: point(0.15, 0.1, 0, 0.55) });
+    const fresh = buildPoseSample(input({ worldLandmarks: hovering }), new AngleSmoother());
+    expect(fresh.frame.visible).not.toContain('leftElbow');
+    const kept = buildPoseSample(
+      input({ worldLandmarks: hovering, previousVisible: ['leftElbow'] }),
+      new AngleSmoother(),
+    );
+    expect(kept.frame.visible).toContain('leftElbow');
+    expect(kept.frame.angles.leftElbow).toBeDefined();
+  });
 });

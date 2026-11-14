@@ -1,5 +1,5 @@
 import { PoseLandmarker } from '@mediapipe/tasks-vision';
-import type { PoseSample } from '../types';
+import type { JointName, PoseSample } from '../types';
 import { AngleSmoother } from './angleSmoother';
 import { hasFrameSize } from './camera';
 import { LOCAL_WASM_FILESET, POSE_MODEL_URL } from './config';
@@ -73,6 +73,8 @@ export async function createPoseTracker(options: PoseTrackerOptions): Promise<Po
   let lastCallbackMs: number | null = null;
   let lastVideoTime = -1;
   let fps = 0;
+  // The joints the last frame measured, for the visibility hysteresis.
+  let lastVisible: readonly JointName[] = [];
 
   const processFrame = (frameMs: number, callbackMs: number): void => {
     if (video.readyState < HAVE_CURRENT_DATA || !hasFrameSize(video)) return;
@@ -85,19 +87,20 @@ export async function createPoseTracker(options: PoseTrackerOptions): Promise<Po
     const result = landmarker.detectForVideo(video, lastDetectMs);
     const detectMs = performance.now() - detectStart;
 
-    onSample(
-      buildPoseSample(
-        {
-          t: toClockTime(frameMs),
-          filterSeconds: frameMs / 1000,
-          landmarks: normaliseLandmarks(result.landmarks[0]),
-          worldLandmarks: normaliseLandmarks(result.worldLandmarks[0]),
-          detectMs,
-          fps,
-        },
-        smoother,
-      ),
+    const sample = buildPoseSample(
+      {
+        t: toClockTime(frameMs),
+        filterSeconds: frameMs / 1000,
+        landmarks: normaliseLandmarks(result.landmarks[0]),
+        worldLandmarks: normaliseLandmarks(result.worldLandmarks[0]),
+        detectMs,
+        fps,
+        previousVisible: lastVisible,
+      },
+      smoother,
     );
+    lastVisible = sample.frame.visible;
+    onSample(sample);
   };
 
   const processFrameSafely = (frameMs: number, callbackMs: number): void => {
@@ -146,6 +149,7 @@ export async function createPoseTracker(options: PoseTrackerOptions): Promise<Po
       // The gap since the last frame is neither a frame interval nor a smoothing step.
       lastCallbackMs = null;
       smoother.reset();
+      lastVisible = [];
       pendingHandle = hasVideoFrameCallback
         ? video.requestVideoFrameCallback(onVideoFrame)
         : requestAnimationFrame(onAnimationFrame);
