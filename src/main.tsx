@@ -15,6 +15,9 @@ import '@fontsource-variable/archivo/wdth.css';
 import './styles/theme.css';
 import './index.css';
 import { Landing } from './landing/Landing';
+import { installUiSounds } from './audio/uiSounds';
+
+installUiSounds();
 
 // The game brings the pose model with it, so the landing page does not load it.
 const Game = lazy(() => import('./App').then((module) => ({ default: module.App })));

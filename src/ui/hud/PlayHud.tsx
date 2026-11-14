@@ -17,6 +17,7 @@ import type {
   RunStatsProps,
   StepBackBannerProps,
 } from './types';
+import { HudSounds } from './HudSounds';
 import './hud.css';
 
 const PHASE_LABEL: Record<FeedbackPhase, string> = {
@@ -326,6 +327,7 @@ export function PlayHud({ frames, run, ref }: PlayHudProps) {
         <ResultPop result={run.result} frames={frames} />
         <StepBackBanner frames={frames} bodyLost={run.bodyLost} formNote={run.formNote} />
         <div className="hud-pulse" aria-hidden="true" />
+        <HudSounds frames={frames} run={run} />
       </div>
     </MotionConfig>
   );
