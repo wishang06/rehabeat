@@ -59,6 +59,15 @@ export function keepPendingRun(run: RunSummary): void {
   }
 }
 
+/** True while a run is waiting to be shown again after the Google redirect. */
+export function hasPendingRun(): boolean {
+  try {
+    return sessionStorage.getItem(PENDING_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
 export function takePendingRun(): RunSummary | null {
   try {
     const raw = sessionStorage.getItem(PENDING_KEY);
