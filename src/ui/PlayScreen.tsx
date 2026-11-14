@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { MOVES, computeGhost, drawGhost } from '../moves';
-import { drawSkeleton } from '../pose';
+import { FeedbackTracker, feedbackStore } from '../engine';
+import { MOVES } from '../moves';
 import {
   GOOD_SCORE,
   Routine,
   ScoringEngine,
   initialStats,
   melodyShouldPlay,
+  pointsFor,
   type Calibration,
   type Phase,
   type Stats,
@@ -15,7 +16,8 @@ import type { BeatEngine } from '../audio';
 import type { Session } from '../session';
 import type { BeatResult, Move } from '../types';
 import { BeatDial } from './BeatDial';
-import { CANVAS_COLORS, prepareCanvas } from './canvas';
+import { prepareCanvas } from './canvas';
+import { PlayOverlay } from './overlay';
 
 /** Beats of lead-in before the first move starts. */
 const COUNT_IN_BEATS = 4;
@@ -30,6 +32,14 @@ const STALE_SAMPLE_MS = 500;
 const TICK_GRACE_SEC = 0.3;
 /** Arriving within this of the first hold beat counts as in time. */
 const IN_TIME_MS = 150;
+
+/** The run so far, read by the app when the player finishes. */
+export interface PlayRun {
+  stats: Stats;
+  points: number;
+  /** performance.now() when the Play screen started. */
+  startedAt: number;
+}
 
 /** Live values the debug panel reads while the Play screen is up. */
 export interface PlayDebug {
@@ -46,6 +56,7 @@ interface PlayScreenProps {
   calibration: Calibration;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   debugRef: RefObject<PlayDebug | null>;
+  runRef: RefObject<PlayRun | null>;
 }
 
 interface Hud {
@@ -60,6 +71,7 @@ interface Hud {
   bodyLost: boolean;
   result: BeatResult | null;
   stats: Stats;
+  points: number;
 }
 
 const PHASE_LABEL: Record<Hud['phase'], string> = {
@@ -87,6 +99,7 @@ const INITIAL_HUD: Hud = {
   bodyLost: false,
   result: null,
   stats: initialStats(),
+  points: 0,
 };
 
 function hudKey(hud: Hud): string {
@@ -98,6 +111,7 @@ function hudKey(hud: Hud): string {
     hud.formNote,
     hud.bodyLost,
     hud.stats.total,
+    hud.points,
   ].join('|');
 }
 
@@ -108,7 +122,7 @@ function timingNote(result: BeatResult): string | null {
     : 'In time';
 }
 
-export function PlayScreen({ session, engine, calibration, canvasRef, debugRef }: PlayScreenProps) {
+export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, runRef }: PlayScreenProps) {
   const [hud, setHud] = useState<Hud>(INITIAL_HUD);
   const hudRef = useRef<HTMLDivElement>(null);
 
@@ -122,6 +136,11 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef }
       offsetMs: calibration.offsetMs,
       shoulderEarBaseline: calibration.shoulderEarBaseline,
     });
+    const feedback = new FeedbackTracker(routine);
+    const overlay = new PlayOverlay();
+
+    const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now() };
+    runRef.current = run;
 
     let lastSampleAt = performance.now();
     const unsubscribe = session.subscribe((sample) => {
@@ -142,6 +161,12 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef }
       // The "music follows you" mechanic: the melody stays in while the hold score is Good or better.
       engine.setMelodyActive(melodyShouldPlay(scoring.live, scoring.lastResult));
 
+      // Award points once per newly scored move.
+      if (scoring.stats.total > run.stats.total && scoring.lastResult) {
+        run.points += pointsFor(scoring.lastResult.label, scoring.stats.combo);
+      }
+      run.stats = scoring.stats;
+
       const live = scoring.live;
       const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
       const sample = fresh ? session.latest() : null;
@@ -152,35 +177,20 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef }
         live.cycle?.index === info.cycle.index &&
         live.frameScore >= GOOD_SCORE;
 
+      const current = feedback.update({
+        now: engine.clock.audibleNow(),
+        beat,
+        frame: sample?.frame ?? null,
+        world: sample?.worldLandmarks ?? null,
+        live,
+      });
+      feedbackStore.publish(current);
+
       const canvas = canvasRef.current;
       const surface = canvas && prepareCanvas(canvas);
       if (sample?.landmarks) lastSeen = performance.now();
-      if (surface && sample?.landmarks) {
-        const { ctx, width, height } = surface;
-        if (info) {
-          const fade =
-            info.phase === 'reach'
-              ? 0.5 + 0.5 * info.progress
-              : info.phase === 'hold'
-                ? 1
-                : 1 - info.progress;
-          drawGhost(
-            ctx,
-            computeGhost(info.cycle.move, sample.landmarks, { width, height }, sample.worldLandmarks),
-            {
-              color: matched ? CANVAS_COLORS.ghostMatched : CANVAS_COLORS.ghost,
-              alpha: fade,
-              lineWidth: width / 64,
-            },
-          );
-        }
-        drawSkeleton(ctx, sample.landmarks, {
-          width,
-          height,
-          lineColor: CANVAS_COLORS.skeletonLine,
-          jointColor: CANVAS_COLORS.skeletonJoint,
-          lineWidth: width / 200,
-        });
+      if (surface) {
+        overlay.draw(surface, current, sample?.landmarks ?? null, sample?.worldLandmarks ?? null, performance.now());
       }
 
       const element = hudRef.current;
@@ -215,6 +225,7 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef }
             bodyLost,
             result: scoring.lastResult,
             stats: scoring.stats,
+            points: run.points,
           }
         : {
             ...INITIAL_HUD,
@@ -231,11 +242,12 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef }
     return () => {
       cancelAnimationFrame(frame);
       unsubscribe();
+      feedbackStore.publish(null);
       engine.setMelodyActive(false);
       engine.stop();
       debugRef.current = null;
     };
-  }, [session, engine, calibration, canvasRef, debugRef]);
+  }, [session, engine, calibration, canvasRef, debugRef, runRef]);
 
   const { stats, result } = hud;
   const timing = result && timingNote(result);
@@ -256,6 +268,10 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef }
       </div>
 
       <dl className="hud__stats">
+        <div>
+          <dt>Points</dt>
+          <dd data-testid="points">{hud.points.toLocaleString()}</dd>
+        </div>
         <div>
           <dt>Combo</dt>
           <dd data-testid="combo">{stats.combo}</dd>

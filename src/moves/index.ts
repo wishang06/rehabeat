@@ -86,4 +86,4 @@ export function parseMoves(value: unknown): Move[] {
 /** The routine's moves, validated at load so a malformed moves.json fails loudly. */
 export const MOVES: readonly Move[] = parseMoves(rawMoves);
 
-export { computeGhost, drawGhost, type GhostLimb, type Point } from './ghost';
+export { computeGhost, type GhostLimb, type Point } from './ghost';

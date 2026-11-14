@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
+import { LIMB_OF_JOINT, feedbackStore, jointVisibility } from '../engine';
 import type { Calibration } from '../scoring';
 import type { BeatEngine } from '../audio';
 import type { Session } from '../session';
@@ -28,6 +29,8 @@ export function DebugPanel({ session, engine, songId, calibration, playRef }: De
 
   const sample = session?.latest() ?? null;
   const play = playRef.current;
+  // Set while the Play screen runs; the joint table falls back to the raw sample without it.
+  const feedback = feedbackStore.getSnapshot();
 
   return (
     <aside className="debug" data-testid="debug-panel" aria-label="Debug panel">
@@ -67,6 +70,12 @@ export function DebugPanel({ session, engine, songId, calibration, playRef }: De
         <dd>{fixed(sample?.form.trunkLeanDeg)}°</dd>
         <dt>Shoulder-ear ratio</dt>
         <dd>{fixed(sample?.form.shoulderEarRatio, 3)}</dd>
+        <dt>Hint</dt>
+        <dd data-testid="debug-hint">{feedback?.hint?.text ?? '–'}</dd>
+        <dt>Low visibility</dt>
+        <dd data-testid="debug-low-visibility">
+          {feedback ? (feedback.lowVisibility ? feedback.hiddenJoints.join(', ') : 'no') : '–'}
+        </dd>
       </dl>
 
       <table className="debug__joints">
@@ -75,20 +84,25 @@ export function DebugPanel({ session, engine, songId, calibration, playRef }: De
             <th scope="col">Joint</th>
             <th scope="col">Live</th>
             <th scope="col">Target</th>
-            <th scope="col">Δ</th>
+            <th scope="col">Error</th>
+            <th scope="col">Vis</th>
           </tr>
         </thead>
         <tbody>
           {JOINT_NAMES.map((joint) => {
+            const limb = feedback?.limbs[LIMB_OF_JOINT[joint]];
             const angle = sample?.frame.angles[joint];
-            const target = play?.move?.joints[joint];
+            const target = limb ? (limb.targetDeg ?? undefined) : play?.move?.joints[joint];
+            // Signed, so the sign says which way to move; |error| is what scoring uses.
             const delta = angle !== undefined && target !== undefined ? angle - target : null;
+            const visibility = limb ? limb.visibility : jointVisibility(sample?.worldLandmarks ?? null, joint);
             return (
-              <tr key={joint} data-targeted={target !== undefined}>
+              <tr key={joint} data-targeted={target !== undefined} data-status={limb?.status}>
                 <th scope="row">{joint}</th>
                 <td>{fixed(angle, 0)}</td>
                 <td>{fixed(target, 0)}</td>
                 <td>{delta === null ? '–' : `${delta > 0 ? '+' : ''}${delta.toFixed(0)}`}</td>
+                <td>{fixed(visibility, 2)}</td>
               </tr>
             );
           })}

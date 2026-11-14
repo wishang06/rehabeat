@@ -43,9 +43,9 @@ Chrome's synthetic camera sometimes opens and then delivers no frames. The check
 
 1. **Pick a song.** The start screen lists the songs by catalogue. Hovering or focusing a song plays 10 s of its melody once you've clicked or pressed a key on the page. Arrows move, Enter picks, Esc goes back. Picking a song the first time starts the camera and sound; stand back until your head and knees are in the picture.
 2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
-3. **Play.** The routine loops through the three moves. The glowing guide shows the target and turns green when you are on it. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
+3. **Play.** The routine loops through the three moves. A gold figure shows the pose to hit, on your own body or, when its arms rest at its sides, beside you. It turns green when you are on it. Your own limbs are coloured green, amber or red by how far each is from its target, and a short hint ("left arm higher") points at the one to fix. If part of you is out of view, those limbs go grey and the screen tells you to step back. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
-Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, and live joint angles against the current targets.
+Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
 
 ## Architecture
 
@@ -54,7 +54,7 @@ Esc (or **Songs** in the top bar) returns to the menu; after the first calibrati
                   ┌──────────────────────────────────────────┐
                   ▼                                          │
  webcam ──▶ src/pose ──PoseFrame──▶ src/scoring ──BeatResult──▶ src/ui
-            angles from 3D          hold-window score,         HUD, ghost,
+            angles from 3D          hold-window score,         HUD, overlay,
             world landmarks,        form guidance,             beat dial
             One Euro smoothing      combo / accuracy
                                          │ hold score ≥ 60
@@ -76,7 +76,20 @@ The rule that holds it together: **`AudioContext.currentTime` is the only clock.
 
 ### Moves (`src/moves/`)
 
-`moves.json` is the routine. See [Move format](#move-format-for-teammates) below. `ghost.ts` draws the target pose as limbs attached to the player's own live shoulders and hips, using their own measured limb lengths, so the guide fits any body.
+`moves.json` is the routine. See [Move format](#move-format-for-teammates) below. `ghost.ts` lays out a move's target limbs for the start screen's pose glyphs.
+
+### Feedback (`src/engine/`)
+
+Every display frame, the Play screen builds a `FeedbackFrame` and publishes it to `feedbackStore`. The frame holds:
+
+- the phase and the beats until the next one;
+- the current and next move;
+- a status (green, amber, red or grey) and an angle error for each limb;
+- the worst joint and a short hint for it;
+- hold progress and the live score;
+- whether a scored joint is out of view.
+
+UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws from it: the gold target figure (filled capsules anchored to the player's own shoulders, hips and limb lengths, or drawn beside them when its arms rest at its sides), the player's own limbs coloured by status, the hint arrow and the step-back warning. [`src/engine/README.md`](src/engine/README.md) documents the frame, the figure geometry, the placement rule and how to read the frame from a component.
 
 ### Scoring (`src/scoring/`)
 
@@ -102,6 +115,21 @@ The rule that holds it together: **`AudioContext.currentTime` is the only clock.
 ### UI (`src/ui/`)
 
 Three screens (the song menu, Calibrate, Play) over one persistent camera view, plus the debug panel. The menu (`src/ui/menu/`) is used up close with a mouse or keyboard: a rail of catalogues drawn as a metronome rod with a notch per song at its tempo, and song cards with a lamp blinking at the song's BPM. The Play screen is read from about two metres away, so it has one large focal element: the beat dial and the phase word.
+
+## Accounts and leaderboard
+
+Players sign in with Google through Supabase Auth (project `rkxqtgbcendomwvrfxjf`). Signing in is optional: anyone can play, and a finished run goes on the leaderboard only when the player is signed in. A run finished before signing in is kept across the Google redirect and saved on return.
+
+- **Points:** a Perfect is worth 100, a Good 50, a Miss 0. Each move in an unbroken combo adds 10 more, up to +100, so a move is worth at most 200 (`src/scoring/points.ts`).
+- **Finish run** on the Play screen ends the run and shows the results with the top five.
+- **Schema:** `supabase/migrations/`. `profiles` is filled from the Google profile on sign-up, `scores` holds one row per run, and the `leaderboard` view ranks players by their best run. Row Level Security lets anyone read, and lets a signed-in player add only their own scores. Nobody can edit or delete a score from the app.
+- **Config:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). Without them the game runs with accounts switched off.
+
+## Deployment
+
+Every push to `main` deploys automatically. The workflow in `.github/workflows/deploy.yml` runs `npm ci`, `npm test` and `npm run build`, then rsyncs `dist/` to the EC2 server at `/var/www/rehabeat`, where nginx serves it. A failing test or typecheck stops the deploy, and the site keeps the previous version. To redeploy without a push, run the workflow by hand from the Actions tab.
+
+The workflow reads three repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`. On the server that key is limited to rsync into the web root (`rrsync`), so it can't open a shell. If the server's address changes, update `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`.
 
 ## Song library
 
@@ -182,13 +210,15 @@ The install is about 1 GB (Demucs and the CPU build of PyTorch). `npm run songs`
 ```
 src/
   types.ts        Shared contracts: JointName, PoseFrame, Move, BeatResult
+  types/ui.ts     FeedbackFrame and the other engine-to-UI types
   session.ts      Starts sound, camera and pose tracking on one clock; loads a song's engine
+  engine/         FeedbackFrame building, hints, target-figure geometry and placement
   songs/          Song library: types, catalogues, licences, credit lines, index and meta loading
   pose/           Camera, pose tracker, joint angles, One Euro filter, skeleton overlay
-  moves/          moves.json, validation, ghost
+  moves/          moves.json, validation, ghost limbs for the pose glyphs
   scoring/        Frame score, routine, scoring engine, form rules, stats
   audio/          Master clock, beatmap, beat grid, click track, stems, calibration
-  ui/             Calibrate and Play screens, beat dial, debug panel, credit strip
+  ui/             Calibrate, Play and Results screens, canvas overlay, beat dial, debug panel, credit strip
   ui/menu/        Song menu: catalogue rail, song cards, previews, credits view
 public/songs/     The song library (index.json and one folder per song)
 scripts/smoke.mjs Playwright smoke check
@@ -202,7 +232,8 @@ tools/            Beat tracking and stems (Python)
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.
 - Loop points are checked against the beat grid, not by ear. The loop cuts the audio with no crossfade, so listen for a click where each song wraps.
 - Song previews and in-game audio were checked in a muted browser; levels were measured, not listened to.
-- The ghost draws arms in the image plane and legs as seen from the front, so a knee raise shows as the foot coming up rather than the thigh swinging forward.
+- The target figure draws arms in the image plane and legs as seen from the front. A knee raise is drawn with the thigh canted outward so it reads as a raise, which is not exactly how a straight-ahead knee raise looks on camera.
+- MediaPipe often guesses landmarks just outside the frame with high confidence. The step-back warning only appears once a scored joint's visibility actually drops below 0.6, which in testing needed a good part of a limb out of view.
 - Only Chromium browsers have been tested.
 
 ---
