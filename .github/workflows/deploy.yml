@@ -33,6 +33,10 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Public values (repo variables, not secrets): they ship to the browser.
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Upload to server
         env:
