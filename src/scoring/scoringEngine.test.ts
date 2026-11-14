@@ -283,7 +283,7 @@ describe('form guidance in the engine', () => {
 });
 
 describe('melodyShouldPlay', () => {
-  const live = { cycle: null, phase: null, frameScore: 0, formNote: null };
+  const live = { cycle: null, phase: null, frameScore: 0, formNote: null, overLimit: [] };
   const result = (score: number): BeatResult => ({ moveId: 'm', score, label: 'Good', timingOffsetMs: 0 });
 
   it('follows the running hold score during a hold', () => {
@@ -295,5 +295,52 @@ describe('melodyShouldPlay', () => {
     expect(melodyShouldPlay({ ...live, holdScore: null }, result(72))).toBe(true);
     expect(melodyShouldPlay({ ...live, holdScore: null }, result(40))).toBe(false);
     expect(melodyShouldPlay({ ...live, holdScore: null }, null)).toBe(false);
+  });
+});
+
+describe('hold detail', () => {
+  it('records each scored joint with its signed mean error', () => {
+    const e = engine();
+    play(e, 0, 4, () => ({ leftShoulder: 80, rightShoulder: 104 }));
+    const [d] = e.details;
+    expect(d.moveId).toBe('side-arm-raise');
+    expect(d.cycleIndex).toBe(0);
+    expect(d.joints.leftShoulder).toEqual({ target: 90, meanError: -10, seen: 1 });
+    expect(d.joints.rightShoulder?.meanError).toBeCloseTo(14);
+    expect(d.score).toBeCloseTo(e.lastResult!.score);
+  });
+
+  it('gives a joint that was never in view an error of 0 and seen 0', () => {
+    const e = engine();
+    play(e, 0, 4, () => ({ leftShoulder: 90 }));
+    expect(e.details[0].joints.rightShoulder).toEqual({ target: 90, meanError: 0, seen: 0 });
+  });
+
+  it('reports the share of the hold a joint was in view', () => {
+    const e = engine();
+    play(e, 0, 4, (t) => (t < 2 ? ON_TARGET : { leftShoulder: 90 }));
+    expect(e.details[0].joints.rightShoulder?.seen).toBeCloseTo(0.5, 1);
+  });
+
+  it('lists form rules by id, once each', () => {
+    const e = engine();
+    play(e, 0, 4, () => ON_TARGET, () => ({ trunkLeanDeg: 30, shoulderEarRatio: 0.3 }));
+    expect(e.details[0].formFlags).toEqual(['trunk-lean']);
+  });
+
+  it('marks a breach on the cycle it happened in, and shows it live', () => {
+    const e = engine({ limits: { rightShoulder: { kind: 'range', maxDeg: 90 } } });
+    play(e, 0, 2, () => ({ leftShoulder: 90, rightShoulder: 130 }));
+    expect(e.live.overLimit).toEqual(['rightShoulder']);
+    play(e, 2, 4.1, () => ON_TARGET);
+    expect(e.details[0].overLimit).toEqual(['rightShoulder']);
+    expect(e.live.overLimit).toEqual([]);
+  });
+
+  it('still gives a detail to a cycle with no frames', () => {
+    const e = engine();
+    e.tick(4.1);
+    expect(e.details).toHaveLength(1);
+    expect(e.details[0].joints.leftShoulder).toEqual({ target: 90, meanError: 0, seen: 0 });
   });
 });

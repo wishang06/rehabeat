@@ -27,6 +27,7 @@ export {
   type JointLimits,
 } from './limits';
 export { applyResult, initialStats, type Stats } from './stats';
+export type { HoldDetail, JointHold } from './holdDetail';
 export {
   ScoringEngine,
   melodyShouldPlay,

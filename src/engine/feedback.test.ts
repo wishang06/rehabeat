@@ -31,7 +31,7 @@ const kneeRaise: Move = {
 // Count-in 0-4. Overhead: reach 4-6, hold 6-10, release 10-12. Knee raise: reach 12-14, hold 14-16, release 16-20.
 const routine = new Routine([overhead, kneeRaise], 4);
 
-const NO_LIVE: LiveState = { cycle: null, phase: null, frameScore: 0, holdScore: null, formNote: null };
+const NO_LIVE: LiveState = { cycle: null, phase: null, frameScore: 0, holdScore: null, formNote: null, overLimit: [] };
 
 /** Arms down, every joint measured. */
 const ARMS_DOWN: PoseFrame['angles'] = {
@@ -120,7 +120,7 @@ describe('buildFeedbackFrame: limbs', () => {
 describe('buildFeedbackFrame: score', () => {
   it('reports the scoring engine live score while it is on the same cycle', () => {
     const cycle = routine.cycle(0);
-    const live: LiveState = { cycle, phase: 'hold', frameScore: 72, holdScore: 70, formNote: null };
+    const live: LiveState = { cycle, phase: 'hold', frameScore: 72, holdScore: 70, formNote: null, overLimit: [] };
     const frame = build({ beat: 8, live });
     expect(frame.score).toBe(72);
     expect(frame.holdScore).toBe(70);
@@ -128,14 +128,14 @@ describe('buildFeedbackFrame: score', () => {
   });
 
   it('reports 0 while the scoring engine is still on the previous cycle', () => {
-    const live: LiveState = { cycle: routine.cycle(0), phase: 'release', frameScore: 90, holdScore: null, formNote: null };
+    const live: LiveState = { cycle: routine.cycle(0), phase: 'release', frameScore: 90, holdScore: null, formNote: null, overLimit: [] };
     const frame = build({ beat: 12.1, live });
     expect(frame.score).toBe(0);
     expect(frame.onTarget).toBe(false);
   });
 
   it('is never on target in a release', () => {
-    const live: LiveState = { cycle: routine.cycle(0), phase: 'release', frameScore: 95, holdScore: null, formNote: null };
+    const live: LiveState = { cycle: routine.cycle(0), phase: 'release', frameScore: 95, holdScore: null, formNote: null, overLimit: [] };
     expect(build({ beat: 11, live }).onTarget).toBe(false);
   });
 });

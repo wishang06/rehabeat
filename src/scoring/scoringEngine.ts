@@ -1,6 +1,8 @@
-import type { BeatResult, FormMetrics, PoseFrame } from '../types';
+import type { BeatResult, FormMetrics, JointName, PoseFrame } from '../types';
 import { FormMonitor, formNoteFor } from './formRules';
 import { GOOD_SCORE, labelFor, scoreFrame } from './frameScore';
+import type { HoldDetail, JointHold } from './holdDetail';
+import { LimitWatcher, type JointLimits } from './limits';
 import type { Cycle, Phase, Routine } from './routine';
 import { applyResult, initialStats, type Stats } from './stats';
 
@@ -15,6 +17,8 @@ export interface ScoringEngineOptions {
   offsetMs?: number;
   /** Resting FormMetrics.shoulderEarRatio from calibration; the shrug rule is off without it. */
   shoulderEarBaseline?: number | null;
+  /** The player's joint limits, if a doctor set any. Range-limited joints are watched on every frame. */
+  limits?: JointLimits;
 }
 
 /** What the engine knows as of the latest frame, in the player's (offset-corrected) time. */
@@ -28,6 +32,8 @@ export interface LiveState {
   holdScore: number | null;
   /** Form guidance flagged during the current cycle, if any. */
   formNote: string | null;
+  /** Limited joints that are past their limit as of the latest frame. */
+  overLimit: JointName[];
 }
 
 interface CycleTimes {
@@ -50,6 +56,7 @@ export class ScoringEngine {
   private readonly timeOfBeat: (beat: number) => number;
   private readonly offsetSec: number;
   private readonly form: FormMonitor;
+  private readonly limits: LimitWatcher;
 
   private current: CycleTimes;
   private finalized = false;
@@ -57,6 +64,13 @@ export class ScoringEngine {
   private holdFrames = 0;
   private arrivedAt: number | null = null;
   private formNote: string | null = null;
+  /** Per scored joint over the hold so far: the sum of (measured - target) and the frames it was visible in. */
+  private jointSums = new Map<JointName, { sum: number; frames: number }>();
+  private formFlags: string[] = [];
+  private overLimit: JointName[] = [];
+  /** The current cycle's detail once its hold has closed; breaches during the release are added to it. */
+  private currentDetail: HoldDetail | null = null;
+  private readonly detailList: HoldDetail[] = [];
 
   private liveState: LiveState = {
     cycle: null,
@@ -64,6 +78,7 @@ export class ScoringEngine {
     frameScore: 0,
     holdScore: null,
     formNote: null,
+    overLimit: [],
   };
   private statsState: Stats = initialStats();
   private last: BeatResult | null = null;
@@ -73,6 +88,7 @@ export class ScoringEngine {
     this.timeOfBeat = options.timeOfBeat;
     this.offsetSec = (options.offsetMs ?? 0) / 1000;
     this.form = new FormMonitor({ shoulderEarBaseline: options.shoulderEarBaseline ?? null });
+    this.limits = new LimitWatcher(options.limits ?? {});
     this.current = this.timesFor(0);
   }
 
@@ -86,6 +102,11 @@ export class ScoringEngine {
 
   get lastResult(): BeatResult | null {
     return this.last;
+  }
+
+  /** One HoldDetail per cycle whose hold has closed, in order. */
+  get details(): readonly HoldDetail[] {
+    return this.detailList;
   }
 
   /**
@@ -108,10 +129,28 @@ export class ScoringEngine {
       if (this.formNote === null && flagged.length > 0) {
         this.formNote = formNoteFor(flagged[0]) ?? null;
       }
+      for (const id of flagged) {
+        if (!this.formFlags.includes(id)) this.formFlags.push(id);
+      }
     }
     if (phase === 'hold') {
       this.holdSum += score;
       this.holdFrames += 1;
+      for (const [joint, target] of Object.entries(cycle.move.joints) as [JointName, number][]) {
+        const angle = frame.angles[joint];
+        if (angle === undefined) continue;
+        const sums = this.jointSums.get(joint) ?? { sum: 0, frames: 0 };
+        sums.sum += angle - target;
+        sums.frames += 1;
+        this.jointSums.set(joint, sums);
+      }
+    }
+
+    // Limits are watched in every phase: a restricted joint is restricted whatever the move asks for.
+    const over = this.limits.update(t, frame.angles);
+    const breached = this.currentDetail?.overLimit ?? this.overLimit;
+    for (const joint of over) {
+      if (!breached.includes(joint)) breached.push(joint);
     }
 
     this.liveState = {
@@ -120,6 +159,7 @@ export class ScoringEngine {
       frameScore: score,
       holdScore: phase === 'hold' ? this.holdSum / this.holdFrames : null,
       formNote: this.formNote,
+      overLimit: over,
     };
     return results;
   }
@@ -145,6 +185,7 @@ export class ScoringEngine {
         frameScore: 0,
         holdScore: null,
         formNote: null,
+        overLimit: [],
       };
     }
     return results;
@@ -181,6 +222,10 @@ export class ScoringEngine {
     this.holdFrames = 0;
     this.arrivedAt = null;
     this.formNote = null;
+    this.jointSums = new Map();
+    this.formFlags = [];
+    this.overLimit = [];
+    this.currentDetail = null;
     this.form.reset();
   }
 
@@ -197,6 +242,27 @@ export class ScoringEngine {
       timingOffsetMs: (arrival - holdStart) * 1000,
     };
     if (this.formNote !== null) result.formNote = this.formNote;
+
+    const joints: Partial<Record<JointName, JointHold>> = {};
+    for (const [joint, target] of Object.entries(cycle.move.joints) as [JointName, number][]) {
+      const sums = this.jointSums.get(joint);
+      joints[joint] = {
+        target,
+        meanError: sums ? sums.sum / sums.frames : 0,
+        seen: sums && this.holdFrames > 0 ? sums.frames / this.holdFrames : 0,
+      };
+    }
+    this.currentDetail = {
+      cycleIndex: cycle.index,
+      moveId: cycle.move.id,
+      score,
+      label: result.label,
+      timingOffsetMs: result.timingOffsetMs,
+      joints,
+      formFlags: this.formFlags,
+      overLimit: this.overLimit,
+    };
+    this.detailList.push(this.currentDetail);
 
     this.finalized = true;
     this.last = result;
