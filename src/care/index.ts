@@ -10,3 +10,4 @@ export {
   type AppliedProgram,
   type MoveChange,
 } from './prescription';
+export { buildSession } from './session';
