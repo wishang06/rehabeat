@@ -31,3 +31,9 @@ export {
   saveCalibration,
   type Calibration,
 } from './calibrationStore';
+export {
+  MAX_POINTS_PER_MOVE,
+  pointsFor,
+  summarizeRun,
+  type RunSummary,
+} from './points';
