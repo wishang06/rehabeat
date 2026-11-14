@@ -1,0 +1,3 @@
+# Scratch output: check.wav and raw Demucs output
+out/
+.pytest_cache/
