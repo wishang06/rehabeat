@@ -405,10 +405,10 @@ describe('form guidance in the engine', () => {
 
 describe('melodyShouldPlay', () => {
   const cycle = new Routine([sideRaise]).cycle(0);
-  const live = (phase: LiveState['phase'], locked: boolean): LiveState => ({
+  const live = (phase: LiveState['phase'], locked: boolean, frameScore = locked ? 90 : 0): LiveState => ({
     cycle: phase === null ? null : cycle,
     phase,
-    frameScore: 0,
+    frameScore,
     holdScore: null,
     formNote: null,
     locked,
@@ -426,6 +426,13 @@ describe('melodyShouldPlay', () => {
     expect(melodyShouldPlay(live('reach', false), result(72))).toBe(true);
     expect(melodyShouldPlay(live('reach', false), result(40))).toBe(false);
     expect(melodyShouldPlay(live('reach', false), null)).toBe(false);
+  });
+
+  it('stops when the pose sags under Good, even while the lock still holds', () => {
+    // The lock only lets go under 50; the melody follows the Good line the judgement uses.
+    expect(melodyShouldPlay(live('hold', true, 55), result(100))).toBe(false);
+    expect(melodyShouldPlay(live('reach', true, 55), null)).toBe(false);
+    expect(melodyShouldPlay(live('reach', true, 55), result(72))).toBe(true);
   });
 
   it('carries the result through the release', () => {

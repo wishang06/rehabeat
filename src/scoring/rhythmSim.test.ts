@@ -54,12 +54,19 @@ interface CyclePlan {
   arriveBeats: number | null;
   /** Beats after the hold ends that the arm starts coming down. */
   leaveBeats?: number;
+  /** Beats after the hold starts that the arm sags to `sagDeg` and stays there until it leaves. */
+  sagBeats?: number;
+  sagDeg?: number;
 }
 
 interface Movement {
   arrive: number;
   leave: number;
+  sag: { at: number; deg: number } | null;
 }
+
+/** How long a sag takes. */
+const SAG_SEC = 0.3;
 
 function movements(plans: readonly CyclePlan[]): (Movement | null)[] {
   return plans.map((plan, cycle) =>
@@ -68,6 +75,10 @@ function movements(plans: readonly CyclePlan[]): (Movement | null)[] {
       : {
           arrive: holdStart(cycle) + plan.arriveBeats * SPB,
           leave: holdEnd(cycle) + (plan.leaveBeats ?? 0) * SPB,
+          sag:
+            plan.sagBeats === undefined
+              ? null
+              : { at: holdStart(cycle) + plan.sagBeats * SPB, deg: plan.sagDeg ?? TARGET },
         },
   );
 }
@@ -79,9 +90,13 @@ function armAt(t: number, moves: readonly (Movement | null)[]): number {
     if (t >= move.arrive - MOVE_SEC && t <= move.arrive) {
       return REST + (TARGET - REST) * minJerk((t - (move.arrive - MOVE_SEC)) / MOVE_SEC);
     }
-    if (t > move.arrive && t < move.leave) return TARGET;
+    const held = move.sag && t >= move.sag.at ? move.sag.deg : TARGET;
+    if (t > move.arrive && t < move.leave) {
+      if (!move.sag || t < move.sag.at) return TARGET;
+      return TARGET - (TARGET - move.sag.deg) * minJerk((t - move.sag.at) / SAG_SEC);
+    }
     if (t >= move.leave && t <= move.leave + MOVE_SEC) {
-      return TARGET - (TARGET - REST) * minJerk((t - move.leave) / MOVE_SEC);
+      return held - (held - REST) * minJerk((t - move.leave) / MOVE_SEC);
     }
   }
   return REST;
@@ -184,6 +199,18 @@ describe('rhythm simulation: a player through pose smoothing, scoring and the me
     expect(off - letGo).toBeLessThan(0.8);
     // And it is gone before the hold is over.
     expect(off).toBeLessThan(holdEnd(1));
+  });
+
+  it('a player whose arms sag just under Good loses the melody, as the hold is a Miss', () => {
+    // Lands in the reach, then sags to 67.5 degrees (score 55) as the hold starts: under Good,
+    // but above the line at which the lock lets go.
+    const run = simulate([{ arriveBeats: -0.5, sagBeats: 0, sagDeg: 67.5 }]);
+    expect(run.results[0].label).toBe('Miss');
+    expect(firstOn(run) ?? Infinity).toBeLessThan(holdStart(0));
+    const off = firstOff(run, holdStart(0)) ?? Infinity;
+    // Gone within the sag, half a beat and a frame or two, and not back for the rest of the hold.
+    expect(off - holdStart(0)).toBeLessThan(SAG_SEC + MELODY_HOLD_OFF_BEATS * SPB + 0.1);
+    expect(firstOn(run, off)).toBeUndefined();
   });
 
   it('releasing a quarter beat early after a good hold leaves no gap in the melody', () => {

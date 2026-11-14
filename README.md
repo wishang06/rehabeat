@@ -113,7 +113,7 @@ UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws
 
 - Each song gets its own `BeatEngine`, loading `public/songs/<id>/beatmap.json` (`{ bpm, offset, beats }`) and the song's two stems, on one `AudioContext` shared with the menu's previews. If a beatmap is missing or malformed it falls back to a generated 72 BPM grid.
 - **Stems mode**: the drums play throughout and the melody fades in over 300 ms only while you are in the pose. This is the "music follows you" mechanic (`melodyShouldPlay` and `MelodyGate`):
-  - in a hold, it plays while you are in the pose (`live.locked`), whatever came before;
+  - in a hold, it plays while you are in the pose (`live.locked`, and the frame score at Good or better, so arms sagging just under Good lose it even though the lock holds), whatever came before;
   - in a reach, it plays as soon as you land the next pose, or while the last move was Good or better, so a good hold carries it on;
   - in a release, it carries the result of the hold that just closed;
   - it comes in at once but only goes out after the rule has said no for half a beat, so landing a fraction late, letting go a fraction early or a wobble doesn't cut the tune; and a camera that stops sending frames can't keep it playing.

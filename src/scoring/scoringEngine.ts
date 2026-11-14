@@ -268,7 +268,12 @@ export class ScoringEngine {
  * the scoring engine sees now. Feed it through a MelodyGate so it only drops
  * out after half a beat.
  *
- * - hold: while the player is in the pose (live.locked), whatever came before
+ * "In the pose" is the lock and the Good line together: the lock keeps a
+ * sweep through the pose from counting, and the Good line keeps a pose that
+ * has sagged under Good (which the lock tolerates down to 50) from playing
+ * the melody through a hold that is judged a Miss.
+ *
+ * - hold: while the player is in the pose, whatever came before
  * - reach: once the player has landed the pose, or while the last move's
  *   result was Good or better, so a good hold carries through to the next one
  * - release: carries the result of the hold that just closed
@@ -276,11 +281,12 @@ export class ScoringEngine {
  */
 export function melodyShouldPlay(live: LiveState, lastResult: BeatResult | null): boolean {
   const carried = (lastResult?.score ?? 0) >= GOOD_SCORE;
+  const inPose = live.locked && live.frameScore >= GOOD_SCORE;
   switch (live.phase) {
     case 'hold':
-      return live.locked;
+      return inPose;
     case 'reach':
-      return live.locked || carried;
+      return inPose || carried;
     case 'release':
       return carried;
     default:
