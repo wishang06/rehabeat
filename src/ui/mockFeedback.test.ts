@@ -61,6 +61,9 @@ describe('mockFrameAt', () => {
     expect(mockFrameAt(MOCK_STATES.reach).phase).toBe('reach');
     expect(mockFrameAt(MOCK_STATES.hold).phase).toBe('hold');
     expect(mockFrameAt(MOCK_STATES.stepback).lowVisibility).toBe(true);
+    expect(mockFrameAt(MOCK_STATES.easeoff).phase).toBe('hold');
+    expect(mockRunAt(MOCK_STATES.easeoff).easeOff).toBe('Ease off your right shoulder');
+    expect(mockRunAt(MOCK_STATES.hold).easeOff).toBeNull();
     for (const state of ['perfect', 'good', 'miss'] as const) {
       expect(mockFrameAt(MOCK_STATES[state]).phase).toBe('release');
     }

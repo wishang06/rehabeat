@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { FeedbackTracker, feedbackStore } from '../engine';
-import { MOVES } from '../moves';
 import {
   GOOD_SCORE,
   Routine,
@@ -9,6 +8,7 @@ import {
   melodyShouldPlay,
   pointsFor,
   type Calibration,
+  type HoldDetail,
   type Phase,
   type Stats,
 } from '../scoring';
@@ -19,6 +19,7 @@ import { prepareCanvas } from './canvas';
 import { PlayHud } from './hud/PlayHud';
 import type { HudRun } from './hud/types';
 import { PlayOverlay } from './overlay';
+import { easeOffText, roundOf, sessionOver, type PlayPlan } from './playProgram';
 
 /** Beats of lead-in before the first move starts. */
 const COUNT_IN_BEATS = 4;
@@ -40,6 +41,8 @@ export interface PlayRun {
   points: number;
   /** performance.now() when the Play screen started. */
   startedAt: number;
+  /** Every hold scored so far, in order: what a program session records. */
+  details: readonly HoldDetail[];
 }
 
 /** Live values the debug panel reads while the Play screen is up. */
@@ -55,6 +58,10 @@ interface PlayScreenProps {
   /** The picked song, loaded and ready to start. */
   engine: BeatEngine;
   calibration: Calibration;
+  /** What to play: the moves, how many rounds (null: until the player finishes) and the player's limits. */
+  plan: PlayPlan;
+  /** Called once when a program session has played its last round. */
+  onComplete: () => void;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   debugRef: RefObject<PlayDebug | null>;
   runRef: RefObject<PlayRun | null>;
@@ -64,38 +71,45 @@ interface Hud {
   phase: Phase | 'ready';
   /** 1-based position in the routine, or 0 during the count-in. */
   moveNumber: number;
+  /** The round of a program session, or null in free play. */
+  round: { current: number; total: number } | null;
   moveName: string;
   upNext: string | null;
   phaseBeats: number;
   beatsLeft: number;
   formNote: string | null;
+  easeOff: string | null;
   bodyLost: boolean;
   result: BeatResult | null;
   stats: Stats;
   points: number;
 }
 
-const INITIAL_HUD: Hud = {
+const initialHud = (plan: PlayPlan): Hud => ({
   phase: 'ready',
   moveNumber: 0,
-  moveName: MOVES[0].name,
+  round: roundOf(0, plan.moves.length, plan.rounds),
+  moveName: plan.moves[0].name,
   upNext: null,
   phaseBeats: COUNT_IN_BEATS,
   beatsLeft: COUNT_IN_BEATS,
   formNote: null,
+  easeOff: null,
   bodyLost: false,
   result: null,
   stats: initialStats(),
   points: 0,
-};
+});
 
 function hudKey(hud: Hud): string {
   return [
     hud.phase,
     hud.moveNumber,
+    hud.round?.current,
     hud.upNext,
     hud.beatsLeft,
     hud.formNote,
+    hud.easeOff,
     hud.bodyLost,
     hud.stats.total,
     hud.points,
@@ -109,25 +123,41 @@ function timingNote(result: BeatResult): string | null {
     : 'In time';
 }
 
-export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, runRef }: PlayScreenProps) {
-  const [hud, setHud] = useState<Hud>(INITIAL_HUD);
+export function PlayScreen({
+  session,
+  engine,
+  calibration,
+  plan,
+  onComplete,
+  canvasRef,
+  debugRef,
+  runRef,
+}: PlayScreenProps) {
+  const [hud, setHud] = useState<Hud>(() => initialHud(plan));
   const hudRef = useRef<HTMLDivElement>(null);
+  // The latest callback, without restarting the song when the parent re-renders.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     engine.start();
 
-    const routine = new Routine(MOVES, COUNT_IN_BEATS);
+    const moveCount = plan.moves.length;
+    const first = initialHud(plan);
+    const routine = new Routine(plan.moves, COUNT_IN_BEATS);
     const scoring = new ScoringEngine({
       routine,
       timeOfBeat: (beat) => engine.clockTimeOfBeat(beat),
       offsetMs: calibration.offsetMs,
       shoulderEarBaseline: calibration.shoulderEarBaseline,
+      limits: plan.limits,
     });
     const feedback = new FeedbackTracker(routine);
     const overlay = new PlayOverlay();
 
-    const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now() };
+    const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now(), details: scoring.details };
     runRef.current = run;
+    let over = false;
 
     let lastSampleAt = performance.now();
     const unsubscribe = session.subscribe((sample) => {
@@ -135,7 +165,7 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
       scoring.push(sample.frame, sample.form);
     });
 
-    let shownKey = hudKey(INITIAL_HUD);
+    let shownKey = hudKey(first);
     let lastSeen = performance.now();
     let frame = requestAnimationFrame(function draw() {
       frame = requestAnimationFrame(draw);
@@ -153,6 +183,13 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
         run.points += pointsFor(scoring.lastResult.label, scoring.stats.combo);
       }
       run.stats = scoring.stats;
+      run.details = scoring.details;
+
+      // A program session ends itself once its last round has been played and scored.
+      if (!over && sessionOver(plan, routine, beat, scoring.details.length)) {
+        over = true;
+        onCompleteRef.current();
+      }
 
       const live = scoring.live;
       const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
@@ -203,19 +240,21 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
       const next: Hud = info
         ? {
             phase: info.phase,
-            moveNumber: (info.cycle.index % MOVES.length) + 1,
+            moveNumber: (info.cycle.index % moveCount) + 1,
+            round: roundOf(info.cycle.index, moveCount, plan.rounds),
             moveName: info.cycle.move.name,
             upNext: info.phase === 'release' ? routine.cycle(info.cycle.index + 1).move.name : null,
             phaseBeats: info.cycle.move.beats[info.phase],
             beatsLeft: info.beatsLeft,
             formNote: live.formNote,
+            easeOff: easeOffText(live.overLimit),
             bodyLost,
             result: scoring.lastResult,
             stats: scoring.stats,
             points: run.points,
           }
         : {
-            ...INITIAL_HUD,
+            ...first,
             beatsLeft: Math.min(COUNT_IN_BEATS, Math.max(1, Math.ceil(COUNT_IN_BEATS - beat))),
             bodyLost,
           };
@@ -234,7 +273,7 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
       engine.stop();
       debugRef.current = null;
     };
-  }, [session, engine, calibration, canvasRef, debugRef, runRef]);
+  }, [session, engine, calibration, plan, canvasRef, debugRef, runRef]);
 
   const { stats, result } = hud;
   // The scoring engine's state, in the shape the HUD takes. Per-frame values reach the HUD through feedbackStore.
@@ -244,13 +283,15 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
     perfectStreak: stats.streak,
     accuracy: stats.total > 0 ? stats.accuracy : null,
     moveNumber: hud.moveNumber,
-    moveCount: MOVES.length,
+    moveCount: plan.moves.length,
+    round: hud.round,
     result: result
       ? { serial: stats.total, label: result.label, score: result.score, timing: timingNote(result) }
       : null,
     formNote: hud.formNote,
     bodyLost: hud.bodyLost,
+    easeOff: hud.easeOff,
   };
 
-  return <PlayHud ref={hudRef} frames={feedbackStore} run={run} />;
+  return <PlayHud ref={hudRef} frames={feedbackStore} run={run} moves={plan.moves} />;
 }

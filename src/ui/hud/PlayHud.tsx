@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { MoveUp } from 'lucide-react';
+import { ChevronsDown, MoveUp } from 'lucide-react';
 import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/react';
 import { Figure } from '@/components/Figure';
 import { useFeedbackFrame } from '../../engine';
@@ -96,7 +96,7 @@ function PhaseCue({ frames }: PhaseCueProps) {
 }
 
 /** The side cards: the move in play, and the one after it. */
-function MoveCards({ frames, moveNumber, moveCount }: MoveCardsProps) {
+function MoveCards({ frames, moveNumber, moveCount, round, moves }: MoveCardsProps) {
   const moveId = useFeedbackFrame((frame) => frame?.move?.id ?? null, frames);
   const moveName = useFeedbackFrame((frame) => frame?.move?.name ?? null, frames);
   const nextId = useFeedbackFrame((frame) => frame?.nextMove.id ?? null, frames);
@@ -104,13 +104,14 @@ function MoveCards({ frames, moveNumber, moveCount }: MoveCardsProps) {
   // During the count-in there is no current move: the first one is "up first".
   const now = moveName ?? nextName;
   const nowId = moveId ?? nextId;
-  const jointsOf = (id: string | null) => MOVES.find((move) => move.id === id)?.joints;
+  const jointsOf = (id: string | null) => moves.find((move) => move.id === id)?.joints;
+  const place = `Now · ${Math.max(1, moveNumber)} of ${moveCount}`;
 
   return (
     <aside className="hud-moves">
       <div className="hud-move slab slab-edge">
         <span className="hud-move__tag label">
-          {moveName ? `Now · ${Math.max(1, moveNumber)} of ${moveCount}` : 'First up'}
+          {moveName ? (round ? `${place} · Round ${round.current} of ${round.total}` : place) : 'First up'}
         </span>
         <span className="hud-move__name display" data-testid="move-name">
           {now}
@@ -285,8 +286,18 @@ function RunStats({ points, accuracy, perfectStreak }: RunStatsProps) {
 }
 
 /** One message at a time along the bottom: "step back" outranks a form cue. */
-function StepBackBanner({ frames, bodyLost, formNote }: StepBackBannerProps) {
+function StepBackBanner({ frames, bodyLost, easeOff, formNote }: StepBackBannerProps) {
   const lowVisibility = useFeedbackFrame((frame) => frame?.lowVisibility ?? false, frames);
+  if (!lowVisibility && !bodyLost && easeOff) {
+    // Guidance, not a safety warning: the angle is an estimate from the camera.
+    return (
+      <p className="hud-banner slab" role="status" data-testid="ease-off">
+        <ChevronsDown aria-hidden="true" strokeWidth={3} />
+        <span className="hud-banner__word display">Ease off</span>
+        <span className="hud-banner__detail label">{easeOff}: past the range your doctor set</span>
+      </p>
+    );
+  }
   if (!lowVisibility && !bodyLost) return <FormNote note={formNote} />;
   return (
     <p className="hud-banner slab" role="status" data-testid={bodyLost ? 'body-lost' : 'step-back'}>
@@ -315,17 +326,23 @@ function FormNote({ note }: FormNoteProps) {
  * properties the Play screen writes on the root from the audio clock; the
  * rest are read from the feedback store and the run stats.
  */
-export function PlayHud({ frames, run, ref }: PlayHudProps) {
+export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
   return (
     <MotionConfig reducedMotion="user">
       <div className="hud" ref={ref} data-testid="play-screen">
         <RunStats points={run.points} accuracy={run.accuracy} perfectStreak={run.perfectStreak} />
         <PhaseCue frames={frames} />
-        <MoveCards frames={frames} moveNumber={run.moveNumber} moveCount={run.moveCount} />
+        <MoveCards
+          frames={frames}
+          moveNumber={run.moveNumber}
+          moveCount={run.moveCount}
+          round={run.round}
+          moves={moves}
+        />
         <HoldRing frames={frames} />
         <ComboCounter combo={run.combo} />
         <ResultPop result={run.result} frames={frames} />
-        <StepBackBanner frames={frames} bodyLost={run.bodyLost} formNote={run.formNote} />
+        <StepBackBanner frames={frames} bodyLost={run.bodyLost} easeOff={run.easeOff} formNote={run.formNote} />
         <div className="hud-pulse" aria-hidden="true" />
         <HudSounds frames={frames} run={run} />
       </div>

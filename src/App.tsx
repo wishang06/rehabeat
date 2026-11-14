@@ -3,9 +3,11 @@ import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/rea
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import type { BeatEngine } from './audio';
+import type { PlayPlan } from './care';
 import { useAuth } from './lib/auth';
 import { takePendingRun } from './lib/scores';
 import { supabase } from './lib/supabase';
+import { MOVES } from './moves';
 import { recordRun, type RunGains } from './progress';
 import {
   DEFAULT_CALIBRATION,
@@ -39,6 +41,9 @@ const SCREEN_LANE: Variants = {
   on: { opacity: 1, x: 0, transition: { duration: 0.2, ease: [0.23, 1, 0.32, 1] } },
   exit: { opacity: 0, x: -48, transition: { duration: 0.11, ease: 'easeIn' } },
 };
+
+/** Free play: every move, until the player finishes. */
+const FREE_PLAY: PlayPlan = { moves: MOVES, rounds: null, limits: {} };
 
 /** The picked song, loaded into its own beat engine. */
 interface LoadedSong {
@@ -276,6 +281,8 @@ export function App() {
                     session={session}
                     engine={song.engine}
                     calibration={calibration}
+                    plan={FREE_PLAY}
+                    onComplete={finish}
                     canvasRef={canvasRef}
                     debugRef={playDebugRef}
                     runRef={playRunRef}

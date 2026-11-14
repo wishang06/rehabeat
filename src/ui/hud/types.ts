@@ -8,7 +8,7 @@
  */
 import type { Ref } from 'react';
 import type { FeedbackStore } from '../../engine';
-import type { BeatLabel } from '../../types';
+import type { BeatLabel, Move } from '../../types';
 import type { FeedbackFrame, FeedbackPhase, MoveRef } from '../../types/ui';
 
 export type { FeedbackFrame, FeedbackPhase, FeedbackStore, MoveRef };
@@ -36,16 +36,22 @@ export interface HudRun {
   /** 1-based position in the routine, or 0 during the count-in. */
   moveNumber: number;
   moveCount: number;
+  /** The round of a program session, or null in free play. */
+  round: { current: number; total: number } | null;
   result: HudResult | null;
   /** A form cue from the scoring engine ("Keep your shoulders down"), or null. */
   formNote: string | null;
   /** True when the camera has not seen the player for a while. */
   bodyLost: boolean;
+  /** "Ease off your right shoulder" while a limited joint is past its limit, or null. */
+  easeOff: string | null;
 }
 
 export interface PlayHudProps {
   frames: FeedbackStore;
   run: HudRun;
+  /** The moves being played, for the move cards' figures. A program's moves can differ from moves.json. */
+  moves?: readonly Move[];
   /** The Play screen writes --pulse, --progress and --match on this element once per frame. */
   ref?: Ref<HTMLDivElement>;
 }
@@ -60,6 +66,8 @@ export interface MoveCardsProps {
   frames: FeedbackStore;
   moveNumber: number;
   moveCount: number;
+  round: HudRun['round'];
+  moves: readonly Move[];
 }
 
 /** The match score as a ring, with marks at Good and Perfect. */
@@ -83,10 +91,15 @@ export interface RunStatsProps {
   perfectStreak: number;
 }
 
-/** "Step back": shown on low visibility, or when the player has left the picture. Otherwise the form cue, if any. */
+/**
+ * "Step back": shown on low visibility, or when the player has left the
+ * picture. Otherwise "Ease off" for a joint past its limit, and failing
+ * that the form cue, if any.
+ */
 export interface StepBackBannerProps {
   frames: FeedbackStore;
   bodyLost: boolean;
+  easeOff: string | null;
   formNote: string | null;
 }
 

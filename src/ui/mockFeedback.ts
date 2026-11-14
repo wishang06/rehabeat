@@ -170,9 +170,12 @@ export function mockRunAt(beat: number): HudRun {
     accuracy: scored > 0 ? total / scored : null,
     moveNumber: cycle < 0 ? 0 : (cycle % MOVES.length) + 1,
     moveCount: MOVES.length,
+    round: null,
     result,
     formNote: null,
     bodyLost: false,
+    // The second move's hold stands in for a limited joint going past its limit.
+    easeOff: cycle === 1 && phase === 'hold' ? 'Ease off your right shoulder' : null,
   };
 }
 
@@ -182,6 +185,7 @@ export const MOCK_STATES = {
   reach: MOCK_COUNT_IN_BEATS + 1.2,
   hold: MOCK_COUNT_IN_BEATS + 4.4,
   perfect: MOCK_COUNT_IN_BEATS + 6.5,
+  easeoff: MOCK_COUNT_IN_BEATS + 8 + 4.4,
   good: MOCK_COUNT_IN_BEATS + 8 + 6.5,
   stepback: MOCK_COUNT_IN_BEATS + 24 + 1.4,
   miss: MOCK_COUNT_IN_BEATS + 24 + 6.5,
