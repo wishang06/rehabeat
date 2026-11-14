@@ -9,7 +9,7 @@
 //   npm run smoke -- --url http://localhost:5173  use a server that is already running
 
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -58,6 +58,50 @@ function framesDelivered(page) {
         setTimeout(() => resolve(frames), 1500);
       }),
   );
+}
+
+/**
+ * The music credit must be on screen wherever the track is: its title and
+ * artist as text, with links to the source and to the licence. What it should
+ * say comes from the app's own credit data, so this holds for any track.
+ */
+async function checkCredit(page, screenName) {
+  const found = await page.evaluate(async () => {
+    const { TRACK_CREDIT } = await import('/src/audio/trackCredit.ts');
+    const element = document.querySelector('[data-testid="music-credit"]');
+    const box = element?.getBoundingClientRect();
+    const hrefs = [...(element?.querySelectorAll('a') ?? [])].map((link) => link.href);
+    return {
+      visible: Boolean(box && box.width > 0 && box.height > 0 && box.bottom <= window.innerHeight + 1),
+      text: element?.textContent ?? '',
+      namesTrack: Boolean(element?.textContent?.includes(TRACK_CREDIT.title) && element.textContent.includes(TRACK_CREDIT.artist)),
+      linksSource: hrefs.includes(TRACK_CREDIT.sourceUrl),
+      linksLicence: hrefs.includes(TRACK_CREDIT.licenceUrl),
+    };
+  }).catch((error) => ({ visible: false, text: String(error).slice(0, 120) }));
+  const passed = Boolean(found.visible && found.namesTrack && found.linksSource && found.linksLicence);
+  check(`music credit on the ${screenName} screen, linking the source and the licence`, passed, found.text.trim());
+}
+
+/** Decodes both stems in the page and measures the loudest sample of their sum at the engine's gain. */
+function stemHeadroom(page) {
+  return page.evaluate(async () => {
+    const { STEM_GAIN } = await import('/src/audio/index.ts');
+    const ctx = new OfflineAudioContext(2, 44100, 44100);
+    const load = async (name) => ctx.decodeAudioData(await (await fetch(`/stems/${name}.mp3`)).arrayBuffer());
+    const [drums, melody] = await Promise.all([load('drums'), load('melody')]);
+    const frames = Math.min(drums.length, melody.length);
+    let peak = 0;
+    for (let channel = 0; channel < drums.numberOfChannels; channel++) {
+      const d = drums.getChannelData(channel);
+      const m = melody.getChannelData(Math.min(channel, melody.numberOfChannels - 1));
+      for (let i = 0; i < frames; i++) {
+        const sample = Math.abs(d[i] + m[i]);
+        if (sample > peak) peak = sample;
+      }
+    }
+    return { gain: STEM_GAIN, peak: peak * STEM_GAIN, audioSeconds: Math.min(drums.duration, melody.duration) };
+  });
 }
 
 const checks = [];
@@ -109,6 +153,7 @@ async function happyPath(url) {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     check('app loads', (await page.title()) === 'Rehabeat');
     await page.getByTestId('start-button').waitFor({ timeout: 15_000 });
+    if (hasStems) await checkCredit(page, 'start');
     await page.screenshot({ path: path.join(outDir, '1-welcome.png') });
 
     // Starting asks for the camera; the fake-UI flag answers "allow".
@@ -139,6 +184,7 @@ async function happyPath(url) {
     await page.getByTestId('calibrate-skip').click();
     await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
     check('Play screen shown', true);
+    if (hasStems) await checkCredit(page, 'Play');
 
     await page.keyboard.press('d');
     await page.getByTestId('debug-panel').waitFor({ timeout: 5_000 });
@@ -180,6 +226,22 @@ async function happyPath(url) {
     check('pose loop is running', measured.fps > 5 && measured.detectMs > 0, `${measured.fps} fps, ${measured.detectMs} ms per detection, ${measured.delegate}`);
     if (videoFile) check('pose found in the camera clip', measured.poseFound);
     check(`beat engine reports "${expectedAudio}"`, (measured.audio ?? '').startsWith(expectedAudio), measured.audio ?? '');
+
+    if (hasStems) {
+      const headroom = await stemHeadroom(page);
+      measured.stemPeakDbfs = Math.round(200 * Math.log10(headroom.peak)) / 10;
+      check(`stems do not clip at x${headroom.gain}`, headroom.peak < 1, `drums + melody peak at ${measured.stemPeakDbfs} dBFS`);
+
+      // The audio wraps after `loop` seconds. For the grid to carry straight on, the first
+      // beat of the next pass has to land one beat after the last beat of this one.
+      const beatmap = JSON.parse(await readFile(path.join(root, 'public', 'beatmap.json'), 'utf8'));
+      const loop = Number.parseFloat((await page.getByTestId('debug-loop').textContent()) ?? '');
+      const inLoop = beatmap.beats.filter((time) => time < loop);
+      const seam = loop + inLoop[0] - inLoop[inLoop.length - 1];
+      const beat = 60 / beatmap.bpm;
+      measured.loop = { seconds: loop, beats: inLoop.length, audioSeconds: Math.round(headroom.audioSeconds * 1000) / 1000, seamMs: Math.round(seam * 1000), beatMs: Math.round(beat * 1000) };
+      check('stems loop on the beat grid', Math.abs(seam - beat) < 0.002, `${loop} s loop of ${inLoop.length} beats in ${measured.loop.audioSeconds} s of audio; seam ${measured.loop.seamMs} ms, beat ${measured.loop.beatMs} ms`);
+    }
 
     if (expectHit) {
       // The clip should land at least one hold; with stems, that brings the melody in.

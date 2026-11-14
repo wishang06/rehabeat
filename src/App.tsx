@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { hasStems } from 'virtual:public-assets';
 import { DEFAULT_CALIBRATION, loadCalibration, type Calibration } from './scoring';
 import { describeStartError, startSession, type Session, type StartStep } from './session';
 import { CalibrateScreen } from './ui/CalibrateScreen';
 import { DebugPanel } from './ui/DebugPanel';
+import { MusicCredit } from './ui/MusicCredit';
 import { PlayScreen, type PlayDebug } from './ui/PlayScreen';
 import { Stage } from './ui/Stage';
 import { WelcomeScreen } from './ui/WelcomeScreen';
@@ -52,7 +54,7 @@ export function App() {
   };
 
   return (
-    <div className="app" data-screen={screen}>
+    <div className="app" data-screen={screen} data-credit={hasStems}>
       <header className="app__bar">
         <span className="app__wordmark">Rehabeat</span>
         {session && (
@@ -101,6 +103,13 @@ export function App() {
         </Stage>
         {debug && <DebugPanel session={session} calibration={calibration} playRef={playDebugRef} />}
       </main>
+
+      {/* The strip keeps its height on every screen so the camera view never jumps. */}
+      {hasStems && (
+        <footer className="app__footer">
+          {(screen === 'welcome' || screen === 'play') && <MusicCredit />}
+        </footer>
+      )}
     </div>
   );
 }

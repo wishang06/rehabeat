@@ -86,10 +86,59 @@ kbd {
 /* App shell */
 
 .app {
+  --footer-height: 0px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--bar-height) minmax(0, 1fr);
   height: 100dvh;
+}
+
+.app[data-credit='true'] {
+  --footer-height: 2.5rem;
+  grid-template-rows: var(--bar-height) minmax(0, 1fr) auto;
+}
+
+.app__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--footer-height);
+  padding: 0.5rem var(--gutter);
+  box-shadow: 0 -1px 0 var(--seam);
+}
+
+/* Music credit (CC BY attribution) */
+
+.credit {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--chalk-faint);
+  text-align: center;
+}
+
+.credit__tag {
+  margin-right: 0.25rem;
+  font-weight: 600;
+  color: var(--chalk-soft);
+}
+
+.credit a {
+  color: var(--chalk-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--seam-strong);
+  text-underline-offset: 0.2em;
+  transition: color 160ms var(--ease-out);
+}
+
+.credit a:hover {
+  color: var(--chalk);
+  text-decoration-color: currentColor;
+}
+
+.credit a:focus-visible {
+  outline: 2px solid var(--chalk);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
 }
 
 .app__bar {
@@ -212,7 +261,10 @@ kbd {
   --inset: clamp(0.75rem, 3cqw, 2rem);
   position: relative;
   flex: 0 1 auto;
-  width: min(100%, calc((100dvh - var(--bar-height) - 2 * var(--gutter)) * var(--aspect)));
+  width: min(
+    100%,
+    calc((100dvh - var(--bar-height) - var(--footer-height) - 2 * var(--gutter)) * var(--aspect))
+  );
   aspect-ratio: var(--aspect);
   overflow: hidden;
   border-radius: var(--radius-stage);
