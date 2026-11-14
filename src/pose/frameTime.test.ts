@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   FPS_SMOOTHING,
+  LATENCY_SMOOTHING,
   MAX_CAPTURE_SKEW_MS,
   MIN_TIMESTAMP_STEP_MS,
   nextDetectTimestamp,
   pickFrameTime,
   smoothFps,
+  smoothLatency,
 } from './frameTime';
 
 describe('pickFrameTime', () => {
@@ -111,5 +113,23 @@ describe('smoothFps', () => {
     expect(smoothFps(30, Number.NaN)).toBe(30);
     expect(smoothFps(30, Number.POSITIVE_INFINITY)).toBe(30);
     expect(smoothFps(0, 0)).toBe(0);
+  });
+});
+
+describe('smoothLatency', () => {
+  it('takes the first sample as it is', () => {
+    expect(smoothLatency(null, 48)).toBe(48);
+  });
+
+  it('moves a tenth of the way toward each new sample', () => {
+    expect(LATENCY_SMOOTHING).toBe(0.1);
+    expect(smoothLatency(50, 60)).toBeCloseTo(51, 9);
+    expect(smoothLatency(50, 60, 0.5)).toBeCloseTo(55, 9);
+  });
+
+  it('ignores a sample that is not a number', () => {
+    expect(smoothLatency(50, Number.NaN)).toBe(50);
+    expect(smoothLatency(50, Number.POSITIVE_INFINITY)).toBe(50);
+    expect(smoothLatency(null, Number.NaN)).toBeNull();
   });
 });
