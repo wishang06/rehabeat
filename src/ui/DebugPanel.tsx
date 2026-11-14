@@ -28,6 +28,7 @@ export function DebugPanel({ session, engine, songId, calibration, playRef }: De
   }, []);
 
   const sample = session?.latest() ?? null;
+  const camera = session?.stream.getVideoTracks()[0]?.getSettings();
   const play = playRef.current;
   // Set while the Play screen runs; the joint table falls back to the raw sample without it.
   const feedback = feedbackStore.getSnapshot();
@@ -41,6 +42,13 @@ export function DebugPanel({ session, engine, songId, calibration, playRef }: De
         <dd>
           <span data-testid="debug-detect-ms">{fixed(sample?.detectMs)}</span> ms
           {session ? ` (${session.tracker.delegate})` : ''}
+        </dd>
+        <dt>Pose latency</dt>
+        <dd data-testid="debug-latency">{fixed(session?.latencyMs(), 0)} ms</dd>
+        <dt>Camera</dt>
+        <dd data-testid="debug-camera">
+          {camera?.width && camera.height ? `${camera.width}×${camera.height}` : '–'}
+          {camera?.frameRate ? ` @ ${fixed(camera.frameRate, 0)} fps` : ''}
         </dd>
         <dt>Calibration offset</dt>
         <dd data-testid="debug-offset">{formatOffset(calibration.offsetMs)}</dd>

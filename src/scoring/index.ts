@@ -9,6 +9,14 @@ export {
 } from './frameScore';
 export { Routine, type Cycle, type Phase, type PhaseInfo } from './routine';
 export {
+  LOCK_ENTER_SCORE,
+  LOCK_ENTER_SEC,
+  LOCK_EXIT_SCORE,
+  LOCK_EXIT_SEC,
+  PoseLock,
+  type ScoredSample,
+} from './poseLock';
+export {
   FORM_PERSIST_MS,
   FORM_RULES,
   FormMonitor,
@@ -18,7 +26,9 @@ export {
   type FormContext,
 } from './formRules';
 export { applyResult, initialStats, type Stats } from './stats';
+export { MELODY_HOLD_OFF_BEATS, MelodyGate } from './melodyGate';
 export {
+  MAX_FRAME_SPAN_SEC,
   ScoringEngine,
   melodyShouldPlay,
   type LiveState,

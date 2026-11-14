@@ -1,5 +1,5 @@
 import { BeatEngine, MasterClock, scheduleClick } from './audio';
-import { createPoseTracker, openCamera, stopCamera, type PoseTracker } from './pose';
+import { createPoseTracker, openCamera, smoothLatency, stopCamera, type PoseTracker } from './pose';
 import { songUrls } from './songs/library';
 import type { PoseSample } from './types';
 
@@ -19,6 +19,12 @@ export interface Session {
   stream: MediaStream;
   /** The most recent pose sample, or null before the first video frame. */
   latest(): PoseSample | null;
+  /**
+   * How far behind the audible present each pose frame is when it arrives,
+   * smoothed, in ms: camera capture to landmarks, on the audio clock. null
+   * before the first frame.
+   */
+  latencyMs(): number | null;
   /** Calls `listener` for every video frame. Returns the unsubscribe function. */
   subscribe(listener: SampleListener): () => void;
   /** A one-off click at a master-clock time, for calibration. */
@@ -41,6 +47,7 @@ export async function startSession(
 ): Promise<Session> {
   const listeners = new Set<SampleListener>();
   let latest: PoseSample | null = null;
+  let latencyMs: number | null = null;
   let stream: MediaStream | null = null;
 
   try {
@@ -57,6 +64,7 @@ export async function startSession(
       toClockTime: (perfMs) => clock.fromPerformanceTime(perfMs),
       onSample: (sample) => {
         latest = sample;
+        latencyMs = smoothLatency(latencyMs, (clock.audibleNow() - sample.frame.t) * 1000);
         for (const listener of listeners) listener(sample);
       },
     });
@@ -69,6 +77,7 @@ export async function startSession(
       tracker,
       stream: startedStream,
       latest: () => latest,
+      latencyMs: () => latencyMs,
       subscribe(listener) {
         listeners.add(listener);
         return () => listeners.delete(listener);

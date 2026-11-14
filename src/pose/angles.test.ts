@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { JOINT_NAMES } from '../types';
 import { angleBetween, computeJointAngles } from './angles';
-import { MIN_VISIBILITY } from './landmarks';
+import { KEEP_MEASURED_VISIBILITY, MIN_VISIBILITY } from './landmarks';
 import { hiddenPose, point, standingPose, withLandmarks } from './poseFixtures';
 
 const ORIGIN = { x: 0, y: 0, z: 0 };
@@ -148,5 +148,31 @@ describe('computeJointAngles', () => {
   it('returns nothing for a pose with no visible landmarks or no landmarks at all', () => {
     expect(computeJointAngles(hiddenPose())).toEqual({ angles: {}, visible: [] });
     expect(computeJointAngles([])).toEqual({ angles: {}, visible: [] });
+  });
+
+  describe('hysteresis', () => {
+    const hovering = (visibility: number) =>
+      withLandmarks(standingPose(), { leftWrist: point(0.15, 0.1, 0, visibility) });
+
+    it('keeps a joint it measured last frame down to 0.5 visibility', () => {
+      expect(computeJointAngles(hovering(0.55)).visible).not.toContain('leftElbow');
+      expect(computeJointAngles(hovering(0.55), MIN_VISIBILITY, new Set(['leftElbow'])).visible).toContain(
+        'leftElbow',
+      );
+      expect(computeJointAngles(hovering(KEEP_MEASURED_VISIBILITY), MIN_VISIBILITY, new Set(['leftElbow'])).visible).toContain(
+        'leftElbow',
+      );
+    });
+
+    it('drops a kept joint once visibility falls below 0.5', () => {
+      expect(computeJointAngles(hovering(0.45), MIN_VISIBILITY, new Set(['leftElbow'])).visible).not.toContain(
+        'leftElbow',
+      );
+    });
+
+    it('only relaxes the threshold for the joints that were measured', () => {
+      const { visible } = computeJointAngles(hovering(0.55), MIN_VISIBILITY, new Set(['rightElbow']));
+      expect(visible).not.toContain('leftElbow');
+    });
   });
 });

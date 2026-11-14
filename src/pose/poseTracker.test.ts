@@ -240,6 +240,29 @@ describe('createPoseTracker: the frame loop', () => {
     expect(samples[2].frame.angles.leftElbow).toBeCloseTo(180, 6);
   });
 
+  it('keeps a joint measured while its visibility hovers between 0.5 and 0.6', async () => {
+    const hovering = standingPose().map((landmark, index) =>
+      index === 15 ? { ...landmark, visibility: 0.55 } : landmark,
+    );
+    const landmarker = fakeLandmarker();
+    mocks.createFromOptions.mockResolvedValue(landmarker);
+    const video = fakeVideo();
+    const samples: PoseSample[] = [];
+    const tracker = await createPoseTracker({ video: video.video, onSample: (sample) => samples.push(sample) });
+    tracker.start();
+
+    presentAt(video, 1_000);
+    landmarker.detectForVideo.mockReturnValue({ landmarks: [hovering], worldLandmarks: [hovering] });
+    presentAt(video, 1_033);
+    expect(samples[1].frame.visible).toContain('leftElbow');
+
+    // A tracker that never saw the wrist clearly does not start measuring it at 0.55.
+    tracker.stop();
+    tracker.start();
+    presentAt(video, 1_066);
+    expect(samples[2].frame.visible).not.toContain('leftElbow');
+  });
+
   it('treats a landmark without visibility as not visible', async () => {
     const bare = standingPose().map(({ x, y, z }) => ({ x, y, z }));
     mocks.createFromOptions.mockResolvedValue(
