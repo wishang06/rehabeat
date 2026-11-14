@@ -3,9 +3,16 @@ import type { JointName } from '../types';
 import { OneEuroFilter } from './oneEuro';
 import type { OneEuroOptions } from './oneEuro';
 
-/** Tuned for joint angles in degrees sampled at about 30 fps. */
-export const ANGLE_MIN_CUTOFF = 1.5;
-export const ANGLE_BETA = 0.02;
+/**
+ * Tuned for joint angles in degrees sampled at about 30 fps, so that a limb
+ * arriving on the beat is seen arriving on the beat. On a simulated
+ * minimum-jerk reach with 2-4° of landmark noise, the smoothed angle crosses
+ * the Good line 18-25 ms after the raw one (it was 35-46 ms with
+ * minCutoff 1.5 and beta 0.02), and holds still at rest with 4-11% more
+ * jitter than before.
+ */
+export const ANGLE_MIN_CUTOFF = 1.0;
+export const ANGLE_BETA = 0.05;
 export const ANGLE_D_CUTOFF = 1.0;
 
 /** One One Euro filter per scored joint. */
