@@ -1,0 +1,430 @@
+/*
+ * The play HUD (PlayHud.tsx): DOM over the camera and its canvas. Sizes are
+ * in container units of the stage, so the HUD scales with the picture. It is
+ * read from two metres: the phase word, the count and the pop are the
+ * largest things on screen.
+ *
+ * The Play screen writes three custom properties on .hud once per frame,
+ * from the audio clock: --pulse (1 on the beat, falling to 0), --progress
+ * (0 to 1 through the phase) and --match (0 to 1). Only transform and
+ * opacity follow them.
+ */
+.hud {
+  --edge-gap: clamp(12px, 2.6cqw, 28px);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--color-white);
+  font-family: var(--font-sans);
+  pointer-events: none;
+}
+
+/* ---------- run stats, top left */
+.hud-stats {
+  position: absolute;
+  top: var(--edge-gap);
+  left: var(--edge-gap);
+  display: flex;
+  gap: clamp(14px, 2.4cqw, 28px);
+  margin: 0;
+}
+
+.hud-stats dt {
+  font-size: clamp(11px, 1.5cqw, 15px);
+  color: var(--color-cyan);
+}
+
+.hud-stats dd {
+  margin: 6px 0 0;
+  font-size: clamp(20px, 3.2cqw, 34px);
+  line-height: 1;
+  text-shadow: 0 0 14px rgb(2 3 8 / 0.9);
+}
+
+.hud-stats [data-lead='true'] dd {
+  color: var(--color-gold);
+}
+
+/* ---------- phase word and beat pips, top centre */
+.hud-phase {
+  position: absolute;
+  inset: clamp(34px, 9cqh, 76px) 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: clamp(6px, 1.4cqh, 14px);
+}
+
+.hud-phase__word {
+  margin: 0;
+  font-size: clamp(54px, 13cqw, 150px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-shadow:
+    0 0 44px rgb(238 242 255 / 0.4),
+    0 2px 0 rgb(2 3 8 / 0.5);
+}
+
+.hud-phase[data-phase='reach'] .hud-phase__word {
+  color: var(--color-cyan);
+  text-shadow: 0 0 44px rgb(39 224 240 / 0.6);
+}
+
+.hud-phase[data-phase='hold'] .hud-phase__word {
+  color: var(--color-gold);
+  text-shadow: 0 0 44px rgb(255 210 63 / 0.6);
+}
+
+.hud-beats {
+  display: flex;
+  gap: clamp(4px, 0.8cqw, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-beats li {
+  --tone: var(--color-cyan);
+  width: clamp(22px, 4.6cqw, 54px);
+  height: clamp(10px, 1.7cqw, 16px);
+  background: rgb(238 242 255 / 0.2);
+  transform: skewX(-24deg);
+}
+
+.hud-beats li[data-phase='hold'] {
+  --tone: var(--color-gold);
+}
+
+.hud-beats li[data-phase='release'] {
+  --tone: var(--color-white);
+}
+
+.hud-beats li[data-first='true']:not(:first-child) {
+  margin-left: clamp(6px, 1.2cqw, 14px);
+}
+
+.hud-beats li[data-lit='true'] {
+  background: var(--tone);
+  box-shadow: 0 0 18px var(--tone);
+}
+
+/* ---------- 3, 2, 1 */
+.hud-count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.hud-count span {
+  grid-area: 1 / 1;
+  font-size: clamp(150px, 44cqw, 480px);
+  line-height: 1;
+  text-shadow: 0 0 60px rgb(238 242 255 / 0.5);
+}
+
+/* ---------- side cards: now and next */
+.hud-moves {
+  position: absolute;
+  right: calc(var(--edge-gap) + 12px);
+  top: 54%;
+  display: grid;
+  gap: clamp(8px, 1.6cqh, 14px);
+  width: clamp(170px, 27cqw, 320px);
+  transform: translateY(-50%);
+}
+
+.hud-move {
+  --slab: rgb(12 16 32 / 0.92);
+  --slab-skew: -5deg;
+  --fig-bg: var(--color-deck);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  column-gap: 8px;
+  padding: clamp(12px, 2.2cqw, 20px) clamp(14px, 2.4cqw, 22px) clamp(14px, 2.4cqw, 22px) clamp(18px, 3.4cqw, 32px);
+}
+
+.hud-move .fig {
+  grid-area: 1 / 2 / 3 / 3;
+  height: clamp(84px, 17cqh, 168px);
+  width: auto;
+}
+
+.hud-move__tag {
+  font-size: clamp(11px, 1.6cqw, 17px);
+  color: var(--color-gold);
+}
+
+.hud-move__name {
+  align-self: end;
+  font-size: clamp(18px, 3.3cqw, 37px);
+}
+
+.hud-move--next {
+  --tone: var(--color-cyan);
+  --edge: 4px;
+  --fig: var(--color-cyan);
+  padding-block: clamp(8px, 1.6cqw, 14px) clamp(10px, 1.8cqw, 16px);
+}
+
+.hud-move--next .fig {
+  height: clamp(48px, 9.5cqh, 92px);
+}
+
+.hud-move--next .hud-move__tag {
+  color: var(--color-cyan);
+}
+
+.hud-move--next .hud-move__name {
+  font-size: clamp(14px, 2.4cqw, 26px);
+  color: var(--color-dim);
+}
+
+/* ---------- the match ring, bottom left */
+.hud-ring {
+  position: absolute;
+  left: var(--edge-gap);
+  bottom: clamp(14px, 3cqh, 30px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: clamp(130px, 25cqw, 280px);
+  aspect-ratio: 1;
+}
+
+.hud-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.hud-ring__track {
+  fill: rgb(2 3 8 / 0.62);
+  stroke: var(--color-deck-3);
+  stroke-width: 14;
+}
+
+/* The lit part of the ring. --ring is the score, 0 to 100, written by HoldRing. */
+.hud-ring__fill {
+  fill: none;
+  stroke: var(--color-white);
+  stroke-width: 14;
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--ring, 0));
+}
+
+.hud-ring[data-band='good'] .hud-ring__fill {
+  stroke: var(--color-cyan);
+}
+
+.hud-ring[data-band='perfect'] .hud-ring__fill {
+  stroke: var(--color-gold);
+}
+
+.hud-ring__tick {
+  stroke: var(--color-cyan);
+  stroke-width: 5;
+}
+
+.hud-ring__mark {
+  fill: var(--color-cyan);
+  font: 900 28px var(--font-led);
+}
+
+.hud-ring__value {
+  position: relative;
+  font-size: clamp(30px, 7.4cqw, 84px);
+  line-height: 0.9;
+  text-shadow: 0 0 22px rgb(238 242 255 / 0.5);
+}
+
+.hud-ring__label {
+  position: relative;
+  margin-top: 4px;
+  font-size: clamp(10px, 1.5cqw, 16px);
+  color: var(--color-dim);
+}
+
+/* ---------- combo, bottom right */
+.hud-combo {
+  position: absolute;
+  right: calc(var(--edge-gap) + 6px);
+  bottom: clamp(18px, 3.4cqh, 34px);
+  display: flex;
+  align-items: baseline;
+  gap: clamp(6px, 1.2cqw, 12px);
+  opacity: 0.5;
+}
+
+.hud-combo[data-live='true'] {
+  opacity: 1;
+}
+
+.hud-combo__n {
+  display: inline-block;
+  font-size: clamp(52px, 12.8cqw, 146px);
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  color: var(--color-gold);
+  text-shadow: 0 0 34px rgb(255 210 63 / 0.65);
+}
+
+.hud-combo__label {
+  font-size: clamp(16px, 3.2cqw, 36px);
+  letter-spacing: 0.03em;
+  color: var(--color-cyan);
+}
+
+/* ---------- PERFECT / GOOD / MISS */
+.hud-pop {
+  position: absolute;
+  inset: 40% 0 auto;
+  display: grid;
+  justify-items: center;
+}
+
+.hud-pop__body {
+  --tone: var(--color-gold);
+  grid-area: 1 / 1;
+  display: grid;
+  justify-items: center;
+}
+
+.hud-pop__body[data-label='Good'] {
+  --tone: var(--color-cyan);
+}
+
+.hud-pop__body[data-label='Miss'] {
+  --tone: var(--color-pink);
+}
+
+.hud-pop__word {
+  padding-inline: 0.12em;
+  font-size: clamp(48px, 11.5cqw, 140px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--tone);
+  text-shadow: 0 0 52px color-mix(in srgb, var(--tone) 70%, transparent);
+}
+
+.hud-pop__detail {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-size: clamp(22px, 4cqw, 44px);
+  line-height: 1;
+}
+
+.hud-pop__detail .label {
+  font-size: clamp(13px, 2cqw, 20px);
+  color: var(--color-dim);
+}
+
+/* ---------- messages along the bottom */
+.hud-banner,
+.hud-note {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(26px, 7cqh, 64px);
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  width: max-content;
+  max-width: 46cqw;
+  margin: 0;
+  translate: -50% 0;
+}
+
+/* Two words to read from across the room. The canvas overlay carries the full sentence beside the player. */
+.hud-banner {
+  --slab: var(--color-pink);
+  --slab-glow: 0 0 30px rgb(255 46 136 / 0.6);
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 0.3em;
+  padding: 0.22em 0.7em 0.26em 0.5em;
+  font-size: clamp(30px, 6.4cqw, 70px);
+  color: var(--color-white);
+}
+
+.hud-banner svg {
+  grid-row: 1 / 3;
+  align-self: center;
+  width: 1em;
+  height: 1em;
+}
+
+.hud-banner__word {
+  line-height: 0.9;
+  letter-spacing: 0.02em;
+}
+
+.hud-banner__detail {
+  font-size: 0.26em;
+}
+
+.hud-note {
+  --slab: rgb(12 16 32 / 0.94);
+  --slab-skew: -6deg;
+  --tone: var(--color-cyan);
+  --edge: 4px;
+  padding: 0.6em 1.2em;
+  font-size: clamp(16px, 2.6cqw, 26px);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.hud-note .label {
+  font-size: 0.64em;
+  color: var(--color-cyan);
+}
+
+/* ---------- the beat, along the bottom edge */
+.hud-pulse {
+  position: absolute;
+  inset: auto 0 0;
+  height: 6px;
+  background: var(--color-cyan);
+  box-shadow: 0 0 26px 4px var(--color-cyan);
+  opacity: calc(0.14 + var(--pulse, 0) * 0.86);
+  transform: scaleX(calc(0.4 + var(--pulse, 0) * 0.6));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-pulse {
+    transform: none;
+  }
+}
+
+/* ---------- the preview page (/hud): a blank stage with the HUD on it */
+.hud-preview {
+  display: grid;
+  place-items: center;
+  height: 100dvh;
+  background: var(--color-void);
+}
+
+.hud-preview__stage {
+  position: relative;
+  width: min(100vw, 100dvh * 4 / 3);
+  aspect-ratio: 4 / 3;
+  background: var(--color-cam);
+  container-type: size;
+  overflow: hidden;
+}
+
+.hud-preview__note {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26ch;
+  margin: 0;
+  translate: -50% -50%;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  color: rgb(238 242 255 / 0.28);
+}
