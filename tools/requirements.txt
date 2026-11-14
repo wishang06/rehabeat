@@ -1,8 +1,15 @@
-# Dependencies for tools/make_beatmap.py (beat detection only).
-#   python -m pip install -r tools/requirements.txt
+# Python 3.11. Install with: python -m pip install -r tools/requirements.txt
 
-librosa>=0.10.2
-numpy>=1.26
-# The soundfile wheels bundle libsndfile >= 1.1, which decodes mp3 as well as
-# wav/flac/ogg, so ffmpeg is not needed for the usual formats.
+# Beat detection (make_beatmap.py)
+librosa>=0.10.2,<0.12
 soundfile>=0.12.1
+numpy>=1.26
+
+# Stem separation (only used by --stems)
+demucs==4.0.1
+# torchaudio 2.9+ dropped the built-in audio file writer that Demucs 4.0.1 calls.
+torch>=2.2,<2.9
+torchaudio>=2.2,<2.9
+
+# Tests
+pytest>=8

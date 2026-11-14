@@ -1,0 +1,6 @@
+# Scratch output: check.wav and raw Demucs output
+out/
+.pytest_cache/
+
+# Tracks that are not CC0 or CC BY must not be committed (see README.md)
+tracks/private/
