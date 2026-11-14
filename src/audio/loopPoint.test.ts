@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Beatmap } from '../types';
 import { BeatGrid } from './beatGrid';
@@ -52,9 +51,14 @@ describe('beatAlignedLoopLength', () => {
   });
 });
 
-describe.runIf(existsSync('public/beatmap.json'))('the shipped beatmap', () => {
+// public/beatmap.json is optional, so it is looked up rather than imported outright.
+const shipped = Object.values(
+  import.meta.glob<Beatmap>('/public/beatmap.json', { eager: true, import: 'default' }),
+)[0];
+
+describe.runIf(shipped !== undefined)('the shipped beatmap', () => {
   it('loops with no stretch at the seam', () => {
-    const beatmap = JSON.parse(readFileSync('public/beatmap.json', 'utf8')) as Beatmap;
+    const beatmap = shipped;
     const beatLength = 60 / beatmap.bpm;
     const beatCount = beatmap.beats.length;
     // Like the shipped stems: the audio runs a little past the end of the last beat.
