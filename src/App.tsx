@@ -6,7 +6,7 @@ import type { BeatEngine } from './audio';
 import { useAuth } from './lib/auth';
 import { takePendingRun } from './lib/scores';
 import { supabase } from './lib/supabase';
-import { recordRun, type RunGains } from './progress';
+import { estimateKcal, loadHistory, recordRun, recordRunStats, type RunGains } from './progress';
 import {
   DEFAULT_CALIBRATION,
   initialStats,
@@ -61,6 +61,8 @@ export function App() {
   const [screen, setScreen] = useState<Screen>(() => (run ? 'results' : 'title'));
   /** What the last finished run earned. Null for a run restored after the redirect: it was banked before leaving. */
   const [gains, setGains] = useState<RunGains | null>(null);
+  /** The last run's estimated calories. A restored run was logged before the redirect, so it is only estimated again here. */
+  const [kcal, setKcal] = useState(() => (run && run.moves > 0 ? estimateKcal(run.durationSec, loadHistory().weightKg) : 0));
   const [library, setLibrary] = useState<Library | null>(null);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState(DEFAULT_SONG_ID);
@@ -161,6 +163,8 @@ export function App() {
     const summary = summarizeRun(stats, current?.points ?? 0, seconds);
     // XP and the daily streak are banked here, once, as the run ends.
     const earned = recordRun(summary);
+    // The run log and the calorie estimate are banked with it.
+    setKcal(recordRunStats(summary));
     if (earned.levelAfter > earned.levelBefore) {
       toast(`Level ${earned.levelAfter}`, { description: 'You levelled up.' });
     } else if (earned.streakAfter > earned.streakBefore && earned.streakAfter > 1) {
@@ -285,6 +289,7 @@ export function App() {
                   <ResultsScreen
                     run={run}
                     gains={gains}
+                    kcal={kcal}
                     auth={auth}
                     onPlayAgain={playAgain}
                     onChangeSong={backToMenu}
