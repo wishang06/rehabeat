@@ -12,3 +12,6 @@ export {
 } from './prescription';
 export { buildSession } from './session';
 export * from './analysis';
+export { parsePatient, parsePrescriptionBody, parseSession } from './shapes';
+export { DEMO_DOCTOR, YOU_ID, samplePatients } from './sampleClinic';
+export { CARE_KEY, createDemoClinic } from './demoClinic';
