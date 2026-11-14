@@ -50,10 +50,12 @@ add, remove or move, so change the songs with that command rather than here.
 | Song | Artist | Catalogue | Licence | Source |
 | --- | --- | --- | --- | --- |
 | Wetlands | HoliznaCC0 | Calm Stretch | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [freemusicarchive.org](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/wetlands-lofi-calm-relaxed/) |
+| Stealth Groover | Kevin MacLeod | Calm Stretch | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100690) |
 | Past Sadness | Kevin MacLeod | Steady Flow | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007) |
 
 Credit lines, as the game shows them:
 
 - `wetlands`: "Wetlands" by HoliznaCC0 (freemusicarchive.org), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
+- `stealth-groover`: "Stealth Groover" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
 - `past-sadness`: "Past Sadness" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
 <!-- songs:end -->
