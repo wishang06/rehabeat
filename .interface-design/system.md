@@ -87,6 +87,21 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | Step back | Two words on a pink slab, large enough to read from two metres. |
 | Grade | One display letter filling a slanted panel, with three stars under it. |
 
+## Desk look
+
+The doctor's page (`/doctor`, `src/doctor/doctor.css`) is read at a desk, not from two metres, so it keeps the palette and the typefaces and drops the cabinet.
+
+- **Upright and flat.** No slant: no `.slab`, no skewed buttons. Barlow Condensed 700, upright, for names and headings. No italic display type.
+- **Plain numerals.** Barlow 600 with `tabular-nums`. No LED digits: the doctor reads numbers in sentences and tables, not at a glance across a room.
+- **Reading size.** Text at 15 to 16 px, headings to 30 px. Hit areas still at least 44 px on the controls that are used most.
+- **The same colours, meaning the same things.** Gold is the one primary action ("Save and send"), the selected patient, and a limit that is set. Cyan is labels, information, a session done, and a finding that is improving. Pink is a warning: a limit breach, a week that ended short, a patient gone quiet, a finding getting worse.
+- **Tone steps, not lines**, as everywhere. Panels are `--color-deck` on `--color-void`; inputs are `--color-void` on a panel.
+- **Lamps are still the only circles**: one per day in the week grid. Lit cyan for a session done, a cyan ring for one that ended early, a dashed gold outline for today.
+- **Nothing glows** except a lit lamp. There is no motion on the page.
+- Two columns from 860 px wide, one below. No horizontal scroll at 390 px.
+
+The patient-facing pieces of the doctor loop (the program card on the title screen, the "Sent to" strip on the results screen, the "Ease off" banner on the HUD) are in the game, so they are Attract Mode, not the desk look.
+
 ## Screens
 
 | Route | Screen | Notes |
@@ -98,3 +113,4 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | `/play` | Play | The HUD (`src/ui/hud`) over the camera and canvas |
 | `/play` | Results | Grade, stars, points, Perfect / Good / Miss, best combo, XP |
 | `/hud` | HUD preview | The HUD fed by a mock frame, for design work and screenshots |
+| `/doctor` | Doctor | Desk look. Patients, consistency, problem spots, the program and limits editors, the note |

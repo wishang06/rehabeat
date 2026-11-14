@@ -6,7 +6,9 @@
 //
 // It walks the landing page, the title, the song menu and its credits,
 // calibration, the Play screen and the results with a synthetic camera, then
-// the play HUD's named states from the mock frame (/hud).
+// the play HUD's named states from the mock frame (/hud), then the doctor
+// loop in the demo clinic: the doctor's page, the patient's program card and
+// the results of a program session.
 //
 // Chrome's synthetic camera sometimes opens and then delivers no frames, and the
 // walk stops waiting for the Calibrate screen. That is the test camera, not the
@@ -24,7 +26,7 @@ const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name
 const outDir = path.resolve(root, option('--out', 'docs/screenshots'));
 const externalUrl = option('--url');
 const SONG = 'past-sadness';
-const HUD_STATES = ['countin', 'reach', 'hold', 'perfect', 'good', 'miss', 'stepback'];
+const HUD_STATES = ['countin', 'reach', 'hold', 'perfect', 'good', 'miss', 'stepback', 'easeoff'];
 
 async function launch() {
   const launchArgs = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--mute-audio'];
@@ -121,6 +123,43 @@ try {
     await settle(page, 500);
     await shot(page, `hud-${state}`);
   }
+
+  // The doctor loop, in the demo clinic. First the doctor's page, on a sample patient with history.
+  await page.goto(`${base}/doctor?patient=sample-maya`, { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('problem-spots').waitFor({ timeout: 20_000 });
+  await settle(page, 400);
+  await shot(page, 'doctor', { fullPage: true });
+
+  // Then the doctor gives You a program, so the game has one to show.
+  await page.getByTestId('patient-you').click();
+  await page.getByTestId('move-side-arm-raise').click();
+  await page.getByTestId('move-overhead-arm-raise').click();
+  await page.getByTestId('rx-rounds').fill('1');
+  await page.getByTestId('limit-rightShoulder').getByText('Up to').click();
+  await page.getByTestId('rx-note').fill('Good week. Keep your trunk tall, and stop at shoulder height on the overhead raise for now.');
+  await page.getByTestId('rx-save').click();
+  await page.waitForFunction(() => document.querySelector('[data-testid="rx-status"]')?.textContent === 'Sent to You.', null, {
+    timeout: 5_000,
+  });
+
+  await page.goto(`${base}/play`, { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('program-card').waitFor({ timeout: 20_000 });
+  await settle(page);
+  await shot(page, 'title-program');
+
+  // A program session ends by itself after its last round.
+  await page.getByTestId('program-start').click();
+  await page.getByTestId('song-menu').waitFor({ timeout: 20_000 });
+  await page.getByTestId('catalogue-tab-steady-flow').click();
+  await page.getByTestId(`song-card-${SONG}`).click();
+  await page.getByTestId('calibrate-screen').waitFor({ timeout: 90_000 });
+  await page.getByTestId('calibrate-skip').click();
+  await page.getByTestId('results-screen').waitFor({ timeout: 90_000 });
+  await page.waitForFunction(() => document.querySelector('[data-testid="sent-status"]')?.textContent?.startsWith('Sent to'), null, {
+    timeout: 5_000,
+  });
+  await settle(page, 2600);
+  await shot(page, 'results-sent');
   await desktop.close();
 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -145,6 +184,10 @@ try {
   await small.getByTestId('song-menu').waitFor({ timeout: 20_000 });
   await settle(small);
   await shot(small, 'song-select-phone');
+  await small.goto(`${base}/doctor?patient=sample-maya`, { waitUntil: 'domcontentloaded' });
+  await small.getByTestId('problem-spots').waitFor({ timeout: 20_000 });
+  await settle(small, 400);
+  await shot(small, 'doctor-phone', { fullPage: true });
   await phone.close();
 } catch (error) {
   console.error('\nScreenshots aborted:', error);

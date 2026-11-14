@@ -2,7 +2,7 @@
 
 Rehabeat turns rehab moves into a rhythm game. The player stands in front of a webcam and matches a target pose on the beat: reach for it, hold it, release it. Hold it well and the melody comes in.
 
-It runs entirely in the browser: the camera video never leaves the laptop. The landing page is at `/` and the game is at `/play`. The design direction is written up in [`PRODUCT.md`](PRODUCT.md) and [`.interface-design/system.md`](.interface-design/system.md).
+It runs entirely in the browser: the camera video never leaves the laptop. The landing page is at `/`, the game is at `/play`, and the doctor's page is at `/doctor` (see [Doctors and programs](#doctors-and-programs)). The design direction is written up in [`PRODUCT.md`](PRODUCT.md) and [`.interface-design/system.md`](.interface-design/system.md).
 
 ## Setup
 
@@ -30,7 +30,7 @@ The first start downloads the pose model (about 6 MB) from Google's model storag
 
 ### Smoke check
 
-`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It opens every catalogue in the song menu and the Credits view, picks Past Sadness, walks Calibrate and Play, opens the debug panel and runs a calibration pass. It then goes back to the menu with Esc and picks a song from another catalogue with the keyboard alone, and checks that a refused camera shows a recoverable message. Along the way it checks each song's credit on the start and Play screens, that no song's stems clip at the engine's gain, and that the loop seam is exactly one beat. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Options go after `--`:
+`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It opens every catalogue in the song menu and the Credits view, picks Past Sadness, walks Calibrate and Play, opens the debug panel and runs a calibration pass. It then goes back to the menu with Esc and picks a song from another catalogue with the keyboard alone, and checks that a refused camera shows a recoverable message. Along the way it checks each song's credit on the start and Play screens, that no song's stems clip at the engine's gain, and that the loop seam is exactly one beat. Last, it walks the doctor loop in the demo clinic: on `/doctor` it gives You a one-move, one-round program; on `/play` it finds the program card, plays the session until it ends by itself and reads the "Sent to" strip; back on `/doctor` it finds the session; then it resets the demo clinic. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Options go after `--`:
 
 | Option | Effect |
 | --- | --- |
@@ -140,11 +140,110 @@ Players sign in with Google through Supabase Auth (project `rkxqtgbcendomwvrfxjf
 - **Schema:** `supabase/migrations/`. `profiles` is filled from the Google profile on sign-up, `scores` holds one row per run, and the `leaderboard` view ranks players by their best run. Row Level Security lets anyone read, and lets a signed-in player add only their own scores. Nobody can edit or delete a score from the app.
 - **Config:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). Without them the game runs with accounts switched off.
 
+## Doctors and programs
+
+Rehabeat has a second side for the doctor who gave the patient their exercises. It runs a loop:
+
+**prescribe → play → measure → adjust**, and round again.
+
+A doctor writes a program for a patient at [`/doctor`](http://localhost:5173/doctor). The game builds the patient's sessions from it, records every hold, and the doctor's page shows how consistently and how well the patient is doing it. The doctor changes the program, adds a note, and the patient plays the new version next.
+
+### Try it: the demo clinic
+
+Signed out, `/doctor` opens a **demo clinic** kept in this browser's `localStorage`. It needs no account and no database, so the whole loop can be shown on one laptop:
+
+1. Open `/doctor`. There are four sample patients with a few weeks of history, and a patient called **You**, who is whoever plays in this browser.
+2. Pick **You**, tick some moves, set the rounds and any limits, write a note, and press **Save and send**.
+3. Open `/play`. The title screen now has a **Your program** card. **Start today's session** plays the program; it ends by itself after the last round.
+4. The results screen says what was sent. Back on `/doctor`, You's week count, scores and problem spots have the session in them.
+
+**Reset demo clinic** on the doctor's page puts everything back. Sample history is rebuilt from today's date each time, so it is always current; it is never stored and never sent anywhere.
+
+### A program
+
+| Field | Meaning |
+| --- | --- |
+| Moves | Picked from `src/moves/moves.json`, in play order |
+| Rounds | Times through the routine in one session (1 to 10) |
+| Hold | Beats to hold every move, or each move's own |
+| Sessions a week | 1 to 7. A day counts once, however many sessions it had |
+| Weeks | Length of the program, counted from the day it was first saved |
+| Limits | Per joint: none, off, or a range (below) |
+| Note | Up to 500 characters, shown to the patient before they play |
+
+A program is never edited in place. Saving makes the next **version**, the newest version is the one in force, and each session records the version it was played under. **Start a new program** starts the week count again from today.
+
+### Limits
+
+A limit is set as **movement from the resting position**, the way it is prescribed: "raise up to 90°", "bend up to 60°". The game converts it to its own joint angles (`src/scoring/limits.ts`): a shoulder's movement is its angle, and an elbow, hip or knee's movement is 180° minus its angle.
+
+Before play, `applyPrescription` (`src/care/prescription.ts`) turns the program into ordinary moves:
+
+- a move that scores a joint that is **off** is removed;
+- a target beyond a **range** limit is set to the limit, so an overhead raise with the shoulder limited to 90° plays as a raise to shoulder height;
+- the hold length, if set, replaces each move's own.
+
+The move format and the scoring are untouched: the Play screen is simply handed different moves. The doctor's page runs the same function for its "What the patient will play" preview.
+
+During a session every range-limited joint is watched on every frame, whatever the move. Past the limit by more than `LIMIT_MARGIN_DEG` (10°) for longer than `LIMIT_PERSIST_MS` (500 ms), the HUD says **Ease off** and the hold is marked. A joint that is off is not watched; its moves are just never played. A patient's limits also apply in free play.
+
+The prompt is guidance, like the form notes. The angles are estimates from a webcam, and nothing here is a safety system.
+
+### What a session records
+
+One record per program session (`SessionRecord` in `src/care/types.ts`): when, which version, the song, rounds done and prescribed, whether it was completed, the run summary, and one entry per hold:
+
+- the score, label and timing offset;
+- for each scored joint, its target, its mean signed error over the hold, and the share of the hold it was in view;
+- the form rules flagged and the limited joints that went past their limit.
+
+Only numbers: no picture and no body landmarks. A session that ends early (Finish run, Esc or Songs) is saved as **partial** if at least one hold was scored; it does not count toward the week but still feeds the analysis. Closing the tab mid-session loses it. Free play records nothing for the doctor.
+
+### What the doctor sees
+
+All three are plain functions over the stored programs and sessions (`src/care/analysis/`), unit-tested, and each returns numbers as well as a sentence.
+
+| Analysis | What it says |
+| --- | --- |
+| Consistency | Weeks counted from the program's start; completed sessions against the number prescribed; a lamp per day; one status per patient: not started, on track, behind (this week's number can no longer be reached), no sessions for N days (3 or more), finished |
+| Quality | Mean hold score over the last seven days against the seven before, and each move's score session by session |
+| Problem spots | The last 3 sessions against the 3 before: a joint stopping short of or going past its target, a form rule flagged on a share of holds, limit breaches, arriving late, a joint out of view. Breaches come first |
+
+The thresholds are constants in `src/care/analysis/findings.ts` (`JOINT_REPORT_DEG` 8°, `FORM_REPORT_SHARE` 0.3, `LATE_REPORT_MS` 300, `VIEW_REPORT_SHARE` 0.2, `TREND_STEP` 0.2). They are first guesses and have not been tuned on real patients.
+
+### Where it is stored
+
+The doctor's page and the game talk to one interface, `CareStore` (`src/care/types.ts`), with two homes. Which one is used follows sign-in; there is no switch.
+
+| | Demo clinic | Real clinic |
+| --- | --- | --- |
+| When | Signed out, or accounts switched off | Signed in |
+| Where | This browser's `localStorage` (`rehabeat.care.v1`) | Private Supabase tables |
+| Patients | Four samples and You | The doctor's own; a patient joins with a six-character code |
+| Code | `src/care/demoClinic.ts` | `src/care/supabaseClinic.ts` |
+
+The real clinic's tables are in `supabase/migrations/20261115090000_care.sql`:
+
+- `care_patients`: a doctor's patients, each with a join code until the patient's account has joined;
+- `care_prescriptions`: program versions, insert-only;
+- `care_sessions`: sessions, insert-only, written by the patient.
+
+Unlike `profiles` and `scores`, none of it is public. Row Level Security lets a doctor read and write only their own patients and those patients' programs, and read their sessions; a patient reads their own row and its programs and adds their own sessions. A doctor cannot attach a program to an account: only the patient can, by entering the code. An account is a patient of at most one doctor. Anyone signed in can use `/doctor`; a doctor is simply someone who has added patients.
+
+**The migration has to be applied to the Supabase project before the signed-in clinic works.** Paste the file into the project's SQL editor, or run `supabase db push`. Until then a signed-in doctor sees "The clinic is not set up yet", and the demo clinic is unaffected.
+
+`supabase/tests/care_rls.mjs` applies the migration to a throwaway in-memory Postgres and checks the rules from every side (the doctor, the patient, another doctor, a stranger, a signed-out visitor):
+
+```bash
+npm install --no-save @electric-sql/pglite
+node supabase/tests/care_rls.mjs
+```
+
 ## Deployment
 
 Every push to `main` deploys automatically. The workflow in `.github/workflows/deploy.yml` runs `npm ci`, `npm test` and `npm run build`, then rsyncs `dist/` to the EC2 server at `/var/www/rehabeat`, where nginx serves it. A failing test or typecheck stops the deploy, and the site keeps the previous version. To redeploy without a push, run the workflow by hand from the Actions tab.
 
-The site has no rewrite rule, so the build writes a copy of `index.html` at `dist/play/` and `dist/hud/` (the `rehabeat-route-files` plugin in `vite.config.ts`): a reload of `/play` then finds a real file. On Vercel, `vercel.json` rewrites every route to `/index.html` instead.
+The site has no rewrite rule, so the build writes a copy of `index.html` at `dist/play/`, `dist/hud/` and `dist/doctor/` (the `rehabeat-route-files` plugin in `vite.config.ts`): a reload of `/play` then finds a real file. The doctor's page keeps the picked patient in the query string (`/doctor?patient=...`) for the same reason. On Vercel, `vercel.json` rewrites every route to `/index.html` instead.
 
 The workflow reads three repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`. On the server that key is limited to rsync into the web root (`rrsync`), so it can't open a shell. If the server's address changes, update `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`.
 
@@ -244,9 +343,13 @@ src/
   songs/          Song library: types, catalogues, licences, credit lines, index and meta loading
   pose/           Camera, pose tracker, joint angles, One Euro filter, skeleton overlay
   moves/          moves.json, validation, ghost limbs for the pose glyphs
-  scoring/        Frame score, routine, scoring engine, form rules, stats
+  scoring/        Frame score, routine, scoring engine, form rules, joint limits, hold detail, stats
+  care/           The doctor loop: prescriptions, sessions, the CareStore and its two homes
+  care/analysis/  Consistency, quality and problem spots
+  doctor/         The doctor's page at /doctor (desk look) and its editor logic
   audio/          Master clock, beatmap, beat grid, click track, stems, calibration
-  ui/             Title, Calibrate, Play and Results screens, canvas overlay, beat dial, debug panel, credit strip
+  ui/             Title, Calibrate, Play and Results screens, canvas overlay, beat dial, debug panel, credit strip,
+                  the program card, the "Sent to" strip and the join-code form
   ui/menu/        Song menu: catalogue rail, song cards, previews, credits view
   ui/hud/         The play HUD as DOM, its prop types, and the /hud preview
   ui/mockFeedback.ts  A typed mock FeedbackFrame for the HUD
@@ -255,6 +358,8 @@ src/
   components/     The DOM gold figure and the shadcn/ui button
   styles/theme.css  Tailwind and the design tokens
 public/songs/     The song library (index.json and one folder per song)
+supabase/migrations/  Accounts and scores; the doctor loop's private tables
+supabase/tests/care_rls.mjs  The doctor loop's privacy rules, checked on a throwaway Postgres
 scripts/smoke.mjs Playwright smoke check
 scripts/fps.mjs   Play screen frame rate
 scripts/screens.mjs  Screenshots of every page
@@ -296,6 +401,13 @@ Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) a
 
 - The landing page and the game screens were checked in Chromium at 1440 x 900 and at 390 px wide, with a synthetic camera. The play HUD has not yet been read from two metres by a real player on a real laptop.
 - XP, levels and the daily streak live in `localStorage`: they do not follow a player to another browser, and clearing site data resets them.
+- The doctor loop's signed-in clinic has not been run end to end against the real Supabase project: the smoke check has no Google sign-in, so it walks the demo clinic only. The privacy rules were checked on a local Postgres (`supabase/tests/care_rls.mjs`), and the migration still has to be applied to the project.
+- The analysis thresholds, the limit margin and the sample patients' numbers are first guesses, not tuned on real patients. Nothing in the doctor loop has been reviewed by a clinician.
+- Limits are checked against webcam angle estimates. The "Ease off" prompt is guidance and can be late, early or wrong.
+- A program session that is closed mid-song (the tab, or a reload) is lost. A session whose send failed can be retried from the results screen, but not after leaving it.
+- Anyone signed in can open `/doctor` and add patients. There is no check that a doctor is one.
+- A doctor cannot remove a patient, and a patient cannot leave a doctor, from the app.
+- The demo clinic is per browser. Clearing site data resets it.
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.

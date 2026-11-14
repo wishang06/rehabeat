@@ -1,5 +1,6 @@
 // Browser smoke check: starts the dev server, drives the app in Chromium with
-// a fake camera, and fails on console errors.
+// a fake camera, and fails on console errors. It walks the game, a refused
+// camera, and the doctor loop in the demo clinic (prescribe, play, see the session).
 //
 //   npm run smoke                 headless, synthetic test-pattern camera
 //   npm run smoke -- --headed     visible window (uses the real GPU; use this for FPS numbers)
@@ -405,6 +406,104 @@ async function deniedPath(url) {
   }
 }
 
+/**
+ * The doctor loop on one laptop, in the demo clinic: the doctor gives You a
+ * program, the patient plays it until it ends by itself, and the session
+ * shows up back on the doctor's page.
+ */
+async function doctorLoop(url) {
+  const browser = await launch(['--use-fake-ui-for-media-stream']);
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const log = watchConsole(page);
+  const NOTE = 'Stop at shoulder height.';
+
+  try {
+    // The doctor's side: the demo clinic opens with sample patients and their history.
+    await page.goto(new URL('/doctor', url).href, { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('demo-banner').waitFor({ timeout: 15_000 });
+    const patients = await page.locator('[data-testid^="patient-"]:not([data-testid="patient-detail"])').count();
+    check('the doctor page opens on the demo clinic with five patients', patients === 5, `${patients} patients`);
+    await page.getByTestId('patient-sample-maya').click();
+    await page.getByTestId('problem-spots').waitFor({ timeout: 5_000 });
+    const spots = await page.getByTestId('problem-spots').locator('li').count();
+    const weekGrid = await page.getByTestId('week-grid').isVisible();
+    check('a sample patient shows a week grid and problem spots', weekGrid && spots > 0, `${spots} problem spot(s)`);
+    await page.screenshot({ path: path.join(outDir, '8-doctor.png'), fullPage: true });
+
+    // Prescribe: one move, one round, a note. A row moves between lists when ticked, so click rather than check().
+    await page.getByTestId('patient-you').click();
+    await page.getByTestId('move-side-arm-raise').click();
+    await page.getByTestId('rx-rounds').fill('1');
+    await page.getByTestId('rx-note').fill(NOTE);
+    await page.getByTestId('rx-save').click();
+    await page.waitForFunction(() => document.querySelector('[data-testid="rx-status"]')?.textContent === 'Sent to You.', null, { timeout: 5_000 });
+    check('the doctor saves a program for You', true);
+
+    // The patient's side: the card, then a program session that ends by itself.
+    await page.goto(new URL('/play', url).href, { waitUntil: 'domcontentloaded' });
+    const card = page.getByTestId('program-card');
+    await card.waitFor({ timeout: 10_000 });
+    const cardText = (await card.textContent()) ?? '';
+    check("the title screen shows the program card with the doctor's note", cardText.includes(NOTE) && cardText.includes('Side Arm Raise'), cardText.trim());
+    await page.screenshot({ path: path.join(outDir, '9-program-card.png') });
+
+    await page.getByTestId('program-start').click();
+    await page.getByTestId(`song-card-${DEFAULT_SONG}`).click();
+    const startError = await Promise.race([
+      page.getByTestId('calibrate-screen').waitFor({ timeout: 90_000 }).then(() => null),
+      page.getByTestId('start-error').waitFor({ timeout: 90_000 }).then(() => page.getByTestId('start-error').textContent()),
+    ]);
+    if (startError?.includes('sent no picture')) throw new CameraStalled(startError);
+    if (startError !== null) throw new Error(`The app did not start: ${startError}`);
+    if ((await framesDelivered(page)) < 5) throw new CameraStalled('the fake camera delivered almost no frames');
+    await page.getByTestId('calibrate-skip').click();
+    await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
+    check('a program session has no Recalibrate button', (await page.getByRole('button', { name: 'Recalibrate' }).count()) === 0);
+
+    // One move of one round: the session is over after its 8 beats, with nobody pressing Finish.
+    await page.getByTestId('results-screen').waitFor({ timeout: 60_000 });
+    check('the program session ends by itself', true);
+    const status = page.getByTestId('sent-status');
+    await page.waitForFunction(() => document.querySelector('[data-testid="sent-status"]')?.textContent?.startsWith('Sent to'), null, { timeout: 5_000 });
+    const strip = (await page.getByTestId('sent-strip').textContent()) ?? '';
+    check('the results say what was sent to the doctor', (await status.textContent()) === 'Sent to Dr. Okafor' && strip.includes('1/5'), strip.trim());
+    await page.screenshot({ path: path.join(outDir, '10-results-sent.png') });
+
+    // Back on the doctor's side, the session has arrived.
+    await page.goto(new URL('/doctor?patient=you', url).href, { waitUntil: 'domcontentloaded' });
+    const week = page.getByTestId('tile-week');
+    await week.waitFor({ timeout: 10_000 });
+    check("the session shows on the doctor's page", (await week.textContent()) === '1/5', (await week.textContent()) ?? '');
+
+    // Reset puts the demo clinic back, and the game back to having no program.
+    await page.getByTestId('demo-reset').click();
+    await page.waitForFunction(() => document.querySelector('[data-testid="tile-week"]')?.textContent === '–', null, { timeout: 5_000 });
+    await page.goto(new URL('/play', url).href, { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('title-screen').waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    check('resetting the demo clinic removes the program card', (await page.getByTestId('program-card').count()) === 0);
+
+    check('no console errors in the doctor loop', log.errors.length === 0, log.errors.join(' | '));
+  } finally {
+    await browser.close();
+  }
+}
+
+/** Runs a walk that uses the camera, again in a fresh browser when Chrome's fake camera stalls. */
+async function withCamera(walk) {
+  const mark = checks.length;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await walk();
+    } catch (error) {
+      if (!(error instanceof CameraStalled) || attempt === MAX_CAMERA_ATTEMPTS) throw error;
+      console.log(`RETRY ${error.message}; relaunching the browser (attempt ${attempt + 1} of ${MAX_CAMERA_ATTEMPTS})\n`);
+      // Drop the checks the stalled attempt recorded.
+      checks.length = mark;
+    }
+  }
+}
+
 await mkdir(outDir, { recursive: true });
 const server = externalUrl ? null : await createServer({ root, logLevel: 'error', server: { port: 5199, strictPort: false } });
 await server?.listen();
@@ -413,18 +512,9 @@ console.log(`Smoke check against ${url} (${headed ? 'headed' : 'headless'}${vide
 
 let exitCode = 1;
 try {
-  let outcome;
-  for (let attempt = 1; !outcome; attempt++) {
-    try {
-      outcome = await happyPath(url);
-    } catch (error) {
-      if (!(error instanceof CameraStalled) || attempt === MAX_CAMERA_ATTEMPTS) throw error;
-      console.log(`RETRY ${error.message}; relaunching the browser (attempt ${attempt + 1} of ${MAX_CAMERA_ATTEMPTS})\n`);
-      checks.length = 0;
-    }
-  }
-  const { measured, ignored } = outcome;
+  const { measured, ignored } = await withCamera(() => happyPath(url));
   await deniedPath(url);
+  await withCamera(() => doctorLoop(url));
 
   console.log('\nMeasured:', JSON.stringify(measured, null, 2));
   if (ignored.length > 0) console.log(`Ignored ${ignored.length} MediaPipe runtime log line(s) written via console.error, e.g. "${ignored[0]}"`);

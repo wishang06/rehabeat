@@ -294,7 +294,9 @@ function StepBackBanner({ frames, bodyLost, easeOff, formNote }: StepBackBannerP
       <p className="hud-banner slab" role="status" data-testid="ease-off">
         <ChevronsDown aria-hidden="true" strokeWidth={3} />
         <span className="hud-banner__word display">Ease off</span>
-        <span className="hud-banner__detail label">{easeOff}: past the range your doctor set</span>
+        <span className="hud-banner__detail label">
+          {easeOff.replace(/^Ease off your /, '')}: past the range your doctor set
+        </span>
       </p>
     );
   }
