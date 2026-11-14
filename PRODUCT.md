@@ -46,13 +46,13 @@ The full token set, type scale and component rules are in [`.interface-design/sy
 
 ## What it does not say
 
-No testimonials, user counts or outcome numbers. No claims such as "clinically proven" or "physio-approved". The one statistic on the landing page ("Up to 70% of patients don't stick with their home exercises") links to its source.
+No testimonials, user counts or outcome numbers. No claims such as "clinically proven" or "physio-approved". The calorie figure is always labelled an estimate ("Est. kcal"), is shown like a score, and comes with no targets and no talk of losing weight. The one statistic on the landing page ("Up to 70% of patients don't stick with their home exercises") links to its source.
 
 The doctor loop adds a rule: **nothing shown to a patient reads as a medical or safety guarantee.** The angles are estimates from a webcam. A limit prompt says "Ease off", never "unsafe" or "stop"; a finding says what was measured ("right shoulder stops 14° short"), never what it means for the injury. The advice is the doctor's, in the doctor's own words. The page does not say the doctor is verified, because it does not check.
 
 ## Privacy
 
-Rehabeat runs in the browser. The camera video never leaves the laptop. Progress (XP, level, daily streak) is kept in `localStorage`. Signing in is optional. Signed in, a finished run's score goes on the leaderboard.
+Rehabeat runs in the browser. The camera video never leaves the laptop. Progress (XP, level, daily streak), the run log behind Stats and the optional body weight are kept in `localStorage`; the run log and the weight are never sent anywhere. Signing in is optional. Signed in, a finished run's score goes on the leaderboard.
 
 A patient who has joined a doctor also sends that doctor each program session: scores, joint angles, form flags and timing. Never the picture, and never body positions. Only that patient and that doctor can read them. The results screen says what was sent, every time.
 

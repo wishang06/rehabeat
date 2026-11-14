@@ -28,6 +28,8 @@ interface TitleScreenProps {
   onRetryProgram: () => void;
   /** Joins a doctor with their code. Null unless the player is signed in to the real clinic and has no program. */
   onJoin: ((code: string) => Promise<void>) | null;
+  /** Open the Stats panel. */
+  onStats: () => void;
   /** The player's account. With accounts on, the leaderboard and sign-in sit beside the start button. */
   auth: AuthState;
 }
@@ -39,13 +41,14 @@ const BOARD_ROWS_UNDER_CARD = 3;
 
 /**
  * The first screen of the game: the name, the player's level and daily
- * streak, and one button. Enter or Space starts from anywhere on it. With
+ * streak, a way into Stats, and one primary button. Enter or Space starts from anywhere on it. With
  * accounts on, the leaderboard and sign-in take the right-hand column. A
  * player with a program gets its card there too, and the card's button
  * becomes the screen's one primary action.
  */
 export function TitleScreen({
   onStart,
+  onStats,
   auth,
   program,
   onStartProgram,
@@ -63,8 +66,8 @@ export function TitleScreen({
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key !== 'Enter' && event.key !== ' ') return;
-      // A focused button or link handles its own key press.
-      if (event.target instanceof Element && event.target.closest('button, a, input')) return;
+      // A focused button, link or field handles its own key press, and so does an open dialog.
+      if (event.target instanceof Element && event.target.closest('button, a, input, dialog')) return;
       if (!begin) return;
       event.preventDefault();
       playSfx('confirm');
@@ -116,6 +119,9 @@ export function TitleScreen({
           </p>
         )}
         <ProgressMeters className="title__meters" />
+        <button type="button" className="button button--quiet title__stats" onClick={onStats} data-testid="title-stats">
+          Stats
+        </button>
         <p className="title__more">
           <Link to="/">How it works</Link>
         </p>

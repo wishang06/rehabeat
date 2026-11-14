@@ -23,6 +23,13 @@ export const LM = {
 export const MIN_VISIBILITY = 0.6;
 
 /**
+ * Once a joint is measured it stays measured until a landmark falls below
+ * this. Wrists and ankles near the frame edge hover around 0.6; without the
+ * gap a joint would drop in and out of scoring from one frame to the next.
+ */
+export const KEEP_MEASURED_VISIBILITY = 0.5;
+
+/**
  * For each scored joint, the three landmarks [a, vertex, c] whose angle at
  * `vertex` is the joint angle.
  */

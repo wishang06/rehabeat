@@ -70,7 +70,12 @@ describe('openCamera', () => {
     expect(getUserMedia).toHaveBeenCalledTimes(1);
     expect(getUserMedia).toHaveBeenCalledWith({
       audio: false,
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      video: {
+        facingMode: 'user',
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        frameRate: { ideal: 30 },
+      },
     });
   });
 

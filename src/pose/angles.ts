@@ -1,6 +1,6 @@
 import { JOINT_NAMES } from '../types';
 import type { JointName, Landmark } from '../types';
-import { JOINT_TRIPLETS, MIN_VISIBILITY } from './landmarks';
+import { JOINT_TRIPLETS, KEEP_MEASURED_VISIBILITY, MIN_VISIBILITY } from './landmarks';
 import { isVisible } from './visibility';
 
 export interface Point3 {
@@ -41,27 +41,30 @@ export function angleBetween(a: Point3, vertex: Point3, c: Point3): number {
   return Math.acos(Math.min(1, Math.max(-1, cosine))) * RAD_TO_DEG;
 }
 
+const NONE_MEASURED: ReadonlySet<JointName> = new Set();
+
 /**
  * Joint angles from WORLD landmarks (3D, metres). A joint is skipped unless
- * all three of its landmarks are at least `minVisibility` visible.
+ * all three of its landmarks are at least `minVisibility` visible, or, for a
+ * joint in `measuredBefore` (the joints measured in the previous frame), at
+ * least KEEP_MEASURED_VISIBILITY.
  */
 export function computeJointAngles(
   world: Landmark[],
   minVisibility: number = MIN_VISIBILITY,
+  measuredBefore: ReadonlySet<JointName> = NONE_MEASURED,
 ): JointAngles {
   const angles: Partial<Record<JointName, number>> = {};
   const visible: JointName[] = [];
+  const keepVisibility = Math.min(minVisibility, KEEP_MEASURED_VISIBILITY);
 
   for (const joint of JOINT_NAMES) {
     const [aIndex, vertexIndex, cIndex] = JOINT_TRIPLETS[joint];
     const a = world[aIndex];
     const vertex = world[vertexIndex];
     const c = world[cIndex];
-    if (
-      !isVisible(a, minVisibility) ||
-      !isVisible(vertex, minVisibility) ||
-      !isVisible(c, minVisibility)
-    ) {
+    const threshold = measuredBefore.has(joint) ? keepVisibility : minVisibility;
+    if (!isVisible(a, threshold) || !isVisible(vertex, threshold) || !isVisible(c, threshold)) {
       continue;
     }
     angles[joint] = angleBetween(a, vertex, c);

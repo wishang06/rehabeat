@@ -13,6 +13,9 @@ export const MIN_TIMESTAMP_STEP_MS = 1;
 /** Weight of the newest interval in the smoothed frame rate. */
 export const FPS_SMOOTHING = 0.1;
 
+/** Weight of the newest sample in the smoothed pose latency. */
+export const LATENCY_SMOOTHING = 0.1;
+
 function isFiniteNumber(value: number | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
@@ -55,4 +58,18 @@ export function smoothFps(
   if (!Number.isFinite(intervalMs) || intervalMs <= 0) return previousFps;
   const instantFps = 1000 / intervalMs;
   return previousFps > 0 ? previousFps + weight * (instantFps - previousFps) : instantFps;
+}
+
+/**
+ * Exponentially smoothed latency in ms: how far behind the audible present a
+ * pose frame is by the time it is handed on. `previousMs` of null means no
+ * estimate yet; a non-finite sample leaves the estimate unchanged.
+ */
+export function smoothLatency(
+  previousMs: number | null,
+  sampleMs: number,
+  weight: number = LATENCY_SMOOTHING,
+): number | null {
+  if (!Number.isFinite(sampleMs)) return previousMs;
+  return previousMs === null ? sampleMs : previousMs + weight * (sampleMs - previousMs);
 }

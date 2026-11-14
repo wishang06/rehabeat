@@ -5,12 +5,13 @@ export interface JointHold {
   /** The joint's target, as a game angle (see src/types.ts). */
   target: number;
   /**
-   * Mean of (measured - target) in degrees over the hold frames in which the
-   * joint was visible. Signed, so it says which way the joint was off.
-   * 0 when it was never visible: read it together with `seen`.
+   * Mean of (measured - target) in degrees over the part of the hold in which
+   * the joint was visible, weighted by time like the hold's score. Signed, so
+   * it says which way the joint was off. 0 when it was never visible: read it
+   * together with `seen`.
    */
   meanError: number;
-  /** 0 to 1: the share of hold frames in which the joint was visible. 0 when the hold had no frames. */
+  /** 0 to 1: the share of the hold's covered time in which the joint was visible. 0 when no frame covered the hold. */
   seen: number;
 }
 

@@ -3,7 +3,14 @@ import { withTimeout } from './withTimeout';
 const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   // `ideal` rather than exact, so a camera without a 640x480 mode still opens.
-  video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+  // The frame rate is asked for so that a camera offering several picks 30:
+  // every frame interval is time in which a beat can't be measured.
+  video: {
+    facingMode: 'user',
+    width: { ideal: 640 },
+    height: { ideal: 480 },
+    frameRate: { ideal: 30 },
+  },
 };
 
 /** How long an opened camera gets to show its first frame. */

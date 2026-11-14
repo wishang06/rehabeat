@@ -18,6 +18,8 @@ interface ResultsScreenProps {
   run: RunSummary;
   /** What the run earned. Null for a run restored after the sign-in redirect: its XP was banked before leaving. */
   gains: RunGains | null;
+  /** The run's estimated calories. */
+  kcal: number;
   auth: AuthState;
   /** The program session this run was, to send to the doctor. Null for free play. */
   care: SentCare | null;
@@ -37,12 +39,13 @@ const TALLY = [
 
 /**
  * The end of a run: the grade, stars, points, the Perfect / Good / Miss
- * split, the best combo and the XP it earned. Numbers count up as the screen
+ * split, the best combo, the estimated calories and the XP it earned. Numbers count up as the screen
  * arrives; with reduced motion they are simply there.
  */
 export function ResultsScreen({
   run,
   gains,
+  kcal,
   auth,
   care,
   onSessionSaved,
@@ -158,11 +161,19 @@ export function ResultsScreen({
         </dl>
 
         <div className="res__meta">
-          <div className="res__stat slab">
-            <span className="res__label label">Best combo</span>
-            <span className="res__num led" data-count={run.bestCombo}>
-              {run.bestCombo}
-            </span>
+          <div className="res__pair">
+            <div className="res__stat slab">
+              <span className="res__label label">Best combo</span>
+              <span className="res__num led" data-count={run.bestCombo}>
+                {run.bestCombo}
+              </span>
+            </div>
+            <div className="res__stat slab">
+              <span className="res__label label">Est. kcal</span>
+              <span className="res__num led" data-testid="run-kcal" data-count={Math.round(kcal)}>
+                {Math.round(kcal)}
+              </span>
+            </div>
           </div>
           <div className="res__stat res__xp slab">
             <span className="res__label label">{gains ? 'XP gained' : 'Your level'}</span>

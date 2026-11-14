@@ -5,8 +5,8 @@
 //   node scripts/screens.mjs --url http://localhost:5173   use a server that is already running
 //
 // It walks the landing page, the title, the song menu and its credits,
-// calibration, the Play screen and the results with a synthetic camera, then
-// the play HUD's named states from the mock frame (/hud), then the doctor
+// calibration, the Play screen, the results and Stats with a synthetic camera,
+// then the play HUD's named states from the mock frame (/hud), then the doctor
 // loop in the demo clinic: the doctor's page, the patient's program card and
 // the results of a program session.
 //
@@ -116,6 +116,34 @@ try {
   await page.getByTestId('results-screen').waitFor({ timeout: 10_000 });
   await settle(page, 2600);
   await shot(page, 'results');
+
+  // Stats, over the title screen, with two believable weeks in the run log.
+  await page.evaluate(() => {
+    const perDay = [0, 1, 0, 2, 1, 0, 0, 3, 1, 1, 0, 2, 1, 2];
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const runs = [];
+    const totals = { runs: 9, seconds: 1500, kcal: 67.1 };
+    perDay.forEach((count, index) => {
+      for (let run = 0; run < count; run++) {
+        const at = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (perDay.length - 1 - index), 9 + run * 3);
+        const seconds = 150 + ((index * 37 + run * 53) % 120);
+        const kcal = Math.round((2.3 * 70 * seconds) / 36) / 100;
+        runs.push({ at: at.getTime(), day: `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}`, seconds, moves: 8, kcal });
+        totals.runs += 1;
+        totals.seconds += seconds;
+        totals.kcal = Math.round((totals.kcal + kcal) * 100) / 100;
+      }
+    });
+    localStorage.setItem('rehabeat.history.v1', JSON.stringify({ weightKg: null, unit: 'kg', totals, runs }));
+  });
+  await page.goto(`${base}/play`, { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('title-screen').waitFor({ timeout: 20_000 });
+  await page.getByTestId('title-stats').click();
+  await page.getByTestId('stats-panel').waitFor({ timeout: 5_000 });
+  await page.getByTestId('stats-mode-kcal').click();
+  await settle(page, 400);
+  await shot(page, 'stats');
 
   for (const state of HUD_STATES) {
     await page.goto(`${base}/hud?state=${state}`, { waitUntil: 'domcontentloaded' });

@@ -3,6 +3,7 @@ import { FormMonitor, formNoteFor } from './formRules';
 import { GOOD_SCORE, labelFor, scoreFrame } from './frameScore';
 import type { HoldDetail, JointHold } from './holdDetail';
 import { LimitWatcher, type JointLimits } from './limits';
+import { PoseLock } from './poseLock';
 import type { Cycle, Phase, Routine } from './routine';
 import { applyResult, initialStats, type Stats } from './stats';
 
@@ -34,6 +35,11 @@ export interface LiveState {
   formNote: string | null;
   /** Limited joints that are past their limit as of the latest frame. */
   overLimit: JointName[];
+  /**
+   * True while the player is in the current move's pose: Good for 100 ms,
+   * until the score spends 150 ms under 50. See PoseLock.
+   */
+  locked: boolean;
 }
 
 interface CycleTimes {
@@ -46,10 +52,26 @@ interface CycleTimes {
 const NO_FORM: FormMetrics = { trunkLeanDeg: null, shoulderEarRatio: null };
 
 /**
+ * The longest a single frame can stand for in a hold. A frame's score counts
+ * from its own time until the next frame arrives, but past this the camera
+ * has stalled and nothing is known about the player.
+ */
+export const MAX_FRAME_SPAN_SEC = 0.2;
+
+/** A frame the engine has seen, at its offset-corrected time. */
+interface SeenFrame {
+  t: number;
+  frame: PoseFrame;
+}
+
+/**
  * Turns a stream of PoseFrames into one BeatResult per move cycle.
  *
  * Every frame gets a 0-100 score against the current move. A move's score is
- * the mean of those frame scores inside its hold window only.
+ * the time-weighted mean of those frame scores inside its hold window only:
+ * each frame stands from its own time until the next one (at most
+ * MAX_FRAME_SPAN_SEC), so the hold is judged by time on the beat grid and a
+ * dip in the frame rate does not change the result.
  */
 export class ScoringEngine {
   private readonly routine: Routine;
@@ -57,15 +79,22 @@ export class ScoringEngine {
   private readonly offsetSec: number;
   private readonly form: FormMonitor;
   private readonly limits: LimitWatcher;
+  private readonly lock = new PoseLock();
 
   private current: CycleTimes;
   private finalized = false;
-  private holdSum = 0;
-  private holdFrames = 0;
+  /** Time-weighted mean frame score over the part of the hold window covered so far. */
+  private holdAverage = 0;
+  /** Seconds of the hold window covered by frames so far. */
+  private holdCovered = 0;
+  private previous: SeenFrame | null = null;
   private arrivedAt: number | null = null;
   private formNote: string | null = null;
-  /** Per scored joint over the hold so far: the sum of (measured - target) and the frames it was visible in. */
-  private jointSums = new Map<JointName, { sum: number; frames: number }>();
+  /**
+   * Per scored joint over the hold so far: the time-weighted mean of
+   * (measured - target), and the seconds of the hold it was visible for.
+   */
+  private jointHolds = new Map<JointName, { meanError: number; covered: number }>();
   private formFlags: string[] = [];
   private overLimit: JointName[] = [];
   /** The current cycle's detail once its hold has closed; breaches during the release are added to it. */
@@ -79,6 +108,7 @@ export class ScoringEngine {
     holdScore: null,
     formNote: null,
     overLimit: [],
+    locked: false,
   };
   private statsState: Stats = initialStats();
   private last: BeatResult | null = null;
@@ -116,33 +146,31 @@ export class ScoringEngine {
    */
   push(frame: PoseFrame, form: FormMetrics = NO_FORM): BeatResult[] {
     const t = frame.t - this.offsetSec;
+    const previous = this.previous;
+    this.previous = { t, frame };
     if (t < this.timeOfBeat(this.current.cycle.startBeat)) return [];
-    const results = this.closeUpTo(t);
+
+    const results = this.closeUpTo(t, previous);
 
     const { cycle, holdStart, holdEnd } = this.current;
     const phase: Phase = t < holdStart ? 'reach' : t < holdEnd ? 'hold' : 'release';
     const score = scoreFrame(frame, cycle.move);
+    // Across a camera stall nothing is known about when the pose was landed: start from this frame.
+    const before =
+      previous && t - previous.t <= MAX_FRAME_SPAN_SEC
+        ? { t: previous.t, score: scoreFrame(previous.frame, cycle.move) }
+        : null;
+    this.lock.update({ t, score }, before);
 
     if (phase !== 'release') {
-      if (this.arrivedAt === null && score >= GOOD_SCORE) this.arrivedAt = t;
+      // Arriving is landing the pose, not sweeping through it: the start of the first lock.
+      if (this.arrivedAt === null && this.lock.locked) this.arrivedAt = this.lock.since;
       const flagged = this.form.update(t, form, cycle.move.formRules);
       if (this.formNote === null && flagged.length > 0) {
         this.formNote = formNoteFor(flagged[0]) ?? null;
       }
       for (const id of flagged) {
         if (!this.formFlags.includes(id)) this.formFlags.push(id);
-      }
-    }
-    if (phase === 'hold') {
-      this.holdSum += score;
-      this.holdFrames += 1;
-      for (const [joint, target] of Object.entries(cycle.move.joints) as [JointName, number][]) {
-        const angle = frame.angles[joint];
-        if (angle === undefined) continue;
-        const sums = this.jointSums.get(joint) ?? { sum: 0, frames: 0 };
-        sums.sum += angle - target;
-        sums.frames += 1;
-        this.jointSums.set(joint, sums);
       }
     }
 
@@ -157,11 +185,43 @@ export class ScoringEngine {
       cycle,
       phase,
       frameScore: score,
-      holdScore: phase === 'hold' ? this.holdSum / this.holdFrames : null,
+      holdScore: phase === 'hold' ? this.holdMean(score) : null,
       formNote: this.formNote,
       overLimit: over,
+      locked: this.lock.locked,
     };
     return results;
+  }
+
+  /**
+   * Adds the span from `previous` to `t`, at the previous frame's score
+   * against the current move, to the current hold window where they overlap.
+   */
+  private cover(previous: SeenFrame, t: number): void {
+    if (this.finalized) return;
+    const { cycle, holdStart, holdEnd } = this.current;
+    const spanEnd = Math.min(t, previous.t + MAX_FRAME_SPAN_SEC);
+    const overlap = Math.min(spanEnd, holdEnd) - Math.max(previous.t, holdStart);
+    if (!(overlap > 0)) return;
+    this.holdCovered += overlap;
+    // A running weighted mean, so a hold at a constant score stays exactly that score.
+    const score = scoreFrame(previous.frame, cycle.move);
+    this.holdAverage += ((score - this.holdAverage) * overlap) / this.holdCovered;
+
+    // The same span, joint by joint: where each was against its target, for the time it was in view.
+    for (const [joint, target] of Object.entries(cycle.move.joints) as [JointName, number][]) {
+      const angle = previous.frame.angles[joint];
+      if (angle === undefined) continue;
+      const held = this.jointHolds.get(joint) ?? { meanError: 0, covered: 0 };
+      held.covered += overlap;
+      held.meanError += ((angle - target - held.meanError) * overlap) / held.covered;
+      this.jointHolds.set(joint, held);
+    }
+  }
+
+  /** The hold's time-weighted mean so far; `fallback` until any time is covered. */
+  private holdMean(fallback: number): number {
+    return this.holdCovered > 0 ? this.holdAverage : fallback;
   }
 
   /**
@@ -175,7 +235,7 @@ export class ScoringEngine {
     if (t < this.timeOfBeat(this.current.cycle.startBeat)) return [];
 
     const before = this.current.cycle.index;
-    const results = this.closeUpTo(t);
+    const results = this.closeUpTo(t, null);
     if (this.current.cycle.index !== before) {
       // No frame has been seen in the new cycle yet.
       const { cycle, holdStart, holdEnd } = this.current;
@@ -186,6 +246,7 @@ export class ScoringEngine {
         holdScore: null,
         formNote: null,
         overLimit: [],
+        locked: false,
       };
     }
     return results;
@@ -193,11 +254,14 @@ export class ScoringEngine {
 
   /**
    * Closes out every hold window that time `t` has moved past. A long gap can
-   * skip whole cycles; those score as a Miss with no frames.
+   * skip whole cycles; those score as a Miss with no frames. The span since
+   * `previous` is counted toward each hold it overlaps before that hold
+   * closes: the one ending now and, for a move with no reach, the next one.
    */
-  private closeUpTo(t: number): BeatResult[] {
+  private closeUpTo(t: number, previous: SeenFrame | null): BeatResult[] {
     const results: BeatResult[] = [];
     for (;;) {
+      if (previous) this.cover(previous, t);
       if (!this.finalized && t >= this.current.holdEnd) results.push(this.finalize());
       if (t < this.current.end) break;
       this.advance();
@@ -218,22 +282,25 @@ export class ScoringEngine {
   private advance(): void {
     this.current = this.timesFor(this.current.cycle.index + 1);
     this.finalized = false;
-    this.holdSum = 0;
-    this.holdFrames = 0;
+    this.holdAverage = 0;
+    this.holdCovered = 0;
     this.arrivedAt = null;
     this.formNote = null;
-    this.jointSums = new Map();
+    this.jointHolds = new Map();
     this.formFlags = [];
     this.overLimit = [];
     this.currentDetail = null;
     this.form.reset();
+    this.lock.reset();
   }
 
   private finalize(): BeatResult {
     const { cycle, holdStart, holdEnd } = this.current;
-    const score = this.holdFrames > 0 ? this.holdSum / this.holdFrames : 0;
+    const score = this.holdMean(0);
+    // A pose landed too close to the end for the lock to engage still counts.
     // Never reaching the pose reports the full hold length as the lateness.
-    const arrival = this.arrivedAt ?? holdEnd;
+    const pending = this.lock.since;
+    const arrival = this.arrivedAt ?? (pending !== null && pending < holdEnd ? pending : holdEnd);
 
     const result: BeatResult = {
       moveId: cycle.move.id,
@@ -245,11 +312,12 @@ export class ScoringEngine {
 
     const joints: Partial<Record<JointName, JointHold>> = {};
     for (const [joint, target] of Object.entries(cycle.move.joints) as [JointName, number][]) {
-      const sums = this.jointSums.get(joint);
+      const held = this.jointHolds.get(joint);
       joints[joint] = {
         target,
-        meanError: sums ? sums.sum / sums.frames : 0,
-        seen: sums && this.holdFrames > 0 ? sums.frames / this.holdFrames : 0,
+        meanError: held ? held.meanError : 0,
+        // Clamped: the two totals are sums of the same spans, added up in a different order.
+        seen: held && this.holdCovered > 0 ? Math.min(1, held.covered / this.holdCovered) : 0,
       };
     }
     this.currentDetail = {
@@ -272,11 +340,38 @@ export class ScoringEngine {
 }
 
 /**
- * The "music follows you" rule: the melody plays while the current hold score
- * is Good or better. Between holds it carries the last move's result, so a
- * good hold keeps the melody through the release and the next reach.
+ * The "music follows you" rule: whether the melody should play, given what
+ * the scoring engine sees now. Feed it through a MelodyGate so it only drops
+ * out after half a beat.
+ *
+ * "In the pose" is the lock and the Good line together: the lock keeps a
+ * sweep through the pose from counting, and the Good line keeps a pose that
+ * has sagged under Good (which the lock tolerates down to 50) from playing
+ * the melody through a hold that is judged a Miss.
+ *
+ * - hold: while the player is in the pose, whatever came before
+ * - reach: once the player has landed the pose, or while the last move's
+ *   result was Good or better, so a good hold carries through to the next one
+ * - release: carries the result of the hold that just closed
+ * - before the routine starts, or while the camera sends no frames
+ *   (`cameraFresh` false): never, since `live` stops changing without frames
  */
-export function melodyShouldPlay(live: LiveState, lastResult: BeatResult | null): boolean {
-  const score = live.holdScore ?? lastResult?.score ?? 0;
-  return score >= GOOD_SCORE;
+export function melodyShouldPlay(
+  live: LiveState,
+  lastResult: BeatResult | null,
+  cameraFresh: boolean,
+): boolean {
+  if (!cameraFresh) return false;
+  const carried = (lastResult?.score ?? 0) >= GOOD_SCORE;
+  const inPose = live.locked && live.frameScore >= GOOD_SCORE;
+  switch (live.phase) {
+    case 'hold':
+      return inPose;
+    case 'reach':
+      return inPose || carried;
+    case 'release':
+      return carried;
+    default:
+      return false;
+  }
 }

@@ -78,6 +78,8 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | Song card | Slanted panel. Tempo in LED digits is the largest thing on it. Selected: one tone up, gold edge, glow. Its lamp blinks at the song's tempo. |
 | XP bar | LED segments, cyan fill, level label before and the count in LED digits after. |
 | Streak | The day count in gold LED digits and seven lamps for the week. |
+| Stats chart | Fourteen upright columns of 12 LED segments, one per day, cyan on an unlit track; today's column is at full brightness and the rest dimmed. The value sits above a lit column in LED digits. Never gold. |
+| Switch | Two quiet buttons side by side; the pressed one is a tone up with cyan text and a cyan bar along its bottom edge. |
 | Phase word | Display type, top centre: Ready white, Reach cyan, Hold gold, Release white. |
 | Beat pips | One slanted segment per beat of the move, grouped by phase; the current one is lit in its phase colour. |
 | Match ring | A ring with marks at 60 (Good) and 85 (Perfect). White under 60, cyan from 60, gold from 85. The number is in LED digits. |
@@ -111,6 +113,7 @@ The patient-facing pieces of the doctor loop (the program card on the title scre
 | `/play` | Song select | The markup and behaviour of `src/ui/menu`; only its CSS changed |
 | `/play` | Calibrate | A slanted strip along the bottom of the camera picture |
 | `/play` | Play | The HUD (`src/ui/hud`) over the camera and canvas |
-| `/play` | Results | Grade, stars, points, Perfect / Good / Miss, best combo, XP |
+| `/play` | Results | Grade, stars, points, Perfect / Good / Miss, best combo, estimated calories, XP |
+| `/play` | Stats (dialog) | All-time runs, minutes and estimated calories, the 14-day chart, the optional body weight |
 | `/hud` | HUD preview | The HUD fed by a mock frame, for design work and screenshots |
 | `/doctor` | Doctor | Desk look. Patients, consistency, problem spots, the program and limits editors, the note |

@@ -31,8 +31,8 @@ describe('pose public API', () => {
   });
 
   it('exports the smoothing defaults', () => {
-    expect(pose.ANGLE_MIN_CUTOFF).toBe(1.5);
-    expect(pose.ANGLE_BETA).toBe(0.02);
+    expect(pose.ANGLE_MIN_CUTOFF).toBe(1.0);
+    expect(pose.ANGLE_BETA).toBe(0.05);
     expect(pose.ANGLE_D_CUTOFF).toBe(1.0);
   });
 
