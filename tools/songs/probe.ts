@@ -53,7 +53,9 @@ export function parseFfprobe(output: string | unknown): ProbeInfo {
 
 /** A title to offer when the file has no title tag: the file name, without the extension or underscores. */
 export function titleFromFileName(file: string): string {
-  const base = path.basename(file).replace(/\.[^.]+$/, '');
+  // Split on both separators: a Windows path must give the same title when the CLI runs on Linux.
+  const name = file.split(/[\\/]/).pop() ?? '';
+  const base = name.replace(/\.[^.]+$/, '');
   return base.replace(/_+/g, ' ').replace(/\s+/g, ' ').trim() || 'Untitled';
 }
 
