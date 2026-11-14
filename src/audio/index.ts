@@ -7,6 +7,8 @@ export type { BeatmapSource, LoadedBeatmap } from './beatmap';
 export { BeatGrid } from './beatGrid';
 export type { BeatGridOptions } from './beatGrid';
 
+export { beatAlignedLoopLength } from './loopPoint';
+
 export { BeatScheduler } from './beatScheduler';
 export type { DueBeat } from './beatScheduler';
 
@@ -19,7 +21,7 @@ export type { Stems } from './stems';
 export { GainFader } from './gainFader';
 export type { RampParam } from './gainFader';
 
-export { BeatEngine } from './beatEngine';
+export { BeatEngine, STEM_GAIN } from './beatEngine';
 export type { BeatEngineMode, BeatEngineOptions } from './beatEngine';
 
 export { ArmRaiseDetector, CalibrationSession, matchOffsets, median } from './calibration';

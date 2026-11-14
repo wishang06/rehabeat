@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BeatEngine } from './beatEngine';
+import { BeatEngine, STEM_GAIN } from './beatEngine';
 
 /*
  * Web Audio does not exist in the test environment, so the engine runs
@@ -392,6 +392,16 @@ describe('BeatEngine in click mode', () => {
     engine.stop();
   });
 
+  it('leaves the click track at its own level: the stem gain is for the stems', async () => {
+    vi.useFakeTimers();
+    const { engine, ctx } = await createEngine();
+    engine.start(0);
+
+    const output = ctx.oscillators[0].outputs[0].outputs[0] as FakeGain;
+    expect(output.gain.value).toBe(1);
+    engine.stop();
+  });
+
   it('stops scheduling and silences pending clicks on stop', async () => {
     vi.useFakeTimers();
     const { engine, ctx } = await createEngine();
@@ -487,14 +497,51 @@ describe('BeatEngine in stems mode', () => {
     engine.stop();
   });
 
-  it('plays drums at full volume and the melody through a gain that starts at 0', async () => {
+  it('loops where the last full beat ends rather than at the end of the file', async () => {
+    // Four beats from 0.25 s at 120 BPM in 3 s of audio: the fourth beat ends at 2.25 s.
+    const { engine, ctx } = await createEngine({
+      '/beatmap.json': () =>
+        new Response(JSON.stringify({ bpm: 120, offset: 0.25, beats: [0.25, 0.75, 1.25, 1.75] })),
+      '/stems/drums.mp3': () => audio(3),
+      '/stems/melody.mp3': () => audio(3),
+    });
+    engine.start(0);
+
+    for (const source of ctx.sources) expect(source.loopEnd).toBe(2);
+    expect(engine.loopLength).toBe(2);
+    // The first beat of the second pass lands exactly one beat after the last beat of the first.
+    expect(engine.grid.timeOfBeat(3)).toBe(1.75);
+    expect(engine.grid.timeOfBeat(4)).toBe(2.25);
+    expect(engine.grid.timeOfBeat(8)).toBe(4.25);
+    engine.stop();
+  });
+
+  it('has no loop length in click mode', async () => {
+    const { engine } = await createEngine();
+    expect(engine.loopLength).toBeNull();
+  });
+
+  it('raises both stems 2.5x on their way to the speakers', async () => {
     const { engine, ctx } = await createEngine(STEM_FILES);
     engine.start();
 
     const [drums, melody] = ctx.sources;
     const output = drums.outputs[0] as FakeGain;
     const melodyGain = melody.outputs[0] as FakeGain;
-    expect(output.gain.value).toBe(1);
+    // The melody reaches the same output as the drums, so one gain lifts both.
+    expect(melodyGain.outputs).toEqual([output]);
+    expect(output.gain.value).toBe(2.5);
+    expect(STEM_GAIN).toBe(2.5);
+    engine.stop();
+  });
+
+  it('plays the drums straight through and the melody through a gain that starts at 0', async () => {
+    const { engine, ctx } = await createEngine(STEM_FILES);
+    engine.start();
+
+    const [drums, melody] = ctx.sources;
+    const output = drums.outputs[0] as FakeGain;
+    const melodyGain = melody.outputs[0] as FakeGain;
     expect(output.outputs).toEqual([ctx.destination]);
     expect(melodyGain).not.toBe(output);
     expect(melodyGain.gain.value).toBe(0);
@@ -577,7 +624,8 @@ describe('BeatEngine in stems mode', () => {
     ctx.currentTime = 9;
     engine.stop();
 
-    expect(output.gain.calls).toEqual(['set 1@9', 'ramp 0@9.03']);
+    // The fade starts from the level the stems were playing at.
+    expect(output.gain.calls).toEqual(['set 2.5@9', 'ramp 0@9.03']);
     expect(drums.stoppedAt).toBeCloseTo(9.03, 9);
     expect(melody.stoppedAt).toBe(drums.stoppedAt);
     expect(output.outputs).toEqual([ctx.destination]);

@@ -25,7 +25,7 @@ The first start downloads the pose model (about 6 MB) from Google's model storag
 
 ### Smoke check
 
-`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It walks Welcome, Calibrate and Play, opens the debug panel, runs a calibration pass, and checks that a refused camera shows a recoverable message. Options go after `--`:
+`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It walks Welcome, Calibrate and Play, opens the debug panel, runs a calibration pass, and checks that a refused camera shows a recoverable message. When stems are shipped it also checks the music credit on the start and Play screens, that the stems don't clip at the engine's gain, and that the loop seam is exactly one beat. Options go after `--`:
 
 | Option | Effect |
 | --- | --- |
@@ -90,9 +90,11 @@ The rule that holds it together: **`AudioContext.currentTime` is the only clock.
 
 ### Audio (`src/audio/`)
 
-- Loads `public/beatmap.json` (`{ bpm, offset, beats }`). If it's missing or malformed, it falls back to a generated 72 BPM grid.
-- **Click mode** (default): a synthesized click on every beat, accented every fourth.
-- **Stems mode**: if `public/stems/drums.mp3` and `public/stems/melody.mp3` both exist, the drums loop at full volume and the melody fades in over 300 ms only while the hold score is 60 or above. This is the "music follows you" mechanic. Between holds the melody follows the last move's result, so a good hold carries it through the release and the next reach.
+- Loads `public/beatmap.json` (`{ bpm, offset, beats }`). If it's missing or malformed, it falls back to a generated 72 BPM grid. The repo ships the beatmap and stems for "Past Sadness" (see [Music](#music)).
+- **Stems mode**: if `public/stems/drums.mp3` and `public/stems/melody.mp3` both exist, the drums play throughout and the melody fades in over 300 ms only while the hold score is 60 or above. This is the "music follows you" mechanic. Between holds the melody follows the last move's result, so a good hold carries it through the release and the next reach.
+  - Both stems are raised 2.5x (`STEM_GAIN` in `beatEngine.ts`). The track peaks at about -12 dBFS, so the mix peaks at about -4 dBFS. `npm run smoke` fails if the stems would clip.
+  - The stems loop where the last full beat in `beatmap.json` ends, not at the end of the file. The track is not a whole number of beats long, so looping the whole file would make the beat at the seam 59 ms too long and leave the grid off for every pass after.
+- **Click mode** (when there are no stems): a synthesized click on every beat, accented every fourth.
 - **Calibration**: four clicks; for each, the time the raised arm arrives is compared with the click time. The median difference is stored as `offsetMs` (in `localStorage`) and applied in scoring.
 
 A small Vite plugin (in `vite.config.ts`) tells the app which of those optional files exist, so it never requests a missing one. In dev, adding or removing `beatmap.json` or a stem reloads the page.
@@ -100,6 +102,10 @@ A small Vite plugin (in `vite.config.ts`) tells the app which of those optional 
 ### UI (`src/ui/`)
 
 Three screens (Welcome, Calibrate, Play) over one persistent camera view, plus the debug panel. The interface is meant to be read from about two metres away, so the Play screen has one large focal element: the beat dial and the phase word.
+
+## Music
+
+The game plays "Past Sadness" by Kevin MacLeod ([incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007)), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), separated into drum and melody stems by the Rehabeat team. The licence requires that credit, so it is shown under the camera view on the start and Play screens (`src/audio/trackCredit.ts`). [`public/CREDITS.md`](public/CREDITS.md) records the sources and licences of all three tracks in `tools/tracks/`; a unit test keeps the in-game credit in step with it.
 
 ## Move format (for teammates)
 
@@ -138,17 +144,34 @@ The three moves in the file now (overhead arm raise, side arm raise, standing kn
 
 ## Beatmap script (`tools/`)
 
-`tools/make_beatmap.py` runs `librosa.beat.beat_track` on an audio file and writes `public/beatmap.json`. With `--stems` it also runs Demucs (`htdemucs`, two stems) and copies the drums and everything-else stems into `public/stems/` as `drums.mp3` and `melody.mp3`.
+`tools/make_beatmap.py` turns a song into `public/beatmap.json`, the beat grid the game plays against. It can also write a click-track file for checking the grid by ear, and split the song into drum and melody stems with Demucs. [`tools/README.md`](tools/README.md) has the full instructions, the output format, how to check a grid by ear, and the track list.
 
-```bash
-python -m venv tools/.venv                 # on Windows, if python is the MSYS2 build: py -3 -m venv tools/.venv
-source tools/.venv/Scripts/activate        # Windows Git Bash; use tools/.venv/bin/activate on macOS and Linux
-python -m pip install -r tools/requirements.txt
-python tools/make_beatmap.py path/to/song.mp3
-python tools/make_beatmap.py path/to/song.mp3 --stems   # after: pip install -r tools/requirements-stems.txt
+**Setup** (Windows 11, PowerShell, from the repo root). You need Python 3.11 (`winget install Python.Python.3.11`) and ffmpeg on `PATH` (`winget install Gyan.FFmpeg`).
+
+```powershell
+py -3.11 -m venv tools\.venv
+tools\.venv\Scripts\python.exe -m pip install --upgrade pip
+tools\.venv\Scripts\python.exe -m pip install -r tools\requirements.txt
 ```
 
-Details, the output format and troubleshooting are in [`tools/README.md`](tools/README.md).
+The install is about 1 GB, because `requirements.txt` includes Demucs and the CPU build of PyTorch. The first `--stems` run also downloads the Demucs model (80 MB).
+
+**Run.** This is the command that produced the files in `public/`:
+
+```powershell
+tools\.venv\Scripts\python.exe tools\make_beatmap.py tools\tracks\kevin-macleod-past-sadness.mp3 --bpm-hint 72 --click --stems
+```
+
+| Flag | What it does |
+| --- | --- |
+| `--bpm-hint N` | Rough tempo, for when the grid comes out at double or half speed. It only moves the result by factors of two, so the song's real tempo is kept. |
+| `--click` | Also writes `tools/out/check.wav`: the song with a click on every beat, higher and louder on downbeats. |
+| `--stems` | Also runs Demucs (`htdemucs`, two stems) and writes `public/stems/drums.mp3` and `public/stems/melody.mp3` (everything except the drums). It runs on the CPU: 2.5 to 10 minutes for this 3.5-minute song. |
+| `--out PATH` | Write the beatmap somewhere other than `public/beatmap.json`. |
+
+`public/beatmap.json` holds `bpm`, `offset`, `beats`, `downbeats` and `source`. The game reads `bpm`, `offset` and `beats`, and ignores the other two for now. Times are measured on the source song, and the stems start at the same instant, so the grid applies to them unchanged.
+
+**Tests:** `tools\.venv\Scripts\python.exe -m pytest tools` builds 72 BPM click tracks and checks the detected grid against them. It takes about 10 seconds and never runs Demucs.
 
 ## Layout
 
@@ -169,8 +192,7 @@ tools/            Beatmap and stems script (Python)
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.
-- The `--stems` path of the beatmap script has not been run end to end with Demucs. Stems mode itself was checked in the browser with short generated test stems.
-- MP3 stems can leave a small gap where the loop restarts.
+- The loop point is checked against the beat grid, not by ear. It cuts the audio with no crossfade, so listen for a click every 3 min 33 s.
 - The ghost draws arms in the image plane and legs as seen from the front, so a knee raise shows as the foot coming up rather than the thigh swinging forward.
 - Only Chromium browsers have been tested.
 

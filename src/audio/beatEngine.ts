@@ -5,6 +5,7 @@ import { BeatScheduler } from './beatScheduler';
 import { scheduleClick } from './clickTrack';
 import { MasterClock } from './clock';
 import { GainFader } from './gainFader';
+import { beatAlignedLoopLength } from './loopPoint';
 import { loadStems, type Stems } from './stems';
 
 export type BeatEngineMode = 'stems' | 'click';
@@ -23,6 +24,13 @@ const SCHEDULER_INTERVAL_MS = 25;
 const SCHEDULER_LOOKAHEAD_SEC = 0.15;
 const BEATS_PER_ACCENT = 4;
 const MELODY_RAMP_SEC = 0.3;
+/**
+ * How much the stems are raised on their way to the speakers. The shipped
+ * track peaks at about -12 dBFS, so 2.5x (+8 dB) brings the full mix to about
+ * -4 dBFS. A louder track needs a smaller number: `npm run smoke` fails if the
+ * stems would clip at this gain.
+ */
+export const STEM_GAIN = 2.5;
 /** Long enough to avoid the pop of cutting a waveform mid-cycle, short enough to feel instant. */
 const STOP_FADE_SEC = 0.03;
 
@@ -31,6 +39,8 @@ interface Run {
   startTime: number;
   /** All of this run's audio passes through here on its way to the speakers. */
   output: GainNode;
+  /** The gain `output` plays at, which is where a fade-out starts from. */
+  level: number;
   sources: AudioBufferSourceNode[];
   /** Every node to disconnect once the run is silent. */
   nodes: AudioNode[];
@@ -40,8 +50,9 @@ interface Run {
 
 /**
  * Plays the backing track and owns the timeline everything else is scored
- * against. In 'stems' mode it loops the drum and melody stems; in 'click'
- * mode (no stems found) it synthesizes a click on every beat.
+ * against. In 'stems' mode it loops the drum and melody stems over a whole
+ * number of beats; in 'click' mode (no stems found) it synthesizes a click on
+ * every beat.
  *
  * Before start() and after stop() the track is parked at time 0: see
  * trackTime, beatPosition and clockTimeOfBeat.
@@ -83,8 +94,11 @@ export class BeatEngine {
     this.beatmapSource = beatmapSource;
     this.ownsContext = ownsContext;
 
-    // Both stems loop over the shorter one's length so they can never drift apart.
-    const loopDuration = stems ? Math.min(stems.drums.duration, stems.melody.duration) : 0;
+    // Both stems loop over the same length so they can never drift apart. That
+    // length is a whole number of beats taken from the beatmap, not the length of
+    // the files, so the beat grid stays continuous where the audio wraps.
+    const audioDuration = stems ? Math.min(stems.drums.duration, stems.melody.duration) : 0;
+    const loopDuration = audioDuration > 0 ? beatAlignedLoopLength(beatmap, audioDuration) : 0;
     const loops = loopDuration > 0;
     this.stems = loops ? stems : null;
     this.loopDuration = loopDuration;
@@ -94,6 +108,11 @@ export class BeatEngine {
 
   get running(): boolean {
     return this.run !== null;
+  }
+
+  /** Seconds of each stem that play before they wrap to the start, or null in click mode. */
+  get loopLength(): number | null {
+    return this.stems ? this.loopDuration : null;
   }
 
   /** Master-clock time at which track time 0 plays, or null while stopped. */
@@ -146,7 +165,7 @@ export class BeatEngine {
     }
     const now = this.ctx.currentTime;
     const silentAt = now + STOP_FADE_SEC;
-    run.output.gain.setValueAtTime(1, now);
+    run.output.gain.setValueAtTime(run.level, now);
     run.output.gain.linearRampToValueAtTime(0, silentAt);
     run.sources[0].onended = release;
     for (const source of run.sources) source.stop(silentAt);
@@ -205,6 +224,7 @@ export class BeatEngine {
   }
 
   private startStems(stems: Stems, output: GainNode, startTime: number): Run {
+    output.gain.value = STEM_GAIN;
     const melodyGain = this.ctx.createGain();
     melodyGain.gain.value = 0;
     melodyGain.connect(output);
@@ -217,6 +237,7 @@ export class BeatEngine {
     return {
       startTime,
       output,
+      level: STEM_GAIN,
       sources: [drums, melody],
       nodes: [drums, melody, melodyGain, output],
       melody: new GainFader(melodyGain.gain, MELODY_RAMP_SEC),
@@ -245,6 +266,7 @@ export class BeatEngine {
     return {
       startTime,
       output,
+      level: 1,
       sources: [],
       nodes: [output],
       melody: null,

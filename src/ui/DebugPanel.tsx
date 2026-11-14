@@ -44,6 +44,10 @@ export function DebugPanel({ session, calibration, playRef }: DebugPanelProps) {
         <dd data-testid="debug-audio">
           {engine ? `${engine.mode}, ${engine.beatmapSource} beatmap, ${fixed(engine.grid.bpm, 0)} BPM` : '–'}
         </dd>
+        <dt>Loop</dt>
+        <dd data-testid="debug-loop">
+          {engine?.loopLength != null ? `${engine.loopLength.toFixed(4)} s` : '–'}
+        </dd>
         <dt>Melody stem</dt>
         <dd data-testid="debug-melody">
           {engine?.mode === 'stems' ? (engine.melodyActive ? 'in' : 'out') : 'no stems'}
