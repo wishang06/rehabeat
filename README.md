@@ -103,6 +103,12 @@ A small Vite plugin (in `vite.config.ts`) tells the app which of those optional 
 
 Three screens (Welcome, Calibrate, Play) over one persistent camera view, plus the debug panel. The interface is meant to be read from about two metres away, so the Play screen has one large focal element: the beat dial and the phase word.
 
+## Deployment
+
+Every push to `main` deploys automatically. The workflow in `.github/workflows/deploy.yml` runs `npm ci`, `npm test` and `npm run build`, then rsyncs `dist/` to the EC2 server at `/var/www/rehabeat`, where nginx serves it. A failing test or typecheck stops the deploy, and the site keeps the previous version. To redeploy without a push, run the workflow by hand from the Actions tab.
+
+The workflow reads three repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`. On the server that key is limited to rsync into the web root (`rrsync`), so it can't open a shell. If the server's address changes, update `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`.
+
 ## Music
 
 The game plays "Past Sadness" by Kevin MacLeod ([incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007)), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), separated into drum and melody stems by the Rehabeat team. The licence requires that credit, so it is shown under the camera view on the start and Play screens (`src/audio/trackCredit.ts`). [`public/CREDITS.md`](public/CREDITS.md) records the sources and licences of all three tracks in `tools/tracks/`; a unit test keeps the in-game credit in step with it.
