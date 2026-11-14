@@ -19,6 +19,7 @@ export {
 } from './formRules';
 export { applyResult, initialStats, type Stats } from './stats';
 export {
+  MAX_FRAME_SPAN_SEC,
   ScoringEngine,
   melodyShouldPlay,
   type LiveState,

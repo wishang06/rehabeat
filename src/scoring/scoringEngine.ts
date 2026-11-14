@@ -40,10 +40,26 @@ interface CycleTimes {
 const NO_FORM: FormMetrics = { trunkLeanDeg: null, shoulderEarRatio: null };
 
 /**
+ * The longest a single frame can stand for in a hold. A frame's score counts
+ * from its own time until the next frame arrives, but past this the camera
+ * has stalled and nothing is known about the player.
+ */
+export const MAX_FRAME_SPAN_SEC = 0.2;
+
+/** A frame the engine has seen, at its offset-corrected time. */
+interface SeenFrame {
+  t: number;
+  frame: PoseFrame;
+}
+
+/**
  * Turns a stream of PoseFrames into one BeatResult per move cycle.
  *
  * Every frame gets a 0-100 score against the current move. A move's score is
- * the mean of those frame scores inside its hold window only.
+ * the time-weighted mean of those frame scores inside its hold window only:
+ * each frame stands from its own time until the next one (at most
+ * MAX_FRAME_SPAN_SEC), so the hold is judged by time on the beat grid and a
+ * dip in the frame rate does not change the result.
  */
 export class ScoringEngine {
   private readonly routine: Routine;
@@ -53,8 +69,11 @@ export class ScoringEngine {
 
   private current: CycleTimes;
   private finalized = false;
-  private holdSum = 0;
-  private holdFrames = 0;
+  /** Time-weighted mean frame score over the part of the hold window covered so far. */
+  private holdAverage = 0;
+  /** Seconds of the hold window covered by frames so far. */
+  private holdCovered = 0;
+  private previous: SeenFrame | null = null;
   private arrivedAt: number | null = null;
   private formNote: string | null = null;
 
@@ -95,8 +114,11 @@ export class ScoringEngine {
    */
   push(frame: PoseFrame, form: FormMetrics = NO_FORM): BeatResult[] {
     const t = frame.t - this.offsetSec;
+    const previous = this.previous;
+    this.previous = { t, frame };
     if (t < this.timeOfBeat(this.current.cycle.startBeat)) return [];
-    const results = this.closeUpTo(t);
+
+    const results = this.closeUpTo(t, previous);
 
     const { cycle, holdStart, holdEnd } = this.current;
     const phase: Phase = t < holdStart ? 'reach' : t < holdEnd ? 'hold' : 'release';
@@ -109,19 +131,36 @@ export class ScoringEngine {
         this.formNote = formNoteFor(flagged[0]) ?? null;
       }
     }
-    if (phase === 'hold') {
-      this.holdSum += score;
-      this.holdFrames += 1;
-    }
 
     this.liveState = {
       cycle,
       phase,
       frameScore: score,
-      holdScore: phase === 'hold' ? this.holdSum / this.holdFrames : null,
+      holdScore: phase === 'hold' ? this.holdMean(score) : null,
       formNote: this.formNote,
     };
     return results;
+  }
+
+  /**
+   * Adds the span from `previous` to `t`, at the previous frame's score
+   * against the current move, to the current hold window where they overlap.
+   */
+  private cover(previous: SeenFrame, t: number): void {
+    if (this.finalized) return;
+    const { cycle, holdStart, holdEnd } = this.current;
+    const spanEnd = Math.min(t, previous.t + MAX_FRAME_SPAN_SEC);
+    const overlap = Math.min(spanEnd, holdEnd) - Math.max(previous.t, holdStart);
+    if (!(overlap > 0)) return;
+    this.holdCovered += overlap;
+    // A running weighted mean, so a hold at a constant score stays exactly that score.
+    const score = scoreFrame(previous.frame, cycle.move);
+    this.holdAverage += ((score - this.holdAverage) * overlap) / this.holdCovered;
+  }
+
+  /** The hold's time-weighted mean so far; `fallback` until any time is covered. */
+  private holdMean(fallback: number): number {
+    return this.holdCovered > 0 ? this.holdAverage : fallback;
   }
 
   /**
@@ -135,7 +174,7 @@ export class ScoringEngine {
     if (t < this.timeOfBeat(this.current.cycle.startBeat)) return [];
 
     const before = this.current.cycle.index;
-    const results = this.closeUpTo(t);
+    const results = this.closeUpTo(t, null);
     if (this.current.cycle.index !== before) {
       // No frame has been seen in the new cycle yet.
       const { cycle, holdStart, holdEnd } = this.current;
@@ -152,11 +191,14 @@ export class ScoringEngine {
 
   /**
    * Closes out every hold window that time `t` has moved past. A long gap can
-   * skip whole cycles; those score as a Miss with no frames.
+   * skip whole cycles; those score as a Miss with no frames. The span since
+   * `previous` is counted toward each hold it overlaps before that hold
+   * closes: the one ending now and, for a move with no reach, the next one.
    */
-  private closeUpTo(t: number): BeatResult[] {
+  private closeUpTo(t: number, previous: SeenFrame | null): BeatResult[] {
     const results: BeatResult[] = [];
     for (;;) {
+      if (previous) this.cover(previous, t);
       if (!this.finalized && t >= this.current.holdEnd) results.push(this.finalize());
       if (t < this.current.end) break;
       this.advance();
@@ -177,8 +219,8 @@ export class ScoringEngine {
   private advance(): void {
     this.current = this.timesFor(this.current.cycle.index + 1);
     this.finalized = false;
-    this.holdSum = 0;
-    this.holdFrames = 0;
+    this.holdAverage = 0;
+    this.holdCovered = 0;
     this.arrivedAt = null;
     this.formNote = null;
     this.form.reset();
@@ -186,7 +228,7 @@ export class ScoringEngine {
 
   private finalize(): BeatResult {
     const { cycle, holdStart, holdEnd } = this.current;
-    const score = this.holdFrames > 0 ? this.holdSum / this.holdFrames : 0;
+    const score = this.holdMean(0);
     // Never reaching the pose reports the full hold length as the lateness.
     const arrival = this.arrivedAt ?? holdEnd;
 

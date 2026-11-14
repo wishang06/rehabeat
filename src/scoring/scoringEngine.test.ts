@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BeatResult, FormMetrics, Move, PoseFrame } from '../types';
 import { formNoteFor } from './formRules';
 import { Routine } from './routine';
-import { ScoringEngine, melodyShouldPlay, type ScoringEngineOptions } from './scoringEngine';
+import { MAX_FRAME_SPAN_SEC, ScoringEngine, melodyShouldPlay, type ScoringEngineOptions } from './scoringEngine';
 
 const FPS = 30;
 /** 120 BPM: beat i is at i * 0.5 s. */
@@ -58,6 +58,24 @@ function play(
   }
   return results;
 }
+
+/** Feeds one frame at each of `times` (seconds), in order. */
+function pushAt(
+  target: ScoringEngine,
+  times: readonly number[],
+  pose: (t: number) => PoseFrame['angles'],
+): BeatResult[] {
+  const results: BeatResult[] = [];
+  for (const t of times) {
+    const angles = pose(t);
+    results.push(...target.push({ t, angles, visible: Object.keys(angles) as PoseFrame['visible'] }, UPRIGHT));
+  }
+  return results;
+}
+
+/** `count` evenly spaced times from `from`, `step` apart. */
+const times = (from: number, count: number, step: number) =>
+  Array.from({ length: count }, (_, i) => from + i * step);
 
 describe('ScoringEngine', () => {
   it('scores a move held on target as a Perfect 100', () => {
@@ -182,10 +200,55 @@ describe('ScoringEngine', () => {
     play(target, 0.5, 2, (t) => (t >= 1.5 ? ON_TARGET : ARMS_DOWN));
     expect(target.live.phase).toBe('hold');
     expect(target.live.frameScore).toBe(100);
-    expect(target.live.holdScore).toBeCloseTo(50, 5);
+    // Time-weighted: on target since 1.5 s, out of the hold time elapsed by the last frame.
+    const last = 59 / FPS;
+    expect(target.live.holdScore).toBeCloseTo(((last - 1.5) / (last - HOLD_START)) * 100, 5);
 
     play(target, 2, 3.5, () => ON_TARGET);
     expect(target.live).toMatchObject({ phase: 'release', holdScore: null });
+  });
+});
+
+describe('ScoringEngine: the hold is judged by time, not by frame count', () => {
+  it('weights each frame by the time it covers, not by count', () => {
+    const target = engine();
+    const frames = [...times(0, 30, 1 / 30), ...times(1, 60, 1 / 60), ...times(2, 15, 1 / 15), 3];
+    const [result] = pushAt(target, frames, (t) => (t >= 1 && t < 2 ? ON_TARGET : ARMS_DOWN));
+    // One second on target and one second off. Counting frames would give 60 / 75 = 80.
+    expect(result.score).toBeCloseTo(50, 6);
+  });
+
+  it('does not stretch one frame across a camera stall', () => {
+    expect(MAX_FRAME_SPAN_SEC).toBe(0.2);
+    const target = engine();
+    const frames = [...times(0, 45, 1 / 30), ...times(2.5, 45, 1 / 30)];
+    const [result] = pushAt(target, frames, (t) => (t < 1.5 ? ON_TARGET : ARMS_DOWN));
+    // The last frame before the stall (44/30 s) stands for 0.2 s at most.
+    const onTarget = 44 / 30 + MAX_FRAME_SPAN_SEC - HOLD_START;
+    expect(result.score).toBeCloseTo((onTarget / (onTarget + 0.5)) * 100, 6);
+  });
+
+  it("integrates a span that crosses into the next cycle's hold", () => {
+    const straightIn: Move = { ...sideRaise, id: 'straight-in', beats: { reach: 0, hold: 2, release: 2 } };
+    // sideRaise 0-4 s, then straightIn's hold starts at once: 4-5 s.
+    const target = new ScoringEngine({ routine: new Routine([sideRaise, straightIn]), timeOfBeat });
+    const frames = [...times(0.05, 41, 0.1), 5.5];
+    const results = pushAt(target, frames, (t) => (t < 4 ? ON_TARGET : ARMS_DOWN));
+    // The frame at 3.95 s stands until 4.05 s, so 0.05 s of the second hold is on target;
+    // the frame at 4.05 s is off and stands for 0.2 s before the stall.
+    expect(results.map((r) => r.moveId)).toEqual(['side-arm-raise', 'straight-in']);
+    expect(results[1].score).toBeCloseTo((0.05 / 0.25) * 100, 6);
+  });
+
+  it('counts the span toward a hold that the same frame closes', () => {
+    const straightIn: Move = { ...sideRaise, id: 'straight-in', beats: { reach: 0, hold: 2, release: 2 } };
+    const target = new ScoringEngine({ routine: new Routine([sideRaise, straightIn]), timeOfBeat });
+    // The camera stalls after 3.95 s and the next frame lands after the second hold has closed.
+    const results = pushAt(target, [...times(0.05, 40, 0.1), 5.5], () => ON_TARGET);
+    expect(results.map((r) => [r.moveId, r.score])).toEqual([
+      ['side-arm-raise', 100],
+      ['straight-in', 100],
+    ]);
   });
 });
 
