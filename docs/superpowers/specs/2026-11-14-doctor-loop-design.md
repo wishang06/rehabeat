@@ -82,9 +82,19 @@ A prescription is an immutable version. Saving a change creates the next version
 | `rounds` | Times through the routine in one session. |
 | `holdBeats` | Hold length in beats for every move, or null to keep each move's own. |
 | `sessionsPerWeek` | 1 to 7. |
-| `weeks`, `startDate` | Length of the program and its first day. Carried forward when a new version is saved unless the doctor changes them. |
+| `weeks`, `startDate` | Length of the program and its first day. See "How a program starts and ends". |
 | `limits` | Per joint (the eight in `JOINT_NAMES`): none, **off**, or **up to N°**. |
 | `note` | Text for the patient, shown before they play. |
+
+### How a program starts and ends
+
+(Claude's calls.)
+
+- `startDate` is the day the doctor first saves a program for the patient. There is no date picker and no future start.
+- Saving a change keeps `startDate`. To make a program longer, the doctor raises `weeks`.
+- **Start a new program** in the editor saves a version whose `startDate` is today. The week grid and the status then cover the new program only. Quality and problem spots still use earlier sessions, so trends carry over.
+- After the last week the status is **finished**. The patient keeps the card, which says the program has finished and to ask the doctor what is next. Sessions can still be played and are still recorded and sent; they appear as extra weeks.
+- Limits last as long as the newest version carries them. They do not expire with the program.
 
 ### Limits
 
@@ -104,6 +114,8 @@ The output is ordinary `Move` objects, so the routine, scoring and target figure
 
 During a session every limited joint is watched in every phase of every move, not only the moves that score it. Going past the limit by more than a margin, held for about half a second, shows an "ease off" prompt naming the joint and marks the hold as a breach. The margin exists because a scaled target sits exactly at the limit and the camera's reading wobbles.
 
+A joint marked **off** is not watched: it has no number to compare with. Off means only that every move scoring that joint is removed. It never produces a prompt or a breach. (Claude's call.)
+
 A patient's limits also apply when they free-play, since a restricted joint is restricted whatever mode they chose. Free play is not recorded for the doctor. (Claude's call.)
 
 ### A program session
@@ -111,7 +123,9 @@ A patient's limits also apply when they free-play, since a restricted joint is r
 - Starts from a new program card on the title screen.
 - The patient still picks a song and calibrates as now.
 - The routine is the applied prescription. The session ends by itself after the last round and goes to the results screen.
-- "Finish run" still works. A session ended early is saved as partial if at least one hold was scored.
+- Leaving early, by "Finish run" or by Esc / "Songs", saves the session as partial if at least one hold was scored, and both go to the results screen so the patient sees what was sent. With no scored hold, nothing is saved and Esc goes to the menu as now.
+- "Recalibrate" is not offered during a program session. Calibration happens before play; a patient who needs it again finishes and starts over.
+- Closing the tab mid-session loses that session. This is accepted.
 - Points, XP, the daily streak and the leaderboard behave as they do today.
 
 ### What is recorded
@@ -137,7 +151,7 @@ Pure functions over prescriptions and sessions, with unit tests. They return str
   
   Each has a trend (better, worse, same). Breaches come first, then the rest by size.
 
-A session counts toward consistency only when completed. Partial sessions still feed quality and problem spots.
+A session counts toward consistency only when completed, and **a day counts once**: two completed sessions on Monday make the week 1/5, not 2/5. After today's session the card says it is done for today but still offers another; extra and partial sessions are recorded, sent, and feed quality and problem spots. (Claude's call: "sessions per week" is read as days per week.)
 
 ### Data layer
 
