@@ -6,9 +6,10 @@ interface PlayerAvatarProps {
   className?: string;
 }
 
-const INK = '#23164d';
+/** --color-void: the eyes and mouth. */
+const INK = '#05060c';
 
-/** A player's critter on a rounded tile. Decorative: the name sits next to it. */
+/** A player's critter on a deck-toned tile. Decorative: the name sits next to it. */
 export function PlayerAvatar({ seed, className }: PlayerAvatarProps) {
   const { species, color } = critterFor(seed);
   return (
@@ -18,7 +19,7 @@ export function PlayerAvatar({ seed, className }: PlayerAvatarProps) {
       aria-hidden="true"
       data-species={species}
     >
-      <rect width="64" height="64" rx="16" fill={color.tile} />
+      <rect width="64" height="64" fill={color.tile} />
       <Ears species={species} body={color.body} shade={color.shade} />
       <ellipse cx="32" cy="40" rx="21" ry="19" fill={color.body} />
       {/* Belly patch */}
@@ -101,11 +102,11 @@ function Face({ species, shade }: { species: Species; shade: string }) {
       )}
 
       {/* Cheeks */}
-      <circle cx="19" cy="45" r="3.4" fill="#ff6f91" opacity="0.45" />
-      <circle cx="45" cy="45" r="3.4" fill="#ff6f91" opacity="0.45" />
+      <circle cx="19" cy="45" r="3.4" fill="#ff2e88" opacity="0.4" />
+      <circle cx="45" cy="45" r="3.4" fill="#ff2e88" opacity="0.4" />
 
       {species === 'chick' ? (
-        <path d="M27.5 44 L36.5 44 L32 49.5 Z" fill="#ff9d2e" stroke={shade} strokeWidth="0.8" strokeLinejoin="round" />
+        <path d="M27.5 44 L36.5 44 L32 49.5 Z" fill="#eef2ff" stroke={shade} strokeWidth="0.8" strokeLinejoin="round" />
       ) : species === 'cat' || species === 'bunny' ? (
         <g fill="none" stroke={INK} strokeWidth="2" strokeLinecap="round">
           <path d="M28.5 45 Q30.5 47.5 32 45 Q33.5 47.5 35.5 45" />

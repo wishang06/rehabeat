@@ -624,20 +624,22 @@
   white-space: nowrap;
 }
 
-.avatar {
+/* A player's critter (PlayerAvatar): one per player id, in cyan, pink or white light. */
+.critter {
   flex: none;
-  width: 1.875rem;
-  height: 1.875rem;
-  border-radius: 50%;
-  object-fit: cover;
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
-.avatar--initial {
-  display: inline-grid;
-  place-items: center;
-  font: italic 800 1rem/1 var(--font-display);
-  color: var(--color-gold-ink);
-  background: var(--color-gold);
+.critter--small {
+  width: 1.875rem;
+  height: 1.875rem;
+}
+
+.board__row[data-me='true'] .critter {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 1px;
 }
 
 /* Leaderboard: a high-score table */

@@ -5,16 +5,18 @@
 export const SPECIES = ['bear', 'cat', 'bunny', 'frog', 'chick', 'monster'] as const;
 export type Species = (typeof SPECIES)[number];
 
-/** Body colour, the darker shade used for ears and outlines, and the tile behind. */
+/**
+ * Body colour, the darker shade used for ears and outlines, and the tile
+ * behind. Attract Mode's light only: cyan, pink and white on the deck tones.
+ * Gold is kept for the figure and the selected thing, so no critter is gold.
+ */
 export const CRITTER_COLORS = [
-  { body: '#ffb84d', shade: '#e08a1e', tile: '#fff1d6' },
-  { body: '#ff7aa8', shade: '#d94f80', tile: '#ffe3ee' },
-  { body: '#5cc8ff', shade: '#2d9ad6', tile: '#dff3ff' },
-  { body: '#6ee08f', shade: '#38b25e', tile: '#e1f9e8' },
-  { body: '#b48cff', shade: '#865ce0', tile: '#efe6ff' },
-  { body: '#ff8a5c', shade: '#da5f30', tile: '#ffe6dc' },
-  { body: '#ffd93d', shade: '#d6ab00', tile: '#fff8d1' },
-  { body: '#4fd6c4', shade: '#20a693', tile: '#dcf8f4' },
+  { body: '#27e0f0', shade: '#1497a3', tile: '#151c36' },
+  { body: '#ff2e88', shade: '#b01d5d', tile: '#151c36' },
+  { body: '#eef2ff', shade: '#9aa3c2', tile: '#151c36' },
+  { body: '#27e0f0', shade: '#1497a3', tile: '#242d50' },
+  { body: '#ff2e88', shade: '#b01d5d', tile: '#242d50' },
+  { body: '#eef2ff', shade: '#9aa3c2', tile: '#242d50' },
 ] as const;
 
 export type CritterColor = (typeof CRITTER_COLORS)[number];
