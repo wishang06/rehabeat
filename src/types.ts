@@ -112,7 +112,7 @@ export interface PoseSample {
   fps: number;
 }
 
-/** public/beatmap.json. `offset` and `beats` are seconds from the start of the track. */
+/** public/songs/<id>/beatmap.json. `offset` and `beats` are seconds from the start of the track. */
 export interface Beatmap {
   bpm: number;
   offset: number;

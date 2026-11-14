@@ -22,10 +22,12 @@ The first start downloads the pose model (about 6 MB) from Google's model storag
 | `npm run smoke` | Browser smoke check with a fake camera (Playwright) |
 | `npm run typecheck` | TypeScript, strict |
 | `npm run build` | Typecheck and production build |
+| `npm run songs` | Add, list, preview, move or remove songs (see [Song library](#song-library)) |
+| `npm run test:songs` | Adds a generated click track end to end with Demucs (needs the Python setup) |
 
 ### Smoke check
 
-`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It walks Welcome, Calibrate and Play, opens the debug panel, runs a calibration pass, and checks that a refused camera shows a recoverable message. When stems are shipped it also checks the music credit on the start and Play screens, that the stems don't clip at the engine's gain, and that the loop seam is exactly one beat. Options go after `--`:
+`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It opens every catalogue in the song menu and the Credits view, picks Past Sadness, walks Calibrate and Play, opens the debug panel and runs a calibration pass. It then goes back to the menu with Esc and picks a song from another catalogue with the keyboard alone, and checks that a refused camera shows a recoverable message. Along the way it checks each song's credit on the start and Play screens, that no song's stems clip at the engine's gain, and that the loop seam is exactly one beat. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Options go after `--`:
 
 | Option | Effect |
 | --- | --- |
@@ -39,11 +41,11 @@ Chrome's synthetic camera sometimes opens and then delivers no frames. The check
 
 ## Playing
 
-1. **Start camera and sound.** Stand back until your head and knees are in the picture.
+1. **Pick a song.** The start screen lists the songs by catalogue. Hovering or focusing a song plays 10 s of its melody once you've clicked or pressed a key on the page. Arrows move, Enter picks, Esc goes back. Picking a song the first time starts the camera and sound; stand back until your head and knees are in the picture.
 2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
 3. **Play.** The routine loops through the three moves. A gold figure shows the pose to hit, on your own body or, when its arms rest at its sides, beside you. It turns green when you are on it. Your own limbs are coloured green, amber or red by how far each is from its target, and a short hint ("left arm higher") points at the one to fix. If part of you is out of view, those limbs go grey and the screen tells you to step back. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
-Press **D** for the debug panel: FPS, detection time, calibration offset, audio mode, the current hint, and each joint's live angle, target, error and visibility.
+Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
 
 ## Architecture
 
@@ -103,18 +105,16 @@ UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws
 
 ### Audio (`src/audio/`)
 
-- Loads `public/beatmap.json` (`{ bpm, offset, beats }`). If it's missing or malformed, it falls back to a generated 72 BPM grid. The repo ships the beatmap and stems for "Past Sadness" (see [Music](#music)).
-- **Stems mode**: if `public/stems/drums.mp3` and `public/stems/melody.mp3` both exist, the drums play throughout and the melody fades in over 300 ms only while the hold score is 60 or above. This is the "music follows you" mechanic. Between holds the melody follows the last move's result, so a good hold carries it through the release and the next reach.
-  - Both stems are raised 2.5x (`STEM_GAIN` in `beatEngine.ts`). The track peaks at about -12 dBFS, so the mix peaks at about -4 dBFS. `npm run smoke` fails if the stems would clip.
-  - The stems loop where the last full beat in `beatmap.json` ends, not at the end of the file. The track is not a whole number of beats long, so looping the whole file would make the beat at the seam 59 ms too long and leave the grid off for every pass after.
-- **Click mode** (when there are no stems): a synthesized click on every beat, accented every fourth.
-- **Calibration**: four clicks; for each, the time the raised arm arrives is compared with the click time. The median difference is stored as `offsetMs` (in `localStorage`) and applied in scoring.
-
-A small Vite plugin (in `vite.config.ts`) tells the app which of those optional files exist, so it never requests a missing one. In dev, adding or removing `beatmap.json` or a stem reloads the page.
+- Each song gets its own `BeatEngine`, loading `public/songs/<id>/beatmap.json` (`{ bpm, offset, beats }`) and the song's two stems, on one `AudioContext` shared with the menu's previews. If a beatmap is missing or malformed it falls back to a generated 72 BPM grid.
+- **Stems mode**: the drums play throughout and the melody fades in over 300 ms only while the hold score is 60 or above. This is the "music follows you" mechanic. Between holds the melody follows the last move's result, so a good hold carries it through the release and the next reach.
+  - Both stems are raised 2.5x (`STEM_GAIN` in `beatEngine.ts`). `npm run songs` levels every song's stems so drums plus melody peak at -12 dBFS, so the mix peaks at about -4 dBFS whatever the song. `npm run smoke` fails if any song would clip.
+  - The stems loop where the last full beat in `beatmap.json` ends, not at the end of the file. A song is rarely a whole number of beats long; looping the whole file made Past Sadness's beat at the seam 59 ms too long and left the grid off for every pass after.
+- **Click mode** (when a song has no stems): a synthesized click on every beat, accented every fourth.
+- **Calibration**: four clicks; for each, the time the raised arm arrives is compared with the click time. The median difference is stored as `offsetMs` (in `localStorage`) and applied in scoring. It needs only the clock, so it runs before a song is loaded.
 
 ### UI (`src/ui/`)
 
-Three screens (Welcome, Calibrate, Play) over one persistent camera view, plus the debug panel. The interface is meant to be read from about two metres away, so the Play screen has one large focal element: the beat dial and the phase word.
+Three screens (the song menu, Calibrate, Play) over one persistent camera view, plus the debug panel. The menu (`src/ui/menu/`) is used up close with a mouse or keyboard: a rail of catalogues drawn as a metronome rod with a notch per song at its tempo, and song cards with a lamp blinking at the song's BPM. The Play screen is read from about two metres away, so it has one large focal element: the beat dial and the phase word.
 
 ## Accounts and leaderboard
 
@@ -131,9 +131,32 @@ Every push to `main` deploys automatically. The workflow in `.github/workflows/d
 
 The workflow reads three repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`. On the server that key is limited to rsync into the web root (`rrsync`), so it can't open a shell. If the server's address changes, update `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`.
 
-## Music
+## Song library
 
-The game plays "Past Sadness" by Kevin MacLeod ([incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007)), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), separated into drum and melody stems by the Rehabeat team. The licence requires that credit, so it is shown under the camera view on the start and Play screens (`src/audio/trackCredit.ts`). [`public/CREDITS.md`](public/CREDITS.md) records the sources and licences of all three tracks in `tools/tracks/`; a unit test keeps the in-game credit in step with it.
+Songs live in `public/songs/<id>/`: `meta.json`, `beatmap.json`, `drums.mp3` and `melody.mp3`. `public/songs/index.json` groups them into three catalogues by tempo:
+
+| Catalogue | BPM | Difficulty |
+| --- | --- | --- |
+| Calm Stretch | 55 to 70 | gentle |
+| Steady Flow | 70 to 85 | steady |
+| Active Rehab | 85 to 100 | active |
+
+Difficulty defaults from the BPM and can be set by hand. The game loads the index and every `meta.json` at start and validates them (`src/songs/library.ts`); a broken song is skipped with a warning rather than taking the menu down. A unit test checks the shipped library: every listed song has its files, a full credit line and a beat jitter under 10 ms.
+
+The library ships with six songs:
+
+| Catalogue | Song | Artist | Licence | BPM | Length | Beat jitter |
+| --- | --- | --- | --- | --- | --- | --- |
+| Calm Stretch | [Wetlands](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/wetlands-lofi-calm-relaxed/) | HoliznaCC0 | CC0 1.0 | 60 | 2:44 | 3.2 ms |
+| Calm Stretch | [Stealth Groover](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100690) | Kevin MacLeod | CC BY 4.0 | 69 | 3:20 | 2.1 ms |
+| Steady Flow | [Past Sadness](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007) | Kevin MacLeod | CC BY 4.0 | 72 | 3:33 | 1.5 ms |
+| Steady Flow | [Dreamy Reverie](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/dreamy-reverie-lofi-nostalgic-chill/) | HoliznaCC0 | CC0 1.0 | 75 | 2:24 | 6.0 ms |
+| Active Rehab | [Saturation](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/saturation-lofi-calm-relaxed/) | HoliznaCC0 | CC0 1.0 | 90 | 2:36 | 3.1 ms |
+| Active Rehab | [Wallpaper](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100843) | Kevin MacLeod | CC BY 4.0 | 93 | 3:40 | 3.0 ms |
+
+**Credits.** Every song's `creditLine` (for example `"Past Sadness" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.`) is shown under the camera view while the song is selected or playing, with its source and licence as links, and the menu's Credits view lists them all. `npm run songs` also writes them into the generated section of [`public/CREDITS.md`](public/CREDITS.md). Only CC0, CC BY and public domain songs are accepted: they allow sharing the audio and splitting it into stems.
+
+**Adding a song** is one command, `npm run songs`, in PowerShell or Git Bash. It asks for a file or link, reads the title and artist from the file's tags, checks the licence, finds the beat grid and offers half or double tempo, suggests a catalogue and difficulty, splits the stems with Demucs, offers an ear check, and writes the song folder, `index.json` and `CREDITS.md`. Every step also works from flags with `--yes`. The Python setup and every option are in [`tools/README.md`](tools/README.md).
 
 ## Move format (for teammates)
 
@@ -170,36 +193,17 @@ Joint names and how each angle is measured (left and right are the player's own)
 
 The three moves in the file now (overhead arm raise, side arm raise, standing knee raise) are placeholders.
 
-## Beatmap script (`tools/`)
+## Song tools (`tools/`)
 
-`tools/make_beatmap.py` turns a song into `public/beatmap.json`, the beat grid the game plays against. It can also write a click-track file for checking the grid by ear, and split the song into drum and melody stems with Demucs. [`tools/README.md`](tools/README.md) has the full instructions, the output format, how to check a grid by ear, and the track list.
-
-**Setup** (Windows 11, PowerShell, from the repo root). You need Python 3.11 (`winget install Python.Python.3.11`) and ffmpeg on `PATH` (`winget install Gyan.FFmpeg`).
+`npm run songs` (TypeScript in `tools/songs/`) drives the Python pipeline: `tools/song_pipeline.py` over `tools/make_beatmap.py`, which finds the beat grid with librosa and splits stems with Demucs (`htdemucs`, two stems). It needs Python 3.11 and ffmpeg. Setup on Windows 11, from the repo root:
 
 ```powershell
 py -3.11 -m venv tools\.venv
-tools\.venv\Scripts\python.exe -m pip install --upgrade pip
 tools\.venv\Scripts\python.exe -m pip install -r tools\requirements.txt
+winget install Gyan.FFmpeg     # if ffmpeg is not on PATH
 ```
 
-The install is about 1 GB, because `requirements.txt` includes Demucs and the CPU build of PyTorch. The first `--stems` run also downloads the Demucs model (80 MB).
-
-**Run.** This is the command that produced the files in `public/`:
-
-```powershell
-tools\.venv\Scripts\python.exe tools\make_beatmap.py tools\tracks\kevin-macleod-past-sadness.mp3 --bpm-hint 72 --click --stems
-```
-
-| Flag | What it does |
-| --- | --- |
-| `--bpm-hint N` | Rough tempo, for when the grid comes out at double or half speed. It only moves the result by factors of two, so the song's real tempo is kept. |
-| `--click` | Also writes `tools/out/check.wav`: the song with a click on every beat, higher and louder on downbeats. |
-| `--stems` | Also runs Demucs (`htdemucs`, two stems) and writes `public/stems/drums.mp3` and `public/stems/melody.mp3` (everything except the drums). It runs on the CPU: 2.5 to 10 minutes for this 3.5-minute song. |
-| `--out PATH` | Write the beatmap somewhere other than `public/beatmap.json`. |
-
-`public/beatmap.json` holds `bpm`, `offset`, `beats`, `downbeats` and `source`. The game reads `bpm`, `offset` and `beats`, and ignores the other two for now. Times are measured on the source song, and the stems start at the same instant, so the grid applies to them unchanged.
-
-**Tests:** `tools\.venv\Scripts\python.exe -m pytest tools` builds 72 BPM click tracks and checks the detected grid against them. It takes about 10 seconds and never runs Demucs.
+The install is about 1 GB (Demucs and the CPU build of PyTorch). `npm run songs` checks all of this when it starts and prints the fix for anything missing. Step-by-step use, flags, the beatmap format and the Python tests are in [`tools/README.md`](tools/README.md).
 
 ## Layout
 
@@ -207,22 +211,27 @@ tools\.venv\Scripts\python.exe tools\make_beatmap.py tools\tracks\kevin-macleod-
 src/
   types.ts        Shared contracts: JointName, PoseFrame, Move, BeatResult
   types/ui.ts     FeedbackFrame and the other engine-to-UI types
-  session.ts      Starts sound, camera and pose tracking on one clock
+  session.ts      Starts sound, camera and pose tracking on one clock; loads a song's engine
   engine/         FeedbackFrame building, hints, target-figure geometry and placement
+  songs/          Song library: types, catalogues, licences, credit lines, index and meta loading
   pose/           Camera, pose tracker, joint angles, One Euro filter, skeleton overlay
   moves/          moves.json, validation, ghost limbs for the pose glyphs
   scoring/        Frame score, routine, scoring engine, form rules, stats
   audio/          Master clock, beatmap, beat grid, click track, stems, calibration
-  ui/             Welcome, Calibrate and Play screens, canvas overlay, beat dial, debug panel
+  ui/             Calibrate, Play and Results screens, canvas overlay, beat dial, debug panel, credit strip
+  ui/menu/        Song menu: catalogue rail, song cards, previews, credits view
+public/songs/     The song library (index.json and one folder per song)
 scripts/smoke.mjs Playwright smoke check
-tools/            Beatmap and stems script (Python)
+tools/songs/      npm run songs (TypeScript)
+tools/            Beat tracking and stems (Python)
 ```
 
 ## Current limits
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.
-- The loop point is checked against the beat grid, not by ear. It cuts the audio with no crossfade, so listen for a click every 3 min 33 s.
+- Loop points are checked against the beat grid, not by ear. The loop cuts the audio with no crossfade, so listen for a click where each song wraps.
+- Song previews and in-game audio were checked in a muted browser; levels were measured, not listened to.
 - The target figure draws arms in the image plane and legs as seen from the front. A knee raise is drawn with the thigh canted outward so it reads as a raise, which is not exactly how a straight-ahead knee raise looks on camera.
 - MediaPipe often guesses landmarks just outside the frame with high confidence. The step-back warning only appears once a scored joint's visibility actually drops below 0.6, which in testing needed a good part of a limb out of view.
 - Only Chromium browsers have been tested.

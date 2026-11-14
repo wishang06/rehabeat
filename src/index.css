@@ -916,6 +916,51 @@ kbd {
   }
 }
 
+/* Song menu: header and loading state. The menu's own styles are in src/ui/menu/menu.css. */
+
+.menu-header {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.menu-header__title {
+  font-size: clamp(1.75rem, 5cqw, 3rem);
+  font-weight: 800;
+  font-stretch: 75%;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+.menu-header__lede {
+  max-width: 48ch;
+  color: var(--chalk-soft);
+  line-height: 1.45;
+}
+
+.menu-header__status {
+  color: var(--brass);
+  font-weight: 600;
+}
+
+.menu-header__error {
+  max-width: 48ch;
+  color: var(--off-target);
+  line-height: 1.45;
+}
+
+.menu-loading {
+  display: grid;
+  place-content: center;
+  height: 100%;
+  padding: var(--gutter);
+  color: var(--chalk-soft);
+  text-align: center;
+}
+
+/* Once the camera is live, the menu sits over the player's own picture: dim it so the menu stays readable. */
+.app[data-screen='menu'] .stage[data-live='true'] .stage__overlay {
+  background: rgb(var(--scrim) / 0.88);
+  backdrop-filter: blur(8px);
 /* Accounts */
 
 .button--accent {

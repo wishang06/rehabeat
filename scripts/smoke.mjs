@@ -8,8 +8,8 @@
 //   npm run smoke -- --sound      let the browser play through the speakers (muted by default)
 //   npm run smoke -- --url http://localhost:5173  use a server that is already running
 
-import { existsSync } from 'node:fs';
-import { mkdir, readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -27,10 +27,16 @@ const videoFile = option('--video');
 const externalUrl = option('--url');
 const expectHit = flag('--expect-hit');
 
-// What the beat engine should report, given the optional audio files present in public/.
-const hasBeatmap = existsSync(path.join(root, 'public', 'beatmap.json'));
-const hasStems = ['drums.mp3', 'melody.mp3'].every((name) => existsSync(path.join(root, 'public', 'stems', name)));
-const expectedAudio = `${hasStems ? 'stems' : 'click'}, ${hasBeatmap ? 'file' : 'generated'} beatmap`;
+// The song library as shipped in public/songs/. Every song has a beatmap and both stems.
+const songsDir = path.join(root, 'public', 'songs');
+const readJson = (...parts) => JSON.parse(readFileSync(path.join(songsDir, ...parts), 'utf8'));
+const library = readJson('index.json');
+const songIds = library.catalogues.flatMap((catalogue) => catalogue.songIds);
+const DEFAULT_SONG = 'past-sadness';
+const defaultCatalogue = readJson(DEFAULT_SONG, 'meta.json').catalogue;
+// The first song outside the default song's catalogue, for the "pick from another catalogue" check.
+const otherCatalogue = library.catalogues.find((catalogue) => catalogue.id !== defaultCatalogue && catalogue.songIds.length > 0);
+const expectedAudio = 'stems, file beatmap';
 
 // MediaPipe's WASM runtime writes its own log lines through console.error.
 // They are status messages, not failures.
@@ -61,34 +67,47 @@ function framesDelivered(page) {
 }
 
 /**
- * The music credit must be on screen wherever the track is: its title and
- * artist as text, with links to the source and to the licence. What it should
- * say comes from the app's own credit data, so this holds for any track.
+ * A song's credit must be on screen wherever it plays: its credit line from
+ * meta.json, with links to the source and to the licence.
  */
-async function checkCredit(page, screenName) {
-  const found = await page.evaluate(async () => {
-    const { TRACK_CREDIT } = await import('/src/audio/trackCredit.ts');
+async function checkCredit(page, screenName, songId) {
+  const found = await page.evaluate(async (id) => {
+    const { LICENCES } = await import('/src/songs/model.ts');
+    const meta = await (await fetch(`/songs/${id}/meta.json`)).json();
     const element = document.querySelector('[data-testid="music-credit"]');
     const box = element?.getBoundingClientRect();
     const hrefs = [...(element?.querySelectorAll('a') ?? [])].map((link) => link.href);
     return {
       visible: Boolean(box && box.width > 0 && box.height > 0 && box.bottom <= window.innerHeight + 1),
       text: element?.textContent ?? '',
-      namesTrack: Boolean(element?.textContent?.includes(TRACK_CREDIT.title) && element.textContent.includes(TRACK_CREDIT.artist)),
-      linksSource: hrefs.includes(TRACK_CREDIT.sourceUrl),
-      linksLicence: hrefs.includes(TRACK_CREDIT.licenceUrl),
+      showsCreditLine: Boolean(element?.textContent?.includes(meta.creditLine)),
+      linksSource: hrefs.includes(new URL(meta.sourceUrl).href),
+      linksLicence: hrefs.includes(LICENCES[meta.licence].url),
     };
-  }).catch((error) => ({ visible: false, text: String(error).slice(0, 120) }));
-  const passed = Boolean(found.visible && found.namesTrack && found.linksSource && found.linksLicence);
-  check(`music credit on the ${screenName} screen, linking the source and the licence`, passed, found.text.trim());
+  }, songId).catch((error) => ({ visible: false, text: String(error).slice(0, 120) }));
+  const passed = Boolean(found.visible && found.showsCreditLine && found.linksSource && found.linksLicence);
+  check(`${songId} credit on the ${screenName} screen, linking the source and the licence`, passed, found.text.trim());
 }
 
-/** Decodes both stems in the page and measures the loudest sample of their sum at the engine's gain. */
-function stemHeadroom(page) {
-  return page.evaluate(async () => {
+/**
+ * Picks a song using only the keyboard: Tab into the open catalogue's cards,
+ * arrow across to the song, Enter. Returns false if the song never got focus.
+ */
+async function pickWithKeyboard(page, songId) {
+  const focused = () => page.evaluate(() => document.activeElement?.closest('[data-testid]')?.getAttribute('data-testid') ?? '');
+  for (let i = 0; i < 12 && !(await focused()).startsWith('song-card-'); i++) await page.keyboard.press('Tab');
+  for (let i = 0; i < 40 && (await focused()) !== `song-card-${songId}`; i++) await page.keyboard.press('ArrowRight');
+  if ((await focused()) !== `song-card-${songId}`) return false;
+  await page.keyboard.press('Enter');
+  return true;
+}
+
+/** Decodes a song's stems in the page and measures the loudest sample of their sum at the engine's gain. */
+function stemHeadroom(page, songId) {
+  return page.evaluate(async (id) => {
     const { STEM_GAIN } = await import('/src/audio/index.ts');
     const ctx = new OfflineAudioContext(2, 44100, 44100);
-    const load = async (name) => ctx.decodeAudioData(await (await fetch(`/stems/${name}.mp3`)).arrayBuffer());
+    const load = async (name) => ctx.decodeAudioData(await (await fetch(`/songs/${id}/${name}.mp3`)).arrayBuffer());
     const [drums, melody] = await Promise.all([load('drums'), load('melody')]);
     const frames = Math.min(drums.length, melody.length);
     let peak = 0;
@@ -101,7 +120,7 @@ function stemHeadroom(page) {
       }
     }
     return { gain: STEM_GAIN, peak: peak * STEM_GAIN, audioSeconds: Math.min(drums.duration, melody.duration) };
-  });
+  }, songId);
 }
 
 const checks = [];
@@ -138,11 +157,15 @@ function watchConsole(page) {
   page.on('response', (response) => {
     if (response.status() >= 400) errors.push(`HTTP ${response.status()} for ${response.url()}`);
   });
-  page.on('requestfailed', (request) => errors.push(`Request failed: ${request.url()} (${request.failure()?.errorText})`));
+  page.on('requestfailed', (request) => {
+    // An audio element aborts its stream whenever its source changes or it stops (song previews do both).
+    if (request.resourceType() === 'media' && request.failure()?.errorText === 'net::ERR_ABORTED') return;
+    errors.push(`Request failed: ${request.url()} (${request.failure()?.errorText})`);
+  });
   return { errors, ignored };
 }
 
-/** Camera allowed: Welcome -> Calibrate -> Play, debug panel, a calibration run. */
+/** Camera allowed: song menu -> Calibrate -> Play, debug panel, another catalogue's song, a calibration run. */
 async function happyPath(url) {
   const browser = await launch(['--use-fake-ui-for-media-stream']);
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -152,12 +175,31 @@ async function happyPath(url) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     check('app loads', (await page.title()) === 'Rehabeat');
-    await page.getByTestId('start-button').waitFor({ timeout: 15_000 });
-    if (hasStems) await checkCredit(page, 'start');
-    await page.screenshot({ path: path.join(outDir, '1-welcome.png') });
+    await page.getByTestId('song-menu').waitFor({ timeout: 15_000 });
+    check('song menu shown on the start screen', true);
+    await checkCredit(page, 'start', DEFAULT_SONG);
 
-    // Starting asks for the camera; the fake-UI flag answers "allow".
-    await page.getByTestId('start-button').click();
+    // Every catalogue, open in turn. An empty one must say so rather than vanish.
+    for (const catalogue of library.catalogues) {
+      await page.getByTestId(`catalogue-tab-${catalogue.id}`).click();
+      const shown = catalogue.songIds.length === 0
+        ? await page.getByTestId('menu-empty').isVisible()
+        : (await Promise.all(catalogue.songIds.map((id) => page.getByTestId(`song-card-${id}`).isVisible()))).every(Boolean);
+      check(`${catalogue.name} shows ${catalogue.songIds.length === 0 ? '"more songs coming"' : `its ${catalogue.songIds.length} song(s)`}`, shown);
+      await page.screenshot({ path: path.join(outDir, `menu-${catalogue.id}.png`) });
+    }
+    await page.getByTestId('catalogue-tab-credits').click();
+    const credited = await page.getByTestId('credits-view').evaluate(
+      (view, ids) => ids.filter((id) => !view.textContent.includes(id)),
+      songIds.map((id) => readJson(id, 'meta.json').creditLine),
+    );
+    check('Credits view lists every song\'s credit line', credited.length === 0, credited.join(' | '));
+    await page.screenshot({ path: path.join(outDir, 'menu-credits.png') });
+    await page.getByTestId(`catalogue-tab-${defaultCatalogue}`).click();
+    await page.screenshot({ path: path.join(outDir, '1-menu.png') });
+
+    // Picking a song starts the camera; the fake-UI flag answers "allow".
+    await page.getByTestId(`song-card-${DEFAULT_SONG}`).click();
     const startError = await Promise.race([
       page.getByTestId('calibrate-screen').waitFor({ timeout: 90_000 }).then(() => null),
       page.getByTestId('start-error').waitFor({ timeout: 90_000 }).then(() => page.getByTestId('start-error').textContent()),
@@ -184,7 +226,7 @@ async function happyPath(url) {
     await page.getByTestId('calibrate-skip').click();
     await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
     check('Play screen shown', true);
-    if (hasStems) await checkCredit(page, 'Play');
+    await checkCredit(page, 'Play', DEFAULT_SONG);
 
     await page.keyboard.press('d');
     await page.getByTestId('debug-panel').waitFor({ timeout: 5_000 });
@@ -232,14 +274,18 @@ async function happyPath(url) {
     if (videoFile) check('pose found in the camera clip', measured.poseFound);
     check(`beat engine reports "${expectedAudio}"`, (measured.audio ?? '').startsWith(expectedAudio), measured.audio ?? '');
 
-    if (hasStems) {
-      const headroom = await stemHeadroom(page);
-      measured.stemPeakDbfs = Math.round(200 * Math.log10(headroom.peak)) / 10;
-      check(`stems do not clip at x${headroom.gain}`, headroom.peak < 1, `drums + melody peak at ${measured.stemPeakDbfs} dBFS`);
+    {
+      measured.stemPeakDbfs = {};
+      for (const id of songIds) {
+        const headroom = await stemHeadroom(page, id);
+        measured.stemPeakDbfs[id] = Math.round(200 * Math.log10(headroom.peak)) / 10;
+        check(`${id} stems do not clip at x${headroom.gain}`, headroom.peak < 1, `drums + melody peak at ${measured.stemPeakDbfs[id]} dBFS`);
+      }
 
       // The audio wraps after `loop` seconds. For the grid to carry straight on, the first
       // beat of the next pass has to land one beat after the last beat of this one.
-      const beatmap = JSON.parse(await readFile(path.join(root, 'public', 'beatmap.json'), 'utf8'));
+      const headroom = await stemHeadroom(page, DEFAULT_SONG);
+      const beatmap = readJson(DEFAULT_SONG, 'beatmap.json');
       const loop = Number.parseFloat((await page.getByTestId('debug-loop').textContent()) ?? '');
       const inLoop = beatmap.beats.filter((time) => time < loop);
       const seam = loop + inLoop[0] - inLoop[inLoop.length - 1];
@@ -255,10 +301,8 @@ async function happyPath(url) {
         .then(() => true, () => false);
       measured.hit = hit ? (await result.textContent())?.trim() : 'none';
       check('the camera clip lands a Good or Perfect hold', hit, measured.hit);
-      if (hasStems) {
-        measured.melody = await page.getByTestId('debug-melody').textContent();
-        check('melody stem is in after a Good hold', measured.melody === 'in', measured.melody ?? '');
-      }
+      measured.melody = await page.getByTestId('debug-melody').textContent();
+      check('melody stem is in after a Good hold', measured.melody === 'in', measured.melody ?? '');
     }
     await page.screenshot({ path: path.join(outDir, '4-play-debug.png') });
 
@@ -276,6 +320,34 @@ async function happyPath(url) {
     check('calibration run completes', true, measured.calibration);
     await page.screenshot({ path: path.join(outDir, '5-calibrate-result.png') });
 
+    // Esc back to the menu (from Calibrate this time), then pick a song from another
+    // catalogue with the keyboard alone. Calibration is done, so it goes straight to Play.
+    await page.keyboard.press('Escape');
+    await page.getByTestId('song-menu').waitFor({ timeout: 10_000 });
+    check('Esc goes back to the song menu', true);
+    await page.screenshot({ path: path.join(outDir, 'menu-after-play.png') });
+    if (otherCatalogue) {
+      const target = otherCatalogue.songIds[0];
+      await page.getByTestId(`catalogue-tab-${otherCatalogue.id}`).click();
+      const picked = await pickWithKeyboard(page, target);
+      const reached = picked && (await page.getByTestId('play-screen').waitFor({ timeout: 30_000 }).then(() => true, () => false));
+      if (reached) {
+        await page.keyboard.press('d');
+        await page.getByTestId('debug-panel').waitFor({ timeout: 5_000 });
+      }
+      const playing = reached ? await page.getByTestId('debug-song').textContent() : '';
+      measured.otherSong = { catalogue: otherCatalogue.id, song: playing };
+      check(`keyboard pick of "${target}" from ${otherCatalogue.name} reaches the Play screen`, playing === target, `playing ${playing || 'nothing'}`);
+      if (reached) {
+        await checkCredit(page, 'Play', target);
+        measured.otherSong.audio = await page.getByTestId('debug-audio').textContent();
+        await page.screenshot({ path: path.join(outDir, '6-play-other-catalogue.png') });
+      }
+    } else {
+      check('a catalogue other than the default one has a song to pick', false, 'add one with npm run songs');
+    }
+
+
     check('no console errors', log.errors.length === 0, log.errors.join(' | '));
   } finally {
     await browser.close();
@@ -283,19 +355,22 @@ async function happyPath(url) {
   return { measured, ignored: log.ignored };
 }
 
-/** Camera refused: the Welcome screen must explain what to do. */
+/** Camera refused: the menu must explain what to do, and picking must still work. */
 async function deniedPath(url) {
   // Without the fake-UI flag, headless Chromium refuses the camera prompt.
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-fake-device-for-media-stream', '--deny-permission-prompts'] }).catch(() => launch(['--deny-permission-prompts']));
   const page = await browser.newPage();
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
-    await page.getByTestId('start-button').click();
+    await page.getByTestId(`song-card-${DEFAULT_SONG}`).click();
     const error = page.getByTestId('start-error');
     await error.waitFor({ timeout: 30_000 });
     const text = (await error.textContent()) ?? '';
     check('refused camera shows a recoverable message', /Camera access is blocked/.test(text), text);
-    check('start button is usable again after a refusal', await page.getByTestId('start-button').isEnabled());
+    // Picking again must try again (and fail the same way) rather than do nothing.
+    await page.getByTestId(`song-card-${DEFAULT_SONG}`).click();
+    const retried = await page.getByTestId('start-progress').or(page.getByTestId('start-error')).first().isVisible();
+    check('songs can be picked again after a refusal', retried);
   } finally {
     await browser.close();
   }

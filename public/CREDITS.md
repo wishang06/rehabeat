@@ -1,7 +1,8 @@
 # Music credits
 
-The game plays **"Past Sadness" by Kevin MacLeod**, split into a drum stem and a melody stem
-(`public/stems/drums.mp3`, `public/stems/melody.mp3`). `public/beatmap.json` is its beat grid.
+The game's songs, with their licences and credit lines, are listed in the **Song library** section
+at the end of this file. Each one is split into a drum stem and a melody stem in `public/songs/<id>/`.
+The table below is the original track list: the three source files in `tools/tracks/`.
 
 | Track | Artist | Source | Licence | BPM | File |
 | --- | --- | --- | --- | --- | --- |
@@ -16,14 +17,14 @@ Licences are as stated on each source page on 2026-11-14. BPM is measured from t
 
 "Past Sadness" by Kevin MacLeod ([incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007)),
 licensed under [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
-Split into drum and melody stems for this game.
+Separated into drum and melody stems by the Rehabeat team.
 
 Plain text, for an in-game credits screen:
 
 ```
 "Past Sadness" by Kevin MacLeod (incompetech.com)
 Licensed under Creative Commons Attribution 4.0: https://creativecommons.org/licenses/by/4.0/
-Split into drum and melody stems for this game.
+Separated into drum and melody stems by the Rehabeat team.
 ```
 
 CC BY 4.0 asks you to say when the audio has been changed, which is what the last line does.
@@ -40,3 +41,28 @@ The two CC0 tracks need no attribution; they are listed as a courtesy.
   that its looped sounds come from Apple's GarageBand. Apple lets you distribute a finished track
   made with its loops, but not the loops on their own. Playing the whole track is fine; ask the
   author before shipping a separated drum stem of it.
+
+<!-- songs:start -->
+## Song library
+
+Every song in `public/songs/`, written by `npm run songs`: it rewrites this section on every
+add, remove or move, so change the songs with that command rather than here.
+
+| Song | Artist | Catalogue | Licence | Source |
+| --- | --- | --- | --- | --- |
+| Wetlands | HoliznaCC0 | Calm Stretch | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [freemusicarchive.org](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/wetlands-lofi-calm-relaxed/) |
+| Stealth Groover | Kevin MacLeod | Calm Stretch | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100690) |
+| Past Sadness | Kevin MacLeod | Steady Flow | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007) |
+| Dreamy Reverie | HoliznaCC0 | Steady Flow | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [freemusicarchive.org](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/dreamy-reverie-lofi-nostalgic-chill/) |
+| Saturation | HoliznaCC0 | Active Rehab | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [freemusicarchive.org](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/saturation-lofi-calm-relaxed/) |
+| Wallpaper | Kevin MacLeod | Active Rehab | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100843) |
+
+Credit lines, as the game shows them:
+
+- `wetlands`: "Wetlands" by HoliznaCC0 (freemusicarchive.org), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
+- `stealth-groover`: "Stealth Groover" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
+- `past-sadness`: "Past Sadness" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
+- `dreamy-reverie`: "Dreamy Reverie" by HoliznaCC0 (freemusicarchive.org), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
+- `saturation`: "Saturation" by HoliznaCC0 (freemusicarchive.org), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
+- `wallpaper`: "Wallpaper" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
+<!-- songs:end -->

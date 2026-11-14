@@ -1,0 +1,22 @@
+{
+  "catalogues": [
+    {
+      "id": "calm-stretch",
+      "name": "Calm Stretch",
+      "description": "Slow, gentle tempos for warming up and easy stretches. 55 to 70 BPM.",
+      "songIds": ["wetlands", "stealth-groover"]
+    },
+    {
+      "id": "steady-flow",
+      "name": "Steady Flow",
+      "description": "An even, relaxed pace for most of a session. 70 to 85 BPM.",
+      "songIds": ["past-sadness", "dreamy-reverie"]
+    },
+    {
+      "id": "active-rehab",
+      "name": "Active Rehab",
+      "description": "Brisker tempos for stronger, more active sets. 85 to 100 BPM.",
+      "songIds": ["saturation", "wallpaper"]
+    }
+  ]
+}

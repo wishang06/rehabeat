@@ -12,6 +12,7 @@ import {
   type Phase,
   type Stats,
 } from '../scoring';
+import type { BeatEngine } from '../audio';
 import type { Session } from '../session';
 import type { BeatResult, Move } from '../types';
 import { BeatDial } from './BeatDial';
@@ -50,6 +51,8 @@ export interface PlayDebug {
 
 interface PlayScreenProps {
   session: Session;
+  /** The picked song, loaded and ready to start. */
+  engine: BeatEngine;
   calibration: Calibration;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   debugRef: RefObject<PlayDebug | null>;
@@ -119,12 +122,11 @@ function timingNote(result: BeatResult): string | null {
     : 'In time';
 }
 
-export function PlayScreen({ session, calibration, canvasRef, debugRef, runRef }: PlayScreenProps) {
+export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, runRef }: PlayScreenProps) {
   const [hud, setHud] = useState<Hud>(INITIAL_HUD);
   const hudRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const { engine } = session;
     engine.start();
 
     const routine = new Routine(MOVES, COUNT_IN_BEATS);
@@ -245,7 +247,7 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef, runRef }
       engine.stop();
       debugRef.current = null;
     };
-  }, [session, calibration, canvasRef, debugRef, runRef]);
+  }, [session, engine, calibration, canvasRef, debugRef, runRef]);
 
   const { stats, result } = hud;
   const timing = result && timingNote(result);

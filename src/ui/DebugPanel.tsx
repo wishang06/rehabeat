@@ -1,6 +1,7 @@
 import { useEffect, useState, type RefObject } from 'react';
 import { LIMB_OF_JOINT, feedbackStore, jointVisibility } from '../engine';
 import type { Calibration } from '../scoring';
+import type { BeatEngine } from '../audio';
 import type { Session } from '../session';
 import { JOINT_NAMES } from '../types';
 import { formatOffset } from './CalibrateScreen';
@@ -8,6 +9,9 @@ import type { PlayDebug } from './PlayScreen';
 
 interface DebugPanelProps {
   session: Session | null;
+  /** The playing song's engine, if one is loaded. */
+  engine: BeatEngine | null;
+  songId: string | null;
   calibration: Calibration;
   playRef: RefObject<PlayDebug | null>;
 }
@@ -16,7 +20,7 @@ const fixed = (value: number | null | undefined, digits = 1) =>
   value === null || value === undefined ? '–' : value.toFixed(digits);
 
 /** Developer readout, toggled with the D key. Refreshes five times a second. */
-export function DebugPanel({ session, calibration, playRef }: DebugPanelProps) {
+export function DebugPanel({ session, engine, songId, calibration, playRef }: DebugPanelProps) {
   const [, refresh] = useState(0);
   useEffect(() => {
     const timer = window.setInterval(() => refresh((n) => n + 1), 200);
@@ -25,7 +29,6 @@ export function DebugPanel({ session, calibration, playRef }: DebugPanelProps) {
 
   const sample = session?.latest() ?? null;
   const play = playRef.current;
-  const engine = session?.engine;
   // Set while the Play screen runs; the joint table falls back to the raw sample without it.
   const feedback = feedbackStore.getSnapshot();
 
@@ -43,6 +46,8 @@ export function DebugPanel({ session, calibration, playRef }: DebugPanelProps) {
         <dd data-testid="debug-offset">{formatOffset(calibration.offsetMs)}</dd>
         <dt>Shrug baseline</dt>
         <dd>{fixed(calibration.shoulderEarBaseline, 3)}</dd>
+        <dt>Song</dt>
+        <dd data-testid="debug-song">{songId ?? '–'}</dd>
         <dt>Audio</dt>
         <dd data-testid="debug-audio">
           {engine ? `${engine.mode}, ${engine.beatmapSource} beatmap, ${fixed(engine.grid.bpm, 0)} BPM` : '–'}
