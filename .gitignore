@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.local
+.vite/
+.DS_Store
+Thumbs.db
+
+# Python tooling (tools/make_beatmap.py)
+__pycache__/
+*.pyc
+.venv/
+tools/.venv/
+separated/
+
+# Smoke-test output
+test-results/
