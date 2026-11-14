@@ -264,11 +264,26 @@ export class ScoringEngine {
 }
 
 /**
- * The "music follows you" rule: the melody plays while the current hold score
- * is Good or better. Between holds it carries the last move's result, so a
- * good hold keeps the melody through the release and the next reach.
+ * The "music follows you" rule: whether the melody should play, given what
+ * the scoring engine sees now. Feed it through a MelodyGate so it only drops
+ * out after half a beat.
+ *
+ * - hold: while the player is in the pose (live.locked), whatever came before
+ * - reach: once the player has landed the pose, or while the last move's
+ *   result was Good or better, so a good hold carries through to the next one
+ * - release: carries the result of the hold that just closed
+ * - before the routine starts: never
  */
 export function melodyShouldPlay(live: LiveState, lastResult: BeatResult | null): boolean {
-  const score = live.holdScore ?? lastResult?.score ?? 0;
-  return score >= GOOD_SCORE;
+  const carried = (lastResult?.score ?? 0) >= GOOD_SCORE;
+  switch (live.phase) {
+    case 'hold':
+      return live.locked;
+    case 'reach':
+      return live.locked || carried;
+    case 'release':
+      return carried;
+    default:
+      return false;
+  }
 }

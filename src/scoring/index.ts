@@ -26,6 +26,7 @@ export {
   type FormContext,
 } from './formRules';
 export { applyResult, initialStats, type Stats } from './stats';
+export { MELODY_HOLD_OFF_BEATS, MelodyGate } from './melodyGate';
 export {
   MAX_FRAME_SPAN_SEC,
   ScoringEngine,

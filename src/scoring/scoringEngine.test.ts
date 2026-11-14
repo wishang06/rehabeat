@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { BeatResult, FormMetrics, Move, PoseFrame } from '../types';
 import { formNoteFor } from './formRules';
 import { Routine } from './routine';
-import { MAX_FRAME_SPAN_SEC, ScoringEngine, melodyShouldPlay, type ScoringEngineOptions } from './scoringEngine';
+import {
+  MAX_FRAME_SPAN_SEC,
+  ScoringEngine,
+  melodyShouldPlay,
+  type LiveState,
+  type ScoringEngineOptions,
+} from './scoringEngine';
 
 const FPS = 30;
 const FRAME_MS = 1000 / FPS;
@@ -398,17 +404,36 @@ describe('form guidance in the engine', () => {
 });
 
 describe('melodyShouldPlay', () => {
-  const live = { cycle: null, phase: null, frameScore: 0, formNote: null, locked: false };
+  const cycle = new Routine([sideRaise]).cycle(0);
+  const live = (phase: LiveState['phase'], locked: boolean): LiveState => ({
+    cycle: phase === null ? null : cycle,
+    phase,
+    frameScore: 0,
+    holdScore: null,
+    formNote: null,
+    locked,
+  });
   const result = (score: number): BeatResult => ({ moveId: 'm', score, label: 'Good', timingOffsetMs: 0 });
 
-  it('follows the running hold score during a hold', () => {
-    expect(melodyShouldPlay({ ...live, holdScore: 60 }, null)).toBe(true);
-    expect(melodyShouldPlay({ ...live, holdScore: 59.9 }, result(100))).toBe(false);
+  it('plays during a hold only while the player is in the pose', () => {
+    expect(melodyShouldPlay(live('hold', true), null)).toBe(true);
+    expect(melodyShouldPlay(live('hold', true), result(0))).toBe(true);
+    expect(melodyShouldPlay(live('hold', false), result(100))).toBe(false);
   });
 
-  it('carries the last result between holds, and is off before any result', () => {
-    expect(melodyShouldPlay({ ...live, holdScore: null }, result(72))).toBe(true);
-    expect(melodyShouldPlay({ ...live, holdScore: null }, result(40))).toBe(false);
-    expect(melodyShouldPlay({ ...live, holdScore: null }, null)).toBe(false);
+  it('plays during a reach when the player has landed the pose or a good hold is carrying it', () => {
+    expect(melodyShouldPlay(live('reach', true), result(0))).toBe(true);
+    expect(melodyShouldPlay(live('reach', false), result(72))).toBe(true);
+    expect(melodyShouldPlay(live('reach', false), result(40))).toBe(false);
+    expect(melodyShouldPlay(live('reach', false), null)).toBe(false);
+  });
+
+  it('carries the result through the release', () => {
+    expect(melodyShouldPlay(live('release', false), result(60))).toBe(true);
+    expect(melodyShouldPlay(live('release', true), result(59.9))).toBe(false);
+  });
+
+  it('is off before the routine starts', () => {
+    expect(melodyShouldPlay(live(null, true), result(100))).toBe(false);
   });
 });
