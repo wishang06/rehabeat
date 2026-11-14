@@ -41,9 +41,9 @@ Chrome's synthetic camera sometimes opens and then delivers no frames. The check
 
 1. **Start camera and sound.** Stand back until your head and knees are in the picture.
 2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
-3. **Play.** The routine loops through the three moves. The glowing guide shows the target and turns green when you are on it. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
+3. **Play.** The routine loops through the three moves. A gold figure shows the pose to hit, on your own body or, when its arms rest at its sides, beside you. It turns green when you are on it. Your own limbs are coloured green, amber or red by how far each is from its target, and a short hint ("left arm higher") points at the one to fix. If part of you is out of view, those limbs go grey and the screen tells you to step back. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
-Press **D** for the debug panel: FPS, detection time, calibration offset, audio mode, and live joint angles against the current targets.
+Press **D** for the debug panel: FPS, detection time, calibration offset, audio mode, the current hint, and each joint's live angle, target, error and visibility.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ Press **D** for the debug panel: FPS, detection time, calibration offset, audio 
                   ┌──────────────────────────────────────────┐
                   ▼                                          │
  webcam ──▶ src/pose ──PoseFrame──▶ src/scoring ──BeatResult──▶ src/ui
-            angles from 3D          hold-window score,         HUD, ghost,
+            angles from 3D          hold-window score,         HUD, overlay,
             world landmarks,        form guidance,             beat dial
             One Euro smoothing      combo / accuracy
                                          │ hold score ≥ 60
@@ -74,7 +74,20 @@ The rule that holds it together: **`AudioContext.currentTime` is the only clock.
 
 ### Moves (`src/moves/`)
 
-`moves.json` is the routine. See [Move format](#move-format-for-teammates) below. `ghost.ts` draws the target pose as limbs attached to the player's own live shoulders and hips, using their own measured limb lengths, so the guide fits any body.
+`moves.json` is the routine. See [Move format](#move-format-for-teammates) below. `ghost.ts` lays out a move's target limbs for the start screen's pose glyphs.
+
+### Feedback (`src/engine/`)
+
+Every display frame, the Play screen builds a `FeedbackFrame` and publishes it to `feedbackStore`. The frame holds:
+
+- the phase and the beats until the next one;
+- the current and next move;
+- a status (green, amber, red or grey) and an angle error for each limb;
+- the worst joint and a short hint for it;
+- hold progress and the live score;
+- whether a scored joint is out of view.
+
+UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws from it: the gold target figure (filled capsules anchored to the player's own shoulders, hips and limb lengths, or drawn beside them when its arms rest at its sides), the player's own limbs coloured by status, the hint arrow and the step-back warning. [`src/engine/README.md`](src/engine/README.md) documents the frame, the figure geometry, the placement rule and how to read the frame from a component.
 
 ### Scoring (`src/scoring/`)
 
@@ -193,12 +206,14 @@ tools\.venv\Scripts\python.exe tools\make_beatmap.py tools\tracks\kevin-macleod-
 ```
 src/
   types.ts        Shared contracts: JointName, PoseFrame, Move, BeatResult
+  types/ui.ts     FeedbackFrame and the other engine-to-UI types
   session.ts      Starts sound, camera and pose tracking on one clock
+  engine/         FeedbackFrame building, hints, target-figure geometry and placement
   pose/           Camera, pose tracker, joint angles, One Euro filter, skeleton overlay
-  moves/          moves.json, validation, ghost
+  moves/          moves.json, validation, ghost limbs for the pose glyphs
   scoring/        Frame score, routine, scoring engine, form rules, stats
   audio/          Master clock, beatmap, beat grid, click track, stems, calibration
-  ui/             Welcome, Calibrate and Play screens, beat dial, debug panel
+  ui/             Welcome, Calibrate and Play screens, canvas overlay, beat dial, debug panel
 scripts/smoke.mjs Playwright smoke check
 tools/            Beatmap and stems script (Python)
 ```
@@ -208,7 +223,8 @@ tools/            Beatmap and stems script (Python)
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.
 - The loop point is checked against the beat grid, not by ear. It cuts the audio with no crossfade, so listen for a click every 3 min 33 s.
-- The ghost draws arms in the image plane and legs as seen from the front, so a knee raise shows as the foot coming up rather than the thigh swinging forward.
+- The target figure draws arms in the image plane and legs as seen from the front. A knee raise is drawn with the thigh canted outward so it reads as a raise, which is not exactly how a straight-ahead knee raise looks on camera.
+- MediaPipe often guesses landmarks just outside the frame with high confidence. The step-back warning only appears once a scored joint's visibility actually drops below 0.6, which in testing needed a good part of a limb out of view.
 - Only Chromium browsers have been tested.
 
 ---
