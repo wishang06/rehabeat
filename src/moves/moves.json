@@ -1,0 +1,39 @@
+[
+  {
+    "id": "overhead-arm-raise",
+    "name": "Overhead Arm Raise",
+    "joints": {
+      "leftShoulder": 170,
+      "rightShoulder": 170,
+      "leftElbow": 175,
+      "rightElbow": 175
+    },
+    "tolerance": 25,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": []
+  },
+  {
+    "id": "side-arm-raise",
+    "name": "Side Arm Raise",
+    "joints": {
+      "leftShoulder": 90,
+      "rightShoulder": 90,
+      "leftElbow": 175,
+      "rightElbow": 175
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": ["trunk-lean", "shoulder-shrug"]
+  },
+  {
+    "id": "standing-knee-raise",
+    "name": "Standing Knee Raise",
+    "joints": {
+      "leftHip": 90,
+      "leftKnee": 90
+    },
+    "tolerance": 25,
+    "beats": { "reach": 2, "hold": 2, "release": 4 },
+    "formRules": ["trunk-lean"]
+  }
+]

@@ -1,0 +1,7 @@
+# Kept so the install command in the root README still works:
+#   python -m pip install -r tools/requirements-stems.txt
+#
+# tools/requirements.txt already includes Demucs and the PyTorch versions it needs,
+# so this file adds nothing of its own. ffmpeg must be on PATH (see tools/README.md).
+
+-r requirements.txt

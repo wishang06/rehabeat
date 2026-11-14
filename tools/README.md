@@ -19,7 +19,8 @@ Run everything from the repo root.
    ```
 
    The install is about 1 GB (PyTorch) and takes around 5 minutes. On Windows this is the CPU build
-   of PyTorch, which is all Demucs needs here.
+   of PyTorch, which is all Demucs needs here. `requirements.txt` already includes Demucs;
+   `requirements-stems.txt` is kept only so the install command in the root README still works.
 
 The commands below call `tools\.venv\Scripts\python.exe` directly, so you never need to activate the
 environment. If you prefer to activate it, run `tools\.venv\Scripts\Activate.ps1`; if PowerShell blocks
@@ -64,6 +65,17 @@ between beats. The standard deviation is the beat jitter: a few ms means a stead
 
 Times are measured on the source song. The stems start at the same instant as the source, so the
 grid applies to them unchanged.
+
+### How the game uses the files
+
+Vite serves `public/` at the site root, so the game fetches `/beatmap.json`, `/stems/drums.mp3`
+and `/stems/melody.mp3`.
+
+- It reads `bpm`, `offset` and `beats`. `downbeats` and `source` are there for later use; the game
+  ignores them today.
+- If `beatmap.json` is missing or unusable, the game falls back to a generated 72 BPM grid.
+- With the stems present, the drums always play and the melody fades in while the player holds
+  the pose well.
 
 ## Check the grid by ear
 
