@@ -3,6 +3,8 @@ import { FeedbackTracker, feedbackStore } from '../engine';
 import { MOVES } from '../moves';
 import {
   GOOD_SCORE,
+  MELODY_HOLD_OFF_BEATS,
+  MelodyGate,
   Routine,
   ScoringEngine,
   initialStats,
@@ -125,6 +127,7 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
     });
     const feedback = new FeedbackTracker(routine);
     const overlay = new PlayOverlay();
+    const melody = new MelodyGate(MELODY_HOLD_OFF_BEATS * engine.grid.secondsPerBeat);
 
     const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now() };
     runRef.current = run;
@@ -143,10 +146,13 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
       // Visuals run on what is audible now; scoring runs on offset-corrected frame times.
       const beat = engine.beatPosition();
       const info = routine.phaseAt(beat);
+      const now = engine.clock.audibleNow();
       // Results must keep coming even if the camera stops delivering frames.
-      scoring.tick(engine.clock.audibleNow() - TICK_GRACE_SEC);
-      // The "music follows you" mechanic: the melody stays in while the hold score is Good or better.
-      engine.setMelodyActive(melodyShouldPlay(scoring.live, scoring.lastResult));
+      scoring.tick(now - TICK_GRACE_SEC);
+      const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
+      // The "music follows you" mechanic: the melody plays while you are in the pose,
+      // and a stalled camera can't keep it playing.
+      engine.setMelodyActive(melody.update(now, melodyShouldPlay(scoring.live, scoring.lastResult, fresh)));
 
       // Award points once per newly scored move.
       if (scoring.stats.total > run.stats.total && scoring.lastResult) {
@@ -155,7 +161,6 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
       run.stats = scoring.stats;
 
       const live = scoring.live;
-      const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
       const sample = fresh ? session.latest() : null;
       // "On target" only means something while the player is meant to be in the pose.
       const matched =
@@ -165,7 +170,7 @@ export function PlayScreen({ session, engine, calibration, canvasRef, debugRef, 
         live.frameScore >= GOOD_SCORE;
 
       const current = feedback.update({
-        now: engine.clock.audibleNow(),
+        now,
         beat,
         frame: sample?.frame ?? null,
         world: sample?.worldLandmarks ?? null,

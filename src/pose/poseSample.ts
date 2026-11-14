@@ -1,4 +1,4 @@
-import type { Landmark, PoseSample } from '../types';
+import type { JointName, Landmark, PoseSample } from '../types';
 import type { AngleSmoother } from './angleSmoother';
 import { computeJointAngles } from './angles';
 import { computeFormMetrics } from './formMetrics';
@@ -23,6 +23,11 @@ export interface PoseSampleInput {
   worldLandmarks: Landmark[] | null;
   detectMs: number;
   fps: number;
+  /**
+   * The joints the previous frame measured. They stay measured down to
+   * KEEP_MEASURED_VISIBILITY, so a joint hovering at the cutoff does not flicker.
+   */
+  previousVisible?: readonly JointName[];
 }
 
 /** Copies one pose's landmarks into our Landmark type, or null when there is no pose. */
@@ -53,7 +58,11 @@ export function buildPoseSample(input: PoseSampleInput, smoother: AngleSmoother)
     };
   }
 
-  const { angles, visible } = computeJointAngles(worldLandmarks);
+  const { angles, visible } = computeJointAngles(
+    worldLandmarks,
+    undefined,
+    new Set(input.previousVisible ?? []),
+  );
   return {
     frame: { t, angles: smoother.smooth(angles, input.filterSeconds), visible },
     landmarks,
