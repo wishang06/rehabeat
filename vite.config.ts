@@ -1,8 +1,44 @@
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 
+/**
+ * Routes the router serves from index.html. A static host with no rewrite rule
+ * (the EC2 web root) needs a real file at each one, or a reload of /play is a 404.
+ * Vercel uses vercel.json instead.
+ */
+const ROUTES = ['play', 'hud'];
+
+function routeFiles(): Plugin {
+  let outDir = 'dist';
+  return {
+    name: 'rehabeat-route-files',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    // After the files are written. A failed build has no index.html to copy.
+    writeBundle(options) {
+      const dir = options.dir ?? outDir;
+      const index = path.join(dir, 'index.html');
+      if (!existsSync(index)) return;
+      for (const route of ROUTES) {
+        mkdirSync(path.join(dir, route), { recursive: true });
+        copyFileSync(index, path.join(dir, route, 'index.html'));
+      }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss(), routeFiles()],
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+  },
   server: {
     port: 5173,
     strictPort: true,

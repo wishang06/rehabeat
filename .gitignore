@@ -14,3 +14,6 @@ separated/
 
 # Smoke-test output
 test-results/
+
+# Agent skills installed for this project (not part of the app)
+.claude/skills/
