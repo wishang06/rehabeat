@@ -67,6 +67,7 @@ export function Landing() {
           <a href="#how">How it works</a>
           <a href="#songs">Songs</a>
           <a href="#privacy">Privacy</a>
+          <Link to="/doctor">For doctors</Link>
         </nav>
         <span className="lp-freeplay led" aria-hidden="true">
           FREE PLAY

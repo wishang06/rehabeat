@@ -21,6 +21,8 @@ installUiSounds();
 
 // The game brings the pose model with it, so the landing page does not load it.
 const Game = lazy(() => import('./App').then((module) => ({ default: module.App })));
+// The doctor's page is a desk tool: it loads neither the game nor the pose model.
+const DoctorPage = lazy(() => import('./doctor/DoctorPage').then((module) => ({ default: module.DoctorPage })));
 const HudPreview = lazy(() => import('./ui/hud/HudPreview').then((module) => ({ default: module.HudPreview })));
 
 createRoot(document.getElementById('root')!).render(
@@ -32,6 +34,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path="/play/*" element={<Game />} />
           {/* The play HUD over a blank stage, fed by the mock frame: for design work and screenshots. */}
           <Route path="/hud/*" element={<HudPreview />} />
+          <Route path="/doctor" element={<DoctorPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

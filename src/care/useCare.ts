@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthState } from '../lib/auth';
 import { createDemoClinic } from './demoClinic';
-import type { CareStore, MyProgram } from './types';
+import { CareSetupError, type CareStore, type MyProgram, type PatientFile } from './types';
 
 function browserStorage(): Storage | undefined {
   try {
@@ -76,4 +76,41 @@ export function useMyProgram(store: CareStore | null): {
   return { program, loading, reload };
 }
 
-export { useRefresh };
+
+/**
+ * The doctor's patients with their programs and sessions. Read again when
+ * the window gets focus back and when `reload` is called. `error` is
+ * 'setup' when the real clinic's tables are not there yet.
+ */
+export function usePatients(store: CareStore | null): {
+  files: PatientFile[] | null;
+  error: 'setup' | 'failed' | null;
+  reload: () => void;
+} {
+  const [files, setFiles] = useState<PatientFile[] | null>(null);
+  const [error, setError] = useState<'setup' | 'failed' | null>(null);
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((count) => count + 1), []);
+
+  useEffect(() => {
+    if (!store) return;
+    let current = true;
+    store
+      .listPatients()
+      .then((found) => {
+        if (!current) return;
+        setFiles(found);
+        setError(null);
+      })
+      .catch((cause: unknown) => {
+        console.warn('[care] could not read the patients', cause);
+        if (current) setError(cause instanceof CareSetupError ? 'setup' : 'failed');
+      });
+    return () => {
+      current = false;
+    };
+  }, [store, tick]);
+
+  useRefresh(reload);
+  return { files, error, reload };
+}

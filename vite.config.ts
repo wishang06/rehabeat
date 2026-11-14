@@ -11,7 +11,7 @@ import { defineConfig } from 'vitest/config';
  * (the EC2 web root) needs a real file at each one, or a reload of /play is a 404.
  * Vercel uses vercel.json instead.
  */
-const ROUTES = ['play', 'hud'];
+const ROUTES = ['play', 'hud', 'doctor'];
 
 function routeFiles(): Plugin {
   let outDir = 'dist';

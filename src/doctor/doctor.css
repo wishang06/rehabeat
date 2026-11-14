@@ -1,0 +1,686 @@
+/*
+ * The doctor's page: the desk look. The game's colours and typefaces, set
+ * upright and at reading size for someone sitting at a desk: no slanted
+ * panels, no italic display type, no LED digits. Colours keep their meaning:
+ * gold is the one primary action and the selected thing, cyan is
+ * information, pink is a warning. Rules: .interface-design/system.md.
+ */
+.doc {
+  min-height: 100%;
+  padding: 0 var(--gutter-page) 4rem;
+  background: var(--color-void);
+  color: var(--color-white);
+  font: 400 1rem/1.45 var(--font-sans);
+}
+
+.doc h1,
+.doc h2,
+.doc h3,
+.doc h4,
+.doc p,
+.doc ul,
+.doc ol {
+  margin: 0;
+}
+
+.doc ul,
+.doc ol {
+  padding: 0;
+  list-style: none;
+}
+
+.doc .label {
+  font-size: 0.8125rem;
+  color: var(--color-cyan);
+}
+
+.doc-num {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-big {
+  font-size: 1.875rem;
+  line-height: 1;
+}
+
+.doc-quiet {
+  color: var(--color-dim);
+}
+
+.doc-error,
+.doc [data-warn='true'],
+.doc [data-down='true'],
+.doc [data-over='true'],
+.doc [data-short='true'] {
+  color: var(--color-pink);
+}
+
+/* ---------- top bar and banners */
+.doc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding: 1rem 0;
+}
+
+.doc-bar__space {
+  flex: 1;
+}
+
+.doc-wordmark {
+  font: 700 1.5rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  color: var(--color-gold);
+}
+
+/* The shared account button, upright here. */
+.doc .button {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.doc .button::before {
+  transform: none;
+}
+
+.doc-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-deck-2);
+  color: var(--color-dim);
+}
+
+.doc-banner b {
+  color: var(--color-white);
+}
+
+.doc-banner--warn {
+  color: var(--color-pink);
+}
+
+.doc-link {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  color: var(--color-cyan);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* ---------- layout */
+.doc-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.doc-detail {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.doc-two,
+.doc-tiles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.doc-panel {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1.25rem;
+  background: var(--color-deck);
+}
+
+.doc-empty {
+  padding: 2rem 0;
+}
+
+@media (min-width: 30rem) {
+  .doc-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 53.75rem) {
+  .doc-main {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .doc-two {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+}
+
+/* ---------- patients */
+.doc-patients {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+  padding-top: 0.5rem;
+}
+
+.doc-patients ul {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.doc-patient {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  text-align: left;
+  color: var(--color-white);
+  background: var(--color-deck);
+  border: 0;
+  border-top: 3px solid transparent;
+  cursor: pointer;
+}
+
+.doc-patient:hover {
+  background: var(--color-deck-2);
+}
+
+.doc-patient[aria-current='true'] {
+  background: var(--color-deck-2);
+  border-top-color: var(--color-gold);
+}
+
+.doc-patient__name,
+.doc-head h1 {
+  font: 700 1.375rem/1.05 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.doc-patient__about,
+.doc-patient__code {
+  font-size: 0.9375rem;
+  color: var(--color-dim);
+}
+
+.doc-patient__code b {
+  letter-spacing: 0.12em;
+  color: var(--color-white);
+}
+
+.doc-pill {
+  padding: 0.25rem 0.5rem;
+  font: 700 0.75rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-cyan);
+  background: var(--color-deck-3);
+}
+
+.doc-add {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: var(--color-deck);
+}
+
+/* ---------- form controls */
+.doc-field {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.9375rem;
+  color: var(--color-dim);
+}
+
+.doc input:not([type='checkbox'], [type='radio'], [type='range']),
+.doc select,
+.doc textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.625rem;
+  font: inherit;
+  color: var(--color-white);
+  background: var(--color-void);
+  border: 0;
+}
+
+.doc textarea {
+  resize: vertical;
+}
+
+.doc input[type='checkbox'],
+.doc input[type='radio'],
+.doc input[type='range'] {
+  accent-color: var(--color-gold);
+}
+
+.doc input[type='checkbox'] {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.doc input[type='range'] {
+  width: 100%;
+  min-height: 1.75rem;
+}
+
+.doc-btn {
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  font: 700 1.0625rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-white);
+  background: var(--color-deck-3);
+  border: 0;
+  cursor: pointer;
+}
+
+.doc-btn:hover {
+  filter: brightness(1.2);
+}
+
+.doc-btn:disabled {
+  cursor: default;
+  filter: none;
+  opacity: 0.45;
+}
+
+.doc-btn--primary {
+  color: var(--color-gold-ink);
+  background: var(--color-gold);
+}
+
+.doc-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-white);
+  background: var(--color-deck-3);
+  border: 0;
+  cursor: pointer;
+}
+
+.doc-icon:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.doc-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* ---------- header and tiles */
+.doc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+}
+
+.doc-head h1 {
+  font-size: 1.875rem;
+}
+
+.doc-head p {
+  color: var(--color-dim);
+}
+
+.doc-tile {
+  gap: 0.375rem;
+}
+
+.doc-tile p {
+  color: var(--color-dim);
+}
+
+.doc-tile .doc-big {
+  color: var(--color-white);
+}
+
+.doc-tile [data-down='false'] {
+  font-weight: 600;
+  color: var(--color-cyan);
+}
+
+/* ---------- consistency */
+.doc-weeks {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 24rem;
+}
+
+.doc-weeks__row {
+  display: grid;
+  grid-template-columns: 2.5rem repeat(7, minmax(0, 1fr)) 2.5rem;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.doc-weeks__day,
+.doc-weeks__name {
+  font-size: 0.8125rem;
+  color: var(--color-faint);
+}
+
+.doc-weeks__day,
+.doc-weeks__cell {
+  display: grid;
+  place-items: center;
+}
+
+.doc-weeks__count {
+  font-size: 0.9375rem;
+  text-align: right;
+  color: var(--color-dim);
+}
+
+/* Lamps are the only circles. Lit cyan: a session done. A cyan ring: one that ended early. */
+.doc-lamp {
+  display: inline-block;
+  width: 1.375rem;
+  aspect-ratio: 1;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--color-deck-3);
+}
+
+.doc-lamp[data-state='done'] {
+  background: var(--color-cyan);
+  box-shadow: 0 0 10px rgb(39 224 240 / 0.45);
+}
+
+.doc-lamp[data-state='partial'] {
+  background: transparent;
+  border-color: var(--color-cyan);
+}
+
+.doc-lamp[data-future='true'] {
+  opacity: 0.45;
+}
+
+.doc-lamp[data-today='true'] {
+  outline: 2px dashed var(--color-gold);
+  outline-offset: 2px;
+}
+
+.doc .doc-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  margin-top: 1rem;
+  font-size: 0.8125rem;
+  color: var(--color-dim);
+}
+
+.doc-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.doc-key .doc-lamp {
+  width: 0.75rem;
+}
+
+/* ---------- problem spots */
+.doc-spots {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.doc-spots li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.doc-spots b {
+  font-weight: 600;
+}
+
+.doc-spots [data-tone='pink'] span {
+  color: var(--color-pink);
+}
+
+.doc-spots [data-tone='pink'] b {
+  color: var(--color-white);
+}
+
+.doc-spark {
+  display: block;
+  width: 6rem;
+  height: 2.125rem;
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.doc-spark__base {
+  stroke: var(--color-deck-3);
+  stroke-width: 1;
+}
+
+.doc-spark--cyan {
+  stroke: var(--color-cyan);
+}
+
+.doc-spark--pink {
+  stroke: var(--color-pink);
+}
+
+.doc-spark--dim {
+  stroke: var(--color-dim);
+}
+
+.doc-spark circle {
+  stroke: none;
+  fill: currentColor;
+}
+
+.doc-spark--cyan circle {
+  fill: var(--color-cyan);
+}
+
+.doc-spark--pink circle {
+  fill: var(--color-pink);
+}
+
+.doc-spark--dim circle {
+  fill: var(--color-dim);
+}
+
+/* ---------- program and limits */
+.doc-editor {
+  display: grid;
+  gap: 1rem;
+}
+
+.doc-moves {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.doc-moves li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  color: var(--color-dim);
+}
+
+.doc-moves li[data-on='true'] {
+  color: var(--color-white);
+}
+
+.doc-moves label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+}
+
+.doc-moves__order {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.doc-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+}
+
+.doc-field--wide {
+  grid-column: 1 / -1;
+  max-width: 16rem;
+}
+
+.doc-preview {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-void);
+}
+
+.doc-preview ol {
+  padding-left: 1.25rem;
+  list-style: decimal;
+}
+
+.doc-change {
+  color: var(--color-cyan);
+}
+
+.doc-limits {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.doc-limit {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.doc-limit legend {
+  float: left;
+  padding: 0;
+  font-weight: 600;
+}
+
+.doc-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.doc-seg label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.625rem;
+  font-size: 0.9375rem;
+  color: var(--color-dim);
+  background: var(--color-deck-3);
+  cursor: pointer;
+}
+
+/* The standing choice is lit. Gold only where a limit is actually set, so the eye lands on the restricted joints. */
+.doc-seg label[data-on='true'] {
+  font-weight: 600;
+  color: var(--color-white);
+  background: var(--color-deck-2);
+  box-shadow: inset 0 0 0 2px var(--color-deck-3);
+}
+
+.doc-seg label[data-on='true'][data-limit='true'] {
+  color: var(--color-gold-ink);
+  background: var(--color-gold);
+  box-shadow: none;
+}
+
+/* The radio itself is the label's click target; it stays reachable by keyboard. */
+.doc-seg input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.doc-seg label:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.doc-limit__range {
+  display: grid;
+  grid-column: 2;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* ---------- note, save, versions */
+.doc-send__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.doc-send__row p {
+  color: var(--color-dim);
+}
+
+.doc-versions {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.doc-versions li {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  color: var(--color-dim);
+}
+
+.doc-versions li:first-child {
+  color: var(--color-white);
+}
+
+@media (max-width: 30rem) {
+  .doc-limit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .doc-limit__range {
+    grid-column: 1;
+  }
+}
