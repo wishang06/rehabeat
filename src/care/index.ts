@@ -15,5 +15,5 @@ export * from './analysis';
 export { parsePatient, parsePrescriptionBody, parseSession } from './shapes';
 export { DEMO_DOCTOR, YOU_ID, samplePatients } from './sampleClinic';
 export { CARE_KEY, createDemoClinic } from './demoClinic';
-export { freePlan, programView, sentView, type ProgramView, type SentView } from './programView';
+export { freePlan, playSetup, programView, sentView, type ProgramView, type SentView } from './programView';
 export { createSupabaseClinic, isDuplicate, isMissingTable, prescriptionFromRow, sessionFromRow } from './supabaseClinic';

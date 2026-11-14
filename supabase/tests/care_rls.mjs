@@ -52,7 +52,7 @@ async function as(user, sql, params = []) {
 const denied = (r) => r.error !== undefined;
 
 const added = await as(D1, `insert into care_patients (display_name, condition) values ('Maya', 'Right shoulder') returning id, doctor_id, patient_id, join_code`);
-check('a doctor adds a patient; the row is theirs and has a code', added[0]?.doctor_id === D1 && added[0].patient_id === null && /^[A-HJKMNP-Z2-9]{6}$/.test(added[0].join_code), JSON.stringify(added.error ?? added[0]?.join_code));
+check('a doctor adds a patient; the row is theirs and has a code', added[0]?.doctor_id === D1 && added[0].patient_id === null && /^[A-HJKMNP-Z2-9]{10}$/.test(added[0].join_code), JSON.stringify(added.error ?? added[0]?.join_code));
 const patient = added[0].id, code = added[0].join_code;
 
 check('a doctor cannot attach an account to a patient on insert', denied(await as(D1, `insert into care_patients (display_name, patient_id) values ('X', '${X}')`)));

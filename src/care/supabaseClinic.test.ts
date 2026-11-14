@@ -5,6 +5,8 @@ import { isDuplicate, isMissingTable, prescriptionFromRow, sessionFromRow } from
 it('recognises a missing table and a duplicate row', () => {
   expect(isMissingTable({ code: 'PGRST205' })).toBe(true);
   expect(isMissingTable({ code: '42P01' })).toBe(true);
+  // The join function is part of the same migration: without it the clinic is not set up either.
+  expect(isMissingTable({ code: 'PGRST202' })).toBe(true);
   expect(isMissingTable({ code: '23505' })).toBe(false);
   expect(isMissingTable(null)).toBe(false);
   expect(isDuplicate({ code: '23505' })).toBe(true);

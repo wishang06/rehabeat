@@ -21,6 +21,11 @@ interface TitleScreenProps {
   onStartProgram: () => void;
   /** False when the player's limits leave free play nothing to play. */
   freePlay: boolean;
+  /** True until it is known whether the player has a program: play does not start before then. */
+  loading: boolean;
+  /** The program could not be read. The game still plays, without any limits a doctor set. */
+  programFailed: boolean;
+  onRetryProgram: () => void;
   /** Joins a doctor with their code. Null unless the player is signed in to the real clinic and has no program. */
   onJoin: ((code: string) => Promise<void>) | null;
   /** The player's account. With accounts on, the leaderboard and sign-in sit beside the start button. */
@@ -39,9 +44,20 @@ const BOARD_ROWS_UNDER_CARD = 3;
  * player with a program gets its card there too, and the card's button
  * becomes the screen's one primary action.
  */
-export function TitleScreen({ onStart, auth, program, onStartProgram, freePlay, onJoin }: TitleScreenProps) {
+export function TitleScreen({
+  onStart,
+  auth,
+  program,
+  onStartProgram,
+  freePlay,
+  loading,
+  programFailed,
+  onRetryProgram,
+  onJoin,
+}: TitleScreenProps) {
   const session = program?.playable ?? false;
-  const begin = session ? onStartProgram : freePlay ? onStart : null;
+  // A patient's limits are in their program, so nothing starts until it is known whether there is one.
+  const begin = loading ? null : session ? onStartProgram : freePlay ? onStart : null;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -69,7 +85,11 @@ export function TitleScreen({ onStart, auth, program, onStartProgram, freePlay, 
       <div className="title__copy">
         <h1 className="title__name display">Rehabeat</h1>
         <p className="title__tag">Match the gold figure on the beat. The music plays while your form holds.</p>
-        {session ? (
+        {loading ? (
+          <p className="title__wait" role="status">
+            Loading…
+          </p>
+        ) : session ? (
           // The program card holds the primary action; free play steps back.
           freePlay && (
             <button type="button" className="button title__free" onClick={onStart} data-testid="title-start">
@@ -87,6 +107,14 @@ export function TitleScreen({ onStart, auth, program, onStartProgram, freePlay, 
             Start <kbd>Enter</kbd>
           </button>
         ) : null}
+        {programFailed && (
+          <p className="title__warn" role="alert" data-testid="program-error">
+            Your program could not be loaded, so any limits from your doctor are not applied.{' '}
+            <button type="button" onClick={onRetryProgram}>
+              Try again
+            </button>
+          </p>
+        )}
         <ProgressMeters className="title__meters" />
         <p className="title__more">
           <Link to="/">How it works</Link>

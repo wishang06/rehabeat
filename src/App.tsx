@@ -3,7 +3,7 @@ import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/rea
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import type { BeatEngine } from './audio';
-import { buildSession, dayKey, freePlan, programView, type MyProgram, type PlayPlan } from './care';
+import { buildSession, dayKey, freePlan, playSetup, programView, type PlaySetup } from './care';
 import { careStoreFor, useMyProgram } from './care/useCare';
 import { useAuth } from './lib/auth';
 import { takePendingRun } from './lib/scores';
@@ -44,17 +44,6 @@ const SCREEN_LANE: Variants = {
   exit: { opacity: 0, x: -48, transition: { duration: 0.11, ease: 'easeIn' } },
 };
 
-/**
- * What the player set out to play. It is fixed when they leave the title
- * screen, so a program the doctor changes mid-song does not restart the song.
- */
-interface PlaySetup {
-  mode: 'free' | 'program';
-  plan: PlayPlan;
-  /** The program a program session is played under. */
-  program: MyProgram | null;
-}
-
 /** Free play with no program: every move, until the player finishes. */
 const FREE_PLAY: PlaySetup = { mode: 'free', plan: freePlan(null, MOVES), program: null };
 
@@ -94,10 +83,23 @@ export function App() {
 
   // The doctor loop: the player's program, if they have one, and the session to send after a program run.
   const care = careStoreFor(auth);
-  const { program, loading: programLoading, reload: reloadProgram } = useMyProgram(care);
+  const {
+    program,
+    loading: programLoading,
+    error: programError,
+    reload: reloadProgram,
+  } = useMyProgram(care);
   const today = dayKey(new Date());
   const programCard = useMemo(() => (program ? programView(program, MOVES, today) : null), [program, today]);
   const freePlay = useMemo(() => freePlan(program, MOVES), [program]);
+  /** What the player asked for on the title screen. */
+  const [wanted, setWanted] = useState<PlaySetup['mode']>('free');
+  /**
+   * What is being played. It is fixed when play starts (a song is picked, or
+   * Play again), from the program as it stands then: early enough that a
+   * program the doctor changes mid-song does not restart the song, late
+   * enough that a patient's limits are always in it.
+   */
   const [setup, setSetup] = useState<PlaySetup>(FREE_PLAY);
   const [sent, setSent] = useState<SentCare | null>(null);
   /** Set while a run is being finished, so the song ending and a key press cannot both finish it. */
@@ -159,6 +161,12 @@ export function App() {
   const pick = async (id: string) => {
     const video = videoRef.current;
     if (!video || step !== null || !library?.songs[id]) return;
+    const next = playSetup(wanted, program, MOVES, today);
+    if (next.plan.moves.length === 0) {
+      setError('Your limits leave nothing to play here. Ask your doctor about your program.');
+      return;
+    }
+    setSetup(next);
     saveLastSong(id);
     setSelectedId(id);
     setError(null);
@@ -186,17 +194,13 @@ export function App() {
   };
 
   const startFree = () => {
-    setSetup({ mode: 'free', plan: freePlay, program: null });
+    setWanted('free');
     setScreen('menu');
   };
 
-  const programSetup = (): PlaySetup | null =>
-    program && programCard?.playable ? { mode: 'program', plan: programCard.plan, program } : null;
-
   const startProgram = () => {
-    const next = programSetup();
-    if (!next) return;
-    setSetup(next);
+    if (!programCard?.playable) return;
+    setWanted('program');
     setScreen('menu');
   };
 
@@ -247,8 +251,10 @@ export function App() {
   // The song stays loaded on the results screen, so playing again restarts it.
   const playAgain = () => {
     if (!session || !song) return backToMenu();
-    // A program session picks up the program as it stands now: the doctor may have changed it.
-    if (setup.mode === 'program') setSetup(programSetup() ?? setup);
+    // The next run plays the program as it stands now: the doctor may have changed it.
+    const next = playSetup(setup.mode, program, MOVES, today);
+    if (next.plan.moves.length === 0) return backToMenu();
+    setSetup(next);
     setScreen('play');
   };
 
@@ -333,8 +339,11 @@ export function App() {
                     program={programCard}
                     onStartProgram={startProgram}
                     freePlay={freePlay.moves.length > 0}
+                    loading={programLoading}
+                    programFailed={programError === 'failed'}
+                    onRetryProgram={reloadProgram}
                     onJoin={
-                      care?.kind === 'clinic' && !program && !programLoading
+                      care?.kind === 'clinic' && !program && !programLoading && programError === null
                         ? (code) => care.joinWithCode(code).then(reloadProgram)
                         : null
                     }

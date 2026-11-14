@@ -95,6 +95,16 @@ export interface PlayPlan {
 }
 
 /**
+ * What a run is: free play or a program session, the plan it plays, and for
+ * a session the program it is played under. Fixed when play starts.
+ */
+export interface PlaySetup {
+  mode: 'free' | 'program';
+  plan: PlayPlan;
+  program: MyProgram | null;
+}
+
+/**
  * Where programs and sessions live. The demo clinic keeps them in this
  * browser; the real clinic keeps them in private Supabase tables.
  */

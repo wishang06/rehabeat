@@ -654,13 +654,41 @@
 }
 
 .join__input {
-  width: 8.5rem;
+  width: 11.5rem;
   min-height: 2.5rem;
   padding: 0 0.625rem;
   font: 600 1.125rem/1 var(--font-sans);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-white);
   background: var(--color-void);
   border: 0;
+}
+
+/* The title screen while the player's program is being read, and when it could not be. */
+.title__wait {
+  min-height: 5.25rem;
+  margin: 0.5rem 0 0 0.75rem;
+  font: 700 1.25rem/5.25rem var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-dim);
+}
+
+.title__warn {
+  max-width: 36ch;
+  font-size: 1.125rem;
+  line-height: 1.4;
+  color: var(--color-pink);
+}
+
+.title__warn button {
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  color: var(--color-white);
+  background: none;
+  border: 0;
+  cursor: pointer;
 }

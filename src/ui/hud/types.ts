@@ -59,6 +59,8 @@ export interface PlayHudProps {
 /** The phase word, the beat pips under it and the count-in number. */
 export interface PhaseCueProps {
   frames: FeedbackStore;
+  /** The moves being played: the pips are drawn from their beats. */
+  moves: readonly Move[];
 }
 
 /** The current move and the one after it. */

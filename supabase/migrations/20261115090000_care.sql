@@ -13,15 +13,26 @@
 -- programs, and adds their own sessions. Nobody can edit or delete a
 -- program or a session from the app.
 
--- Six characters, without the letters and digits that are easy to misread.
+-- A patient's join code: ten characters, without the letters and digits
+-- that are easy to misread. Whoever holds an unused code can join as that
+-- patient, so it has to be hard to guess: about 8 x 10^14 codes, drawn from
+-- the random bytes of a v4 UUID (bytes 6 and 8 carry its version and variant
+-- bits, so they are not used) rather than from random().
 create function public.new_care_code()
 returns text
 language sql
 volatile
 set search_path = ''
 as $$
-  select string_agg(substr('ABCDEFGHJKMNPQRSTUVWXYZ23456789', 1 + floor(random() * 31)::int, 1), '')
-  from generate_series(1, 6);
+  select string_agg(
+    substr(
+      'ABCDEFGHJKMNPQRSTUVWXYZ23456789',
+      1 + get_byte(decode(replace(gen_random_uuid()::text, '-', ''), 'hex'), byte_at) % 31,
+      1
+    ),
+    ''
+  )
+  from unnest(array[0, 1, 2, 3, 4, 5, 10, 11, 12, 13]) as byte_at;
 $$;
 
 create table public.care_patients (

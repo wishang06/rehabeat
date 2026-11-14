@@ -187,6 +187,8 @@ The move format and the scoring are untouched: the Play screen is simply handed 
 
 During a session every range-limited joint is watched on every frame, whatever the move. Past the limit by more than `LIMIT_MARGIN_DEG` (10°) for longer than `LIMIT_PERSIST_MS` (500 ms), the HUD says **Ease off** and the hold is marked. A joint that is off is not watched; its moves are just never played. A patient's limits also apply in free play.
 
+The game works out what to play when a song is picked, from the program as it stands at that moment, and the title screen does not offer Start until it knows whether the player has a program. So a patient's limits are in every run, and a change the doctor makes takes effect on the next song, never in the middle of one. If the program cannot be read, the title screen says that any limits are not applied; the game still plays.
+
 The prompt is guidance, like the form notes. The angles are estimates from a webcam, and nothing here is a safety system.
 
 ### What a session records
@@ -219,7 +221,7 @@ The doctor's page and the game talk to one interface, `CareStore` (`src/care/typ
 | --- | --- | --- |
 | When | Signed out, or accounts switched off | Signed in |
 | Where | This browser's `localStorage` (`rehabeat.care.v1`) | Private Supabase tables |
-| Patients | Four samples and You | The doctor's own; a patient joins with a six-character code |
+| Patients | Four samples and You | The doctor's own; a patient joins with a ten-character code |
 | Code | `src/care/demoClinic.ts` | `src/care/supabaseClinic.ts` |
 
 The real clinic's tables are in `supabase/migrations/20261115090000_care.sql`:
@@ -407,6 +409,8 @@ Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) a
 - A program session that is closed mid-song (the tab, or a reload) is lost. A session whose send failed can be retried from the results screen, but not after leaving it.
 - Anyone signed in can open `/doctor` and add patients. There is no check that a doctor is one.
 - A doctor cannot remove a patient, and a patient cannot leave a doctor, from the app.
+- A join code is ten characters from a strong random source, but it does not expire and there is no limit on wrong tries. Whoever enters an unused code first becomes that patient, and that cannot be undone from the app.
+- Before the migration is applied, a signed-in player's game works as it does signed out of a clinic: no program and no join form.
 - The demo clinic is per browser. Clearing site data resets it.
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.

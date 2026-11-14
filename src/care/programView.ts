@@ -7,7 +7,7 @@ import { JOINT_NAMES, type Move } from '../types';
 import { consistency, findings } from './analysis';
 import { limitText } from './labels';
 import { applyLimits, applyPrescription } from './prescription';
-import type { MyProgram, PlayPlan, SessionRecord } from './types';
+import type { MyProgram, PlayPlan, PlaySetup, SessionRecord } from './types';
 
 export interface ProgramView {
   doctorName: string;
@@ -86,4 +86,23 @@ export function sentView(program: MyProgram, session: SessionRecord, all: readon
     workOn: findings([session], all)[0]?.text ?? null,
     partial: !session.completed,
   };
+}
+
+/**
+ * What a run will be, worked out from the program as it stands at the
+ * moment play starts. Asked for a program session, it gives one when the
+ * program has something to play; otherwise it gives free play. Either way a
+ * patient's limits are in the plan.
+ */
+export function playSetup(
+  wanted: 'free' | 'program',
+  program: MyProgram | null,
+  all: readonly Move[],
+  today: string,
+): PlaySetup {
+  if (wanted === 'program' && program) {
+    const view = programView(program, all, today);
+    if (view.playable) return { mode: 'program', plan: view.plan, program };
+  }
+  return { mode: 'free', plan: freePlan(program, all), program: null };
 }

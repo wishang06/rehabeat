@@ -50,16 +50,25 @@ function useRefresh(reload: () => void): void {
 
 /**
  * The player's program, if a doctor has given them one. It is read again
- * when the window gets focus back and when `reload` is called. A store that
- * fails is read as no program: the game must stay playable.
+ * when the window gets focus back and when `reload` is called.
+ *
+ * `loading` is true until this store has answered once: a patient's limits
+ * are in their program, so the game does not start before it is known.
+ * `error` is 'setup' when the real clinic's tables are not there yet (there
+ * are no programs to have), and 'failed' when the read failed: the game
+ * stays playable, and says that any limits are not applied.
  */
 export function useMyProgram(store: CareStore | null): {
   program: MyProgram | null;
   loading: boolean;
+  error: 'setup' | 'failed' | null;
   reload: () => void;
 } {
-  const [program, setProgram] = useState<MyProgram | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [read, setRead] = useState<{
+    store: CareStore;
+    program: MyProgram | null;
+    error: 'setup' | 'failed' | null;
+  } | null>(null);
   const [tick, setTick] = useState(0);
   const reload = useCallback(() => setTick((count) => count + 1), []);
 
@@ -68,15 +77,12 @@ export function useMyProgram(store: CareStore | null): {
     let current = true;
     store
       .myProgram()
-      .then((found) => {
-        if (current) setProgram(found);
+      .then((program) => {
+        if (current) setRead({ store, program, error: null });
       })
       .catch((cause: unknown) => {
         console.warn('[care] could not read the program', cause);
-        if (current) setProgram(null);
-      })
-      .finally(() => {
-        if (current) setLoading(false);
+        if (current) setRead({ store, program: null, error: cause instanceof CareSetupError ? 'setup' : 'failed' });
       });
     return () => {
       current = false;
@@ -84,9 +90,15 @@ export function useMyProgram(store: CareStore | null): {
   }, [store, tick]);
 
   useRefresh(reload);
-  return { program, loading, reload };
+  // What was read from another store (before signing in or out) says nothing about this one.
+  const answered = read !== null && read.store === store;
+  return {
+    program: answered ? read.program : null,
+    loading: !answered,
+    error: answered ? read.error : null,
+    reload,
+  };
 }
-
 
 /**
  * The doctor's patients with their programs and sessions. Read again when

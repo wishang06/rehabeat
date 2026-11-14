@@ -17,9 +17,9 @@ import {
 
 type DbError = { code?: string; message?: string } | null;
 
-/** The table is not there: the migration has not been applied to this project. */
+/** A table or the join function is not there: the migration has not been applied to this project. */
 export function isMissingTable(error: DbError): boolean {
-  return error?.code === 'PGRST205' || error?.code === '42P01';
+  return error?.code === 'PGRST205' || error?.code === '42P01' || error?.code === 'PGRST202';
 }
 
 /** A row with this primary key already exists: an earlier attempt to save it went through. */

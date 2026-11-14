@@ -4,6 +4,7 @@ import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/rea
 import { Figure } from '@/components/Figure';
 import { useFeedbackFrame } from '../../engine';
 import { MOVES } from '../../moves';
+import { phasePips } from '../playProgram';
 import { GOOD_SCORE, PERFECT_SCORE } from '../../scoring';
 import type {
   ComboCounterProps,
@@ -37,22 +38,13 @@ const lane: Variants = {
 };
 
 /** The phase word, the beat pips of the current move, and 3-2-1 before the first one. */
-function PhaseCue({ frames }: PhaseCueProps) {
+function PhaseCue({ frames, moves }: PhaseCueProps) {
   const phase = useFeedbackFrame((frame) => frame?.phase ?? 'ready', frames);
   const moveId = useFeedbackFrame((frame) => frame?.move?.id ?? null, frames);
   // Whole beats until the next phase: changes once per beat, not once per frame.
   const beatsLeft = useFeedbackFrame((frame) => (frame ? Math.ceil(frame.beatsToNextPhase) : 0), frames);
 
-  const beats = MOVES.find((move) => move.id === moveId)?.beats;
-  // How many beats of the move are behind us, counting the one we are in.
-  let lit = -1;
-  if (beats && phase !== 'ready') {
-    lit = beats[phase] - beatsLeft;
-    for (const earlier of MOVE_PHASES) {
-      if (earlier === phase) break;
-      lit += beats[earlier];
-    }
-  }
+  const { beats, lit } = phasePips(moves, moveId, phase, beatsLeft);
   const counting = phase === 'ready' && beatsLeft >= 1 && beatsLeft <= 3;
 
   return (
@@ -333,7 +325,7 @@ export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
     <MotionConfig reducedMotion="user">
       <div className="hud" ref={ref} data-testid="play-screen">
         <RunStats points={run.points} accuracy={run.accuracy} perfectStreak={run.perfectStreak} />
-        <PhaseCue frames={frames} />
+        <PhaseCue frames={frames} moves={moves} />
         <MoveCards
           frames={frames}
           moveNumber={run.moveNumber}

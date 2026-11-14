@@ -31,10 +31,10 @@ export function JoinCode({ onJoin }: JoinCodeProps) {
           id="join-code-input"
           className="join__input"
           value={code}
-          maxLength={6}
+          maxLength={10}
           autoComplete="off"
           spellCheck={false}
-          placeholder="ABC234"
+          placeholder="ABCDE23456"
           onChange={(event) => setCode(event.target.value.toUpperCase())}
         />
         <button type="submit" className="button button--quiet" disabled={busy}>

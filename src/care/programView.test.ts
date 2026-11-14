@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { MOVES } from '../moves';
 import { newPrescriptionBody } from './prescription';
-import { freePlan, programView, sentView } from './programView';
+import { freePlan, playSetup, programView, sentView } from './programView';
 import type { HoldRecord, MyProgram, Prescription, SessionRecord } from './types';
 
 const rx: Prescription = {
@@ -83,4 +83,25 @@ it('says what was sent', () => {
     week: { done: 0, prescribed: 5 },
     partial: true,
   });
+});
+
+it('fixes what to play when play starts, from the program as it is then', () => {
+  // No program: free play is every move, and a program session has nothing to be.
+  expect(playSetup('free', null, MOVES, '2026-11-14')).toEqual({ mode: 'free', plan: freePlan(null, MOVES), program: null });
+  expect(playSetup('program', null, MOVES, '2026-11-14').mode).toBe('free');
+
+  // A patient's limits come with them into free play, whenever the program arrived.
+  const free = playSetup('free', program(), MOVES, '2026-11-14');
+  expect(free.mode).toBe('free');
+  expect(free.program).toBeNull();
+  expect(free.plan.limits).toEqual(rx.limits);
+  expect(free.plan.moves.some((m) => m.id === 'standing-knee-raise')).toBe(false);
+
+  const session = playSetup('program', program(), MOVES, '2026-11-14');
+  expect(session).toMatchObject({ mode: 'program', program: { prescription: { id: 'rx1' } } });
+  expect(session.plan.rounds).toBe(3);
+
+  // A program the limits empty out cannot be a session: it falls back to free play, still limited.
+  const empty = { ...program(), prescription: { ...rx, moveIds: ['standing-knee-raise'] } };
+  expect(playSetup('program', empty, MOVES, '2026-11-14')).toMatchObject({ mode: 'free', plan: { rounds: null, limits: rx.limits } });
 });
