@@ -202,7 +202,8 @@ export function checkLicence(input: string): LicenceCheck {
 
 export const STEMS_NOTE = 'Separated into drum and melody stems by the Rehabeat team.';
 
-function sourceSite(sourceUrl: string): string {
+/** The site a song came from, for credits: "https://www.example.org/a" -> "example.org". */
+export function sourceSite(sourceUrl: string): string {
   try {
     return new URL(sourceUrl).hostname.replace(/^www\./, '');
   } catch {

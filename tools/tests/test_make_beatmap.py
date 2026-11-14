@@ -469,7 +469,7 @@ def test_missing_input_is_a_one_line_error(tmp_path, capsys):
 
 def test_default_outputs_are_anchored_to_the_repo_root_not_the_cwd():
     repo_root = Path(__file__).resolve().parents[2]
-    assert make_beatmap.DEFAULT_BEATMAP_PATH == repo_root / "public" / "beatmap.json"
+    assert make_beatmap.DEFAULT_BEATMAP_PATH == repo_root / "tools" / "out" / "beatmap.json"
     assert make_beatmap.DEFAULT_CLICK_PATH == repo_root / "tools" / "out" / "check.wav"
     assert make_beatmap.SEPARATED_DIR == repo_root / "tools" / "out" / "separated"
-    assert make_beatmap.STEMS_DIR == repo_root / "public" / "stems"
+    assert make_beatmap.STEMS_DIR == repo_root / "tools" / "out" / "stems"

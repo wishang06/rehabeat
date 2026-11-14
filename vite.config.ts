@@ -11,6 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    // tools/songs/e2e/*.e2e.ts runs Demucs, so it is left to `npm run test:songs`.
+    include: ['src/**/*.test.ts', 'tools/**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/.git/**', 'tools/.venv/**', 'tools/out/**'],
   },
 });

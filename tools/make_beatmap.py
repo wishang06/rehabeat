@@ -5,15 +5,19 @@ Run from the repo root:
     tools\\.venv\\Scripts\\python.exe tools\\make_beatmap.py SONG
         [--bpm-hint N] [--click] [--stems] [--out PATH]
 
-Writes public/beatmap.json:
+Writes tools/out/beatmap.json:
 
     {"bpm": number, "offset": seconds, "beats": [seconds], "downbeats": [seconds], "source": "file name"}
 
 --bpm-hint N  rough tempo; fixes a grid that came out at half or double speed
 --click       also writes tools/out/check.wav: the song with a click on every beat
               (downbeats higher and louder), to check the grid by ear
---stems       also runs Demucs and writes public/stems/drums.mp3 and melody.mp3
---out PATH    write the beatmap somewhere other than public/beatmap.json
+--stems       also runs Demucs and writes tools/out/stems/drums.mp3 and melody.mp3
+--out PATH    write the beatmap somewhere other than tools/out/beatmap.json
+
+Everything this script writes by default goes to tools/out/, which git ignores. The game
+reads its songs from public/songs/<id>/; `npm run songs` adds a song there (it calls this
+script's functions through tools/song_pipeline.py).
 """
 
 from __future__ import annotations
@@ -36,10 +40,10 @@ from scipy.ndimage import gaussian_filter1d
 # Default outputs are anchored to the repo, not to wherever the script is run from.
 TOOLS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TOOLS_DIR.parent
-DEFAULT_BEATMAP_PATH = REPO_ROOT / "public" / "beatmap.json"
+DEFAULT_BEATMAP_PATH = TOOLS_DIR / "out" / "beatmap.json"
 DEFAULT_CLICK_PATH = TOOLS_DIR / "out" / "check.wav"
 SEPARATED_DIR = TOOLS_DIR / "out" / "separated"  # raw Demucs output
-STEMS_DIR = REPO_ROOT / "public" / "stems"
+STEMS_DIR = TOOLS_DIR / "out" / "stems"
 
 # Analysis grid: 5.8 ms per frame, 23 ms analysis window.
 SAMPLE_RATE = 44100
@@ -355,17 +359,22 @@ def write_click_track(samples: np.ndarray, sr: int, beats, downbeats, out_path: 
     return out_path
 
 
-def encode_mp3(wav_path: Path, mp3_path: Path) -> None:
+def encode_mp3(wav_path: Path, mp3_path: Path, gain_db: float | None = None) -> None:
     """Encode a WAV to MP3 with ffmpeg, in time with the WAV.
 
     Every MP3 encoder adds a start-up delay. ffmpeg records it in the file's header, so
     players trim it and the MP3 starts where the WAV does. Demucs's own --mp3 writer
     leaves that header out: its stems play 1105 samples (25 ms) behind the song the beat
     grid was measured on, which is more than the game's timing budget.
+
+    gain_db, if given, scales the audio by that many dB on the way (ffmpeg's volume
+    filter, in floating point, so a cut never clips). None leaves the level as it is.
     """
+    volume = [] if gain_db is None else ["-af", f"volume={gain_db:.4f}dB"]
     command = [
         "ffmpeg", "-y", "-v", "error",
         "-i", str(wav_path),
+        *volume,
         "-codec:a", "libmp3lame", "-b:a", STEM_BITRATE,
         str(mp3_path),
     ]  # fmt: skip
@@ -462,10 +471,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--stems",
         action="store_true",
-        help="also run Demucs and write public/stems/drums.mp3 and melody.mp3 (slow)",
+        help="also run Demucs and write tools/out/stems/drums.mp3 and melody.mp3 (slow)",
     )
     parser.add_argument(
-        "--out", metavar="PATH", help="where to write the beatmap (default: public/beatmap.json)"
+        "--out", metavar="PATH", help="where to write the beatmap (default: tools/out/beatmap.json)"
     )
     return parser
 
