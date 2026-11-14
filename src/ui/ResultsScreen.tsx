@@ -9,6 +9,7 @@ import { MAX_STARS, gradeFor, levelFor, starsFor, useProgress, type RunGains } f
 import type { RunSummary } from '../scoring';
 import { AccountButton } from './AccountButton';
 import { Leaderboard } from './Leaderboard';
+import { SentStrip, type SentCare } from './SentStrip';
 import { XpBar } from './ProgressMeters';
 import { useResultsSounds } from './resultsSounds';
 import './screens.css';
@@ -18,6 +19,10 @@ interface ResultsScreenProps {
   /** What the run earned. Null for a run restored after the sign-in redirect: its XP was banked before leaving. */
   gains: RunGains | null;
   auth: AuthState;
+  /** The program session this run was, to send to the doctor. Null for free play. */
+  care: SentCare | null;
+  /** Called once a program session is saved. */
+  onSessionSaved: () => void;
   onPlayAgain: () => void;
   onChangeSong: () => void;
 }
@@ -35,7 +40,15 @@ const TALLY = [
  * split, the best combo and the XP it earned. Numbers count up as the screen
  * arrives; with reduced motion they are simply there.
  */
-export function ResultsScreen({ run, gains, auth, onPlayAgain, onChangeSong }: ResultsScreenProps) {
+export function ResultsScreen({
+  run,
+  gains,
+  auth,
+  care,
+  onSessionSaved,
+  onPlayAgain,
+  onChangeSong,
+}: ResultsScreenProps) {
   const root = useRef<HTMLElement>(null);
   const [save, setSave] = useState<SaveState>('idle');
   const attempted = useRef(false);
@@ -161,6 +174,8 @@ export function ResultsScreen({ run, gains, auth, onPlayAgain, onChangeSong }: R
             <XpBar xp={gains?.xpAfter ?? progress.xp} />
           </div>
         </div>
+
+        {care && <SentStrip care={care} onSaved={onSessionSaved} />}
 
         <p className="res__status" role="status" data-testid="save-status">
           {saveMessage(save, run, auth)}

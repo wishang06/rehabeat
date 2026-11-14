@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import type { BeatEngine } from './audio';
-import type { PlayPlan } from './care';
+import { buildSession, dayKey, freePlan, programView, type MyProgram, type PlayPlan } from './care';
+import { careStoreFor, useMyProgram } from './care/useCare';
 import { useAuth } from './lib/auth';
 import { takePendingRun } from './lib/scores';
 import { supabase } from './lib/supabase';
@@ -28,6 +29,7 @@ import { MusicCredit } from './ui/MusicCredit';
 import { PlayScreen, type PlayDebug, type PlayRun } from './ui/PlayScreen';
 import { ProgressMeters } from './ui/ProgressMeters';
 import { ResultsScreen } from './ui/ResultsScreen';
+import type { SentCare } from './ui/SentStrip';
 import { Stage } from './ui/Stage';
 import { TitleScreen } from './ui/TitleScreen';
 import { SongMenu } from './ui/menu/SongMenu';
@@ -42,8 +44,19 @@ const SCREEN_LANE: Variants = {
   exit: { opacity: 0, x: -48, transition: { duration: 0.11, ease: 'easeIn' } },
 };
 
-/** Free play: every move, until the player finishes. */
-const FREE_PLAY: PlayPlan = { moves: MOVES, rounds: null, limits: {} };
+/**
+ * What the player set out to play. It is fixed when they leave the title
+ * screen, so a program the doctor changes mid-song does not restart the song.
+ */
+interface PlaySetup {
+  mode: 'free' | 'program';
+  plan: PlayPlan;
+  /** The program a program session is played under. */
+  program: MyProgram | null;
+}
+
+/** Free play with no program: every move, until the player finishes. */
+const FREE_PLAY: PlaySetup = { mode: 'free', plan: freePlan(null, MOVES), program: null };
 
 /** The picked song, loaded into its own beat engine. */
 interface LoadedSong {
@@ -78,6 +91,17 @@ export function App() {
   /** Calibrated or skipped during this visit: later picks go straight to Play. */
   const [calibrated, setCalibrated] = useState(false);
   const [debug, setDebug] = useState(false);
+
+  // The doctor loop: the player's program, if they have one, and the session to send after a program run.
+  const care = careStoreFor(auth);
+  const { program, reload: reloadProgram } = useMyProgram(care);
+  const today = dayKey(new Date());
+  const programCard = useMemo(() => (program ? programView(program, MOVES, today) : null), [program, today]);
+  const freePlay = useMemo(() => freePlan(program, MOVES), [program]);
+  const [setup, setSetup] = useState<PlaySetup>(FREE_PLAY);
+  const [sent, setSent] = useState<SentCare | null>(null);
+  /** Set while a run is being finished, so the song ending and a key press cannot both finish it. */
+  const finishing = useRef(false);
 
   /** One AudioContext for previews and play. Browsers keep it silent until the page has had a click or key press. */
   const getAudioContext = useCallback((): AudioContext => {
@@ -121,7 +145,9 @@ export function App() {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key.toLowerCase() === 'd') setDebug((shown) => !shown);
       // The menu handles Esc itself, and an open leaderboard dialog closes on its own.
-      if (event.key === 'Escape' && screen !== 'menu' && screen !== 'title' && !boardRef.current?.open) backToMenu();
+      if (event.key !== 'Escape' || screen === 'menu' || screen === 'title' || boardRef.current?.open) return;
+      if (screen === 'play') leaveRef.current();
+      else backToMenu();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -159,7 +185,24 @@ export function App() {
     }
   };
 
+  const startFree = () => {
+    setSetup({ mode: 'free', plan: freePlay, program: null });
+    setScreen('menu');
+  };
+
+  const programSetup = (): PlaySetup | null =>
+    program && programCard?.playable ? { mode: 'program', plan: programCard.plan, program } : null;
+
+  const startProgram = () => {
+    const next = programSetup();
+    if (!next) return;
+    setSetup(next);
+    setScreen('menu');
+  };
+
   const finish = () => {
+    if (finishing.current) return;
+    finishing.current = true;
     const current = playRunRef.current;
     const stats = current?.stats ?? initialStats();
     const seconds = current ? (performance.now() - current.startedAt) / 1000 : 0;
@@ -171,13 +214,43 @@ export function App() {
     } else if (earned.streakAfter > earned.streakBefore && earned.streakAfter > 1) {
       toast(`${earned.streakAfter} day streak`, { description: 'Come back tomorrow to keep it going.' });
     }
+    // A program session is sent to the doctor from the results screen, even one that ended early.
+    const record =
+      setup.mode === 'program' && setup.program
+        ? buildSession({
+            prescription: setup.program.prescription,
+            moveCount: setup.plan.moves.length,
+            details: current?.details ?? [],
+            summary,
+            songId: song?.id ?? '',
+            startedAt: new Date(Date.now() - seconds * 1000),
+          })
+        : null;
+    setSent(record && care && setup.program ? { store: care, program: setup.program, session: record } : null);
     setGains(earned);
     setRun(summary);
     setScreen('results');
   };
 
+  /** Esc or Songs on the Play screen. A program session with a scored hold is finished and sent, not dropped. */
+  const leavePlay = () => {
+    if (setup.mode === 'program' && (playRunRef.current?.stats.total ?? 0) > 0) finish();
+    else backToMenu();
+  };
+  const leaveRef = useRef(leavePlay);
+  leaveRef.current = leavePlay;
+
+  useEffect(() => {
+    if (screen === 'play') finishing.current = false;
+  }, [screen]);
+
   // The song stays loaded on the results screen, so playing again restarts it.
-  const playAgain = () => (session && song ? setScreen('play') : backToMenu());
+  const playAgain = () => {
+    if (!session || !song) return backToMenu();
+    // A program session picks up the program as it stands now: the doctor may have changed it.
+    if (setup.mode === 'program') setSetup(programSetup() ?? setup);
+    setScreen('play');
+  };
 
   const creditSong = library?.songs[screen === 'menu' ? selectedId : (song?.id ?? selectedId)];
   const showCredit = screen === 'menu' || screen === 'play';
@@ -199,15 +272,22 @@ export function App() {
           {(screen === 'menu' || screen === 'results') && <ProgressMeters />}
           <div className="app__actions">
             {screen !== 'menu' && screen !== 'title' && (
-              <button type="button" className="button button--quiet" onClick={backToMenu}>
+              <button
+                type="button"
+                className="button button--quiet"
+                onClick={screen === 'play' ? leavePlay : backToMenu}
+              >
                 Songs <kbd>Esc</kbd>
               </button>
             )}
             {screen === 'play' && (
               <>
-                <button type="button" className="button button--quiet" onClick={() => setScreen('calibrate')}>
-                  Recalibrate
-                </button>
+                {/* A program session is recorded from its first hold, so it is calibrated before, not during. */}
+                {setup.mode === 'free' && (
+                  <button type="button" className="button button--quiet" onClick={() => setScreen('calibrate')}>
+                    Recalibrate
+                  </button>
+                )}
                 <button
                   type="button"
                   className="button button--quiet button--accent"
@@ -246,7 +326,15 @@ export function App() {
                 animate="on"
                 exit="exit"
               >
-                {screen === 'title' && <TitleScreen onStart={() => setScreen('menu')} auth={auth} />}
+                {screen === 'title' && (
+                  <TitleScreen
+                    onStart={startFree}
+                    auth={auth}
+                    program={programCard}
+                    onStartProgram={startProgram}
+                    freePlay={freePlay.moves.length > 0}
+                  />
+                )}
                 {screen === 'menu' &&
                   (library ? (
                     <SongMenu
@@ -277,11 +365,11 @@ export function App() {
                 )}
                 {screen === 'play' && session && song && (
                   <PlayScreen
-                    key={song.id}
+                    key={`${song.id}:${setup.mode}`}
                     session={session}
                     engine={song.engine}
                     calibration={calibration}
-                    plan={FREE_PLAY}
+                    plan={setup.plan}
                     onComplete={finish}
                     canvasRef={canvasRef}
                     debugRef={playDebugRef}
@@ -293,6 +381,8 @@ export function App() {
                     run={run}
                     gains={gains}
                     auth={auth}
+                    care={sent}
+                    onSessionSaved={reloadProgram}
                     onPlayAgain={playAgain}
                     onChangeSong={backToMenu}
                   />
