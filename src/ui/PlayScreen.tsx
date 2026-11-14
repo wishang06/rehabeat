@@ -7,6 +7,7 @@ import {
   ScoringEngine,
   initialStats,
   melodyShouldPlay,
+  pointsFor,
   type Calibration,
   type Phase,
   type Stats,
@@ -30,6 +31,14 @@ const TICK_GRACE_SEC = 0.3;
 /** Arriving within this of the first hold beat counts as in time. */
 const IN_TIME_MS = 150;
 
+/** The run so far, read by the app when the player finishes. */
+export interface PlayRun {
+  stats: Stats;
+  points: number;
+  /** performance.now() when the Play screen started. */
+  startedAt: number;
+}
+
 /** Live values the debug panel reads while the Play screen is up. */
 export interface PlayDebug {
   move: Move | null;
@@ -43,6 +52,7 @@ interface PlayScreenProps {
   calibration: Calibration;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   debugRef: RefObject<PlayDebug | null>;
+  runRef: RefObject<PlayRun | null>;
 }
 
 interface Hud {
@@ -57,6 +67,7 @@ interface Hud {
   bodyLost: boolean;
   result: BeatResult | null;
   stats: Stats;
+  points: number;
 }
 
 const PHASE_LABEL: Record<Hud['phase'], string> = {
@@ -84,6 +95,7 @@ const INITIAL_HUD: Hud = {
   bodyLost: false,
   result: null,
   stats: initialStats(),
+  points: 0,
 };
 
 function hudKey(hud: Hud): string {
@@ -95,6 +107,7 @@ function hudKey(hud: Hud): string {
     hud.formNote,
     hud.bodyLost,
     hud.stats.total,
+    hud.points,
   ].join('|');
 }
 
@@ -105,7 +118,7 @@ function timingNote(result: BeatResult): string | null {
     : 'In time';
 }
 
-export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlayScreenProps) {
+export function PlayScreen({ session, calibration, canvasRef, debugRef, runRef }: PlayScreenProps) {
   const [hud, setHud] = useState<Hud>(INITIAL_HUD);
   const hudRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +133,9 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
       offsetMs: calibration.offsetMs,
       shoulderEarBaseline: calibration.shoulderEarBaseline,
     });
+
+    const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now() };
+    runRef.current = run;
 
     let lastSampleAt = performance.now();
     const unsubscribe = session.subscribe((sample) => {
@@ -139,6 +155,12 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
       scoring.tick(engine.clock.audibleNow() - TICK_GRACE_SEC);
       // The "music follows you" mechanic: the melody stays in while the hold score is Good or better.
       engine.setMelodyActive(melodyShouldPlay(scoring.live, scoring.lastResult));
+
+      // Award points once per newly scored move.
+      if (scoring.stats.total > run.stats.total && scoring.lastResult) {
+        run.points += pointsFor(scoring.lastResult.label, scoring.stats.combo);
+      }
+      run.stats = scoring.stats;
 
       const live = scoring.live;
       const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
@@ -213,6 +235,7 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
             bodyLost,
             result: scoring.lastResult,
             stats: scoring.stats,
+            points: run.points,
           }
         : {
             ...INITIAL_HUD,
@@ -233,7 +256,7 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
       engine.stop();
       debugRef.current = null;
     };
-  }, [session, calibration, canvasRef, debugRef]);
+  }, [session, calibration, canvasRef, debugRef, runRef]);
 
   const { stats, result } = hud;
   const timing = result && timingNote(result);
@@ -254,6 +277,10 @@ export function PlayScreen({ session, calibration, canvasRef, debugRef }: PlaySc
       </div>
 
       <dl className="hud__stats">
+        <div>
+          <dt>Points</dt>
+          <dd data-testid="points">{hud.points.toLocaleString()}</dd>
+        </div>
         <div>
           <dt>Combo</dt>
           <dd data-testid="combo">{stats.combo}</dd>

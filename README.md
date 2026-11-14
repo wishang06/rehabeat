@@ -103,6 +103,15 @@ A small Vite plugin (in `vite.config.ts`) tells the app which of those optional 
 
 Three screens (Welcome, Calibrate, Play) over one persistent camera view, plus the debug panel. The interface is meant to be read from about two metres away, so the Play screen has one large focal element: the beat dial and the phase word.
 
+## Accounts and leaderboard
+
+Players sign in with Google through Supabase Auth (project `rkxqtgbcendomwvrfxjf`). Signing in is optional: anyone can play, and a finished run goes on the leaderboard only when the player is signed in. A run finished before signing in is kept across the Google redirect and saved on return.
+
+- **Points:** a Perfect is worth 100, a Good 50, a Miss 0. Each move in an unbroken combo adds 10 more, up to +100, so a move is worth at most 200 (`src/scoring/points.ts`).
+- **Finish run** on the Play screen ends the run and shows the results with the top five.
+- **Schema:** `supabase/migrations/`. `profiles` is filled from the Google profile on sign-up, `scores` holds one row per run, and the `leaderboard` view ranks players by their best run. Row Level Security lets anyone read, and lets a signed-in player add only their own scores. Nobody can edit or delete a score from the app.
+- **Config:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). Without them the game runs with accounts switched off.
+
 ## Deployment
 
 Every push to `main` deploys automatically. The workflow in `.github/workflows/deploy.yml` runs `npm ci`, `npm test` and `npm run build`, then rsyncs `dist/` to the EC2 server at `/var/www/rehabeat`, where nginx serves it. A failing test or typecheck stops the deploy, and the site keeps the previous version. To redeploy without a push, run the workflow by hand from the Actions tab.
