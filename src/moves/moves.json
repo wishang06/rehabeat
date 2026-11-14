@@ -35,5 +35,129 @@
     "tolerance": 25,
     "beats": { "reach": 2, "hold": 2, "release": 4 },
     "formRules": ["trunk-lean"]
+  },
+  {
+    "id": "tree-pose",
+    "name": "Tree Pose",
+    "joints": {
+      "leftHip": 124,
+      "rightHip": 177,
+      "leftKnee": 41,
+      "rightKnee": 176
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": ["trunk-lean"]
+  },
+  {
+    "id": "warrior-ii",
+    "name": "Warrior II",
+    "joints": {
+      "leftShoulder": 95,
+      "rightShoulder": 102,
+      "leftElbow": 174,
+      "rightElbow": 176,
+      "leftHip": 139,
+      "rightHip": 105,
+      "leftKnee": 177,
+      "rightKnee": 113
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": ["trunk-lean"]
+  },
+  {
+    "id": "goddess-pose",
+    "name": "Goddess Pose",
+    "joints": {
+      "leftHip": 104,
+      "rightHip": 107,
+      "leftKnee": 109,
+      "rightKnee": 114
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": ["trunk-lean"]
+  },
+  {
+    "id": "triangle-pose",
+    "name": "Triangle Pose",
+    "joints": {
+      "leftShoulder": 87,
+      "rightShoulder": 122,
+      "leftElbow": 174,
+      "rightElbow": 174,
+      "leftHip": 59,
+      "rightHip": 149,
+      "leftKnee": 175,
+      "rightKnee": 176
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": []
+  },
+  {
+    "id": "half-moon",
+    "name": "Half Moon",
+    "joints": {
+      "leftShoulder": 79,
+      "rightShoulder": 121,
+      "leftElbow": 174,
+      "rightElbow": 175,
+      "leftHip": 169,
+      "rightHip": 61,
+      "leftKnee": 177,
+      "rightKnee": 176
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": []
+  },
+  {
+    "id": "dancer-pose",
+    "name": "Dancer Pose",
+    "joints": {
+      "leftShoulder": 149,
+      "rightShoulder": 86,
+      "leftElbow": 166,
+      "rightElbow": 175,
+      "leftHip": 137,
+      "rightHip": 99,
+      "leftKnee": 174,
+      "rightKnee": 97
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": []
+  },
+  {
+    "id": "downward-dog",
+    "name": "Downward Dog",
+    "joints": {
+      "rightShoulder": 171,
+      "rightElbow": 168,
+      "rightHip": 57,
+      "rightKnee": 177
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": []
+  },
+  {
+    "id": "bound-angle",
+    "name": "Bound Angle",
+    "joints": {
+      "leftShoulder": 5,
+      "rightShoulder": 5,
+      "leftElbow": 168,
+      "rightElbow": 172,
+      "leftHip": 80,
+      "rightHip": 76,
+      "leftKnee": 21,
+      "rightKnee": 20
+    },
+    "tolerance": 20,
+    "beats": { "reach": 2, "hold": 4, "release": 2 },
+    "formRules": ["trunk-lean"]
   }
 ]
