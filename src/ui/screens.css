@@ -426,6 +426,26 @@
   font-size: clamp(2.75rem, 4.6vw, 4.25rem);
 }
 
+/* Best combo and the calorie estimate share the first column: two short tiles, label left, number right. */
+.res__pair {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.res__pair .res__stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.625rem;
+}
+
+.res__pair .res__num {
+  margin-top: 0;
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+}
+
 .res__xp .res__num {
   color: var(--color-gold);
   text-shadow: 0 0 24px rgb(255 210 63 / 0.6);

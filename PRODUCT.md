@@ -33,8 +33,8 @@ The full token set, type scale and component rules are in [`.interface-design/sy
 
 ## What it does not say
 
-No testimonials, user counts or outcome numbers. No claims such as "clinically proven" or "physio-approved". The one statistic on the landing page ("Up to 70% of patients don't stick with their home exercises") links to its source.
+No testimonials, user counts or outcome numbers. No claims such as "clinically proven" or "physio-approved". The calorie figure is always labelled an estimate ("Est. kcal"), is shown like a score, and comes with no targets and no talk of losing weight. The one statistic on the landing page ("Up to 70% of patients don't stick with their home exercises") links to its source.
 
 ## Privacy
 
-Rehabeat runs in the browser. The camera video never leaves the laptop. Progress (XP, level, daily streak) is kept in `localStorage`. Signing in is optional and only saves scores to the leaderboard.
+Rehabeat runs in the browser. The camera video never leaves the laptop. Progress (XP, level, daily streak), the run log behind Stats and the optional body weight are kept in `localStorage`. Signing in is optional and only saves scores to the leaderboard; the run log and the weight are never sent anywhere.

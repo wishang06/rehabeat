@@ -700,6 +700,8 @@
 }
 
 .board-dialog {
+  /* The reset takes a dialog's own centring margin away. */
+  margin: auto;
   width: min(34rem, calc(100vw - 2 * var(--gutter)));
   max-height: calc(100dvh - 4rem);
   padding: 0;

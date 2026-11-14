@@ -369,6 +369,71 @@ async function happyPath(url) {
       check('results screen is reached and progress is kept in localStorage or the run scored nothing', stored !== null || (await page.getByTestId('run-points').textContent())?.trim() === '0', stored ?? 'nothing stored');
       await page.waitForTimeout(1800);
       await page.screenshot({ path: path.join(outDir, '7-results.png') });
+
+      // The run is logged with its estimated calories, and Stats shows it.
+      const kcal = (await page.getByTestId('run-kcal').textContent())?.trim();
+      check('results screen shows the estimated calories as a whole number', /^\d+$/.test(kcal ?? ''), kcal);
+      const logged = await page.evaluate(() => ({
+        history: JSON.parse(localStorage.getItem('rehabeat.history.v1') ?? 'null'),
+        progress: JSON.parse(localStorage.getItem('rehabeat.progress.v1') ?? 'null'),
+      }));
+      const loggedRuns = logged.history?.totals.runs ?? 0;
+      check('the run log counts the same scored runs as the progress', loggedRuns === (logged.progress?.runs ?? 0), `${loggedRuns} logged`);
+
+      await page.getByTestId('stats-button').click();
+      await page.getByTestId('stats-panel').waitFor({ timeout: 5_000 });
+      const statsRuns = (await page.getByTestId('stats-runs').textContent())?.trim();
+      check('Stats shows the logged runs', statsRuns === String(loggedRuns), statsRuns);
+      check(
+        'Stats shows a bar chart once a run is logged, and says so when there is none',
+        await page.getByTestId(loggedRuns > 0 ? 'stats-chart' : 'stats-empty').isVisible(),
+      );
+      // The fake camera rarely scores a move, so one run is logged through the store itself:
+      // 180 s at the default 70 kg is 8.05 kcal, and the open panel has to pick it up.
+      const earned = await page.evaluate(async () => {
+        const { recordRunStats } = await import('/src/progress/index.ts');
+        return recordRunStats({ moves: 4, durationSec: 180 });
+      });
+      const afterRuns = (await page.getByTestId('stats-runs').textContent())?.trim();
+      check(
+        'a logged run shows up in the open Stats panel with its calories',
+        Math.abs(earned - 8.05) < 0.01 && afterRuns === String(loggedRuns + 1) && (await page.getByTestId('stats-chart').isVisible()),
+        `${earned} kcal, ${afterRuns} runs`,
+      );
+      const debugBefore = await page.getByTestId('debug-panel').isVisible();
+      const closeButton = page.getByTestId('stats-dialog').getByRole('button', { name: 'Close' });
+      const closeBefore = await closeButton.boundingBox();
+      await page.getByTestId('stats-weight').click();
+      await page.keyboard.type('abd');
+      await page.keyboard.press('Enter');
+      check('a weight that is not a number is refused', await page.getByTestId('stats-weight-error').isVisible());
+      const closeAfter = await closeButton.boundingBox();
+      check(
+        'the refusal does not move the dialog under the pointer',
+        closeBefore !== null && closeAfter !== null && Math.abs(closeAfter.y - closeBefore.y) < 1,
+        `Close moved ${closeBefore && closeAfter ? Math.abs(closeAfter.y - closeBefore.y) : '?'} px`,
+      );
+      check(
+        'typing in the weight field is not taken as a shortcut',
+        (await page.getByTestId('debug-panel').isVisible()) === debugBefore && (await page.getByTestId('results-screen').isVisible()),
+      );
+      await page.getByTestId('stats-weight').fill('80');
+      await page.keyboard.press('Enter');
+      const weight = await page.evaluate(() => JSON.parse(localStorage.getItem('rehabeat.history.v1') ?? '{}').weightKg);
+      check('a valid weight is saved in this browser', weight === 80 && (await page.getByTestId('stats-weight-error').count()) === 0, String(weight));
+      await page.screenshot({ path: path.join(outDir, '8-stats.png') });
+      // A number typed before the unit is chosen is read in the unit chosen: 154 then lb is 154 lb, not 154 kg.
+      await page.getByTestId('stats-weight').fill('154');
+      await page.getByTestId('stats-unit-lb').click();
+      const pounds = await page.evaluate(() => JSON.parse(localStorage.getItem('rehabeat.history.v1') ?? '{}'));
+      check(
+        'a weight typed before choosing lb is read as pounds',
+        (await page.getByTestId('stats-weight').inputValue()) === '154' && pounds.unit === 'lb' && Math.abs(pounds.weightKg - 69.85) < 0.01,
+        `${pounds.weightKg} kg, ${pounds.unit}`,
+      );
+      await page.keyboard.press('Escape');
+      await page.getByTestId('stats-panel').waitFor({ state: 'detached', timeout: 5_000 });
+      check('Esc closes Stats and stays on the results', await page.getByTestId('results-screen').isVisible());
       await page.getByTestId('change-song').click();
       await page.getByTestId('song-menu').waitFor({ timeout: 10_000 });
       check('Change song goes back to the song menu', true);
