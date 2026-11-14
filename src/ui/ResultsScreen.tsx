@@ -147,17 +147,19 @@ export function ResultsScreen({ run, gains, kcal, auth, onPlayAgain, onChangeSon
         </dl>
 
         <div className="res__meta">
-          <div className="res__stat slab">
-            <span className="res__label label">Best combo</span>
-            <span className="res__num led" data-count={run.bestCombo}>
-              {run.bestCombo}
-            </span>
-          </div>
-          <div className="res__stat slab">
-            <span className="res__label label">Est. kcal</span>
-            <span className="res__num led" data-testid="run-kcal" data-count={Math.round(kcal)}>
-              {Math.round(kcal)}
-            </span>
+          <div className="res__pair">
+            <div className="res__stat slab">
+              <span className="res__label label">Best combo</span>
+              <span className="res__num led" data-count={run.bestCombo}>
+                {run.bestCombo}
+              </span>
+            </div>
+            <div className="res__stat slab">
+              <span className="res__label label">Est. kcal</span>
+              <span className="res__num led" data-testid="run-kcal" data-count={Math.round(kcal)}>
+                {Math.round(kcal)}
+              </span>
+            </div>
           </div>
           <div className="res__stat res__xp slab">
             <span className="res__label label">{gains ? 'XP gained' : 'Your level'}</span>

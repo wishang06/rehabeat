@@ -30,7 +30,7 @@ The first start downloads the pose model (about 6 MB) from Google's model storag
 
 ### Smoke check
 
-`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It opens every catalogue in the song menu and the Credits view, picks Past Sadness, walks Calibrate and Play, opens the debug panel and runs a calibration pass. It then goes back to the menu with Esc and picks a song from another catalogue with the keyboard alone, and checks that a refused camera shows a recoverable message. Along the way it checks each song's credit on the start and Play screens, that no song's stems clip at the engine's gain, and that the loop seam is exactly one beat. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Options go after `--`:
+`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It opens every catalogue in the song menu and the Credits view, picks Past Sadness, walks Calibrate and Play, opens the debug panel and runs a calibration pass. On the results it checks the calorie tile, opens Stats, logs a run and checks the chart and the weight field. It then goes back to the menu with Esc and picks a song from another catalogue with the keyboard alone, and checks that a refused camera shows a recoverable message. Along the way it checks each song's credit on the start and Play screens, that no song's stems clip at the engine's gain, and that the loop seam is exactly one beat. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Options go after `--`:
 
 | Option | Effect |
 | --- | --- |
@@ -44,13 +44,15 @@ Chrome's synthetic camera sometimes opens and then delivers no frames. The check
 
 ## Playing
 
-The landing page (`/`) explains the game; **Play now** goes to `/play`, which opens on the title screen with your level, XP and daily streak. **Start** (or Enter) opens the song menu.
+The landing page (`/`) explains the game; **Play now** goes to `/play`, which opens on the title screen with your level, XP and daily streak. **Start** (or Enter) opens the song menu, and **Stats** opens your history.
 
 1. **Pick a song.** The song menu lists the songs by catalogue. Hovering or focusing a song plays 10 s of its melody once you've clicked or pressed a key on the page. Arrows move, Enter picks, Esc goes back. Picking a song the first time starts the camera and sound; stand back until your head and knees are in the picture.
 2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
 3. **Play.** The routine loops through the three moves. A gold figure shows the pose to hit, on your own body or, when its arms rest at its sides, beside you. It turns green when you are on it. Your own limbs are coloured green, amber or red by how far each is from its target, and a short hint ("left arm higher") points at the one to fix. If part of you is out of view, those limbs go grey and the screen tells you to step back. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
-Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
+Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo, the estimated calories and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
+
+**Stats** (on the title screen, and in the top bar everywhere except Play) shows your runs, minutes and estimated calories over all time, and a bar for each of the last 14 days that switches between runs and calories. The calories are an estimate from time played: 2.3 MET (the [2024 Adult Compendium of Physical Activities](https://pacompendium.com/conditioning-exercise) value for Hatha yoga and mild stretching) × body weight × hours, so a three-minute song is about 8 kcal at 70 kg. You can enter your weight in kg or lb to fit the estimate to you; until you do it uses 70 kg. A run with no scored moves is not logged.
 
 ## Architecture
 
@@ -124,7 +126,7 @@ Two routes (`react-router`): the landing page at `/` (`src/landing/`) and the ga
 
 - **Landing page.** A hero with the gold figure looping an overhead raise on a silent beat, "How it works" in three animated steps, the adherence statistic with its source, the privacy note, the song catalogues (read from the song library) and the credits. Motion is GSAP with ScrollTrigger; with reduced motion the page rests in place.
 - **Play HUD (`src/ui/hud/`).** DOM laid over the camera and its canvas, never drawn on them: the phase word and beat pips, a 3-2-1 count-in, the current and next move, a match ring with marks at 60 and 85, PERFECT / GOOD / MISS pops, the combo, the beat pulse and a "step back" banner. Per-frame values come from the engine's `FeedbackFrame` through `feedbackStore`; the beat pulse is a custom property the Play screen writes from the audio clock. Every prop type is in `src/ui/hud/types.ts`, and `src/ui/mockFeedback.ts` is a typed mock frame that drives the same HUD without a camera.
-- **Progress (`src/progress/`).** The grade, stars, XP, levels and the daily streak: pure functions with tests, and a small store in `localStorage`. None of it feeds back into scoring.
+- **Progress (`src/progress/`).** The grade, stars, XP, levels and the daily streak: pure functions with tests, and a small store in `localStorage`. The run log (`history.ts`) and the calorie estimate (`calories.ts`) sit beside them under their own `localStorage` key: one entry per scored run with its day, length and calories, capped at the newest 1,000, with all-time totals kept separately. None of it feeds back into scoring.
 
 Five game screens (title, the song menu, Calibrate, Play, results) over one persistent camera view, plus the debug panel. The menu (`src/ui/menu/`) is used up close with a mouse or keyboard: a rail of catalogues drawn as a metronome rod with a notch per song at its tempo, and song cards with a lamp blinking at the song's BPM. The Play screen is read from about two metres away, so it has one large focal element: the beat dial and the phase word.
 
@@ -246,12 +248,12 @@ src/
   moves/          moves.json, validation, ghost limbs for the pose glyphs
   scoring/        Frame score, routine, scoring engine, form rules, stats
   audio/          Master clock, beatmap, beat grid, click track, stems, calibration
-  ui/             Title, Calibrate, Play and Results screens, canvas overlay, beat dial, debug panel, credit strip
+  ui/             Title, Calibrate, Play and Results screens, the Stats panel, canvas overlay, beat dial, debug panel, credit strip
   ui/menu/        Song menu: catalogue rail, song cards, previews, credits view
   ui/hud/         The play HUD as DOM, its prop types, and the /hud preview
   ui/mockFeedback.ts  A typed mock FeedbackFrame for the HUD
   landing/        The landing page at / and its GSAP motion
-  progress/       Grade, stars, XP, levels and the daily streak
+  progress/       Grade, stars, XP, levels, the daily streak, the run log and the calorie estimate
   components/     The DOM gold figure and the shadcn/ui button
   styles/theme.css  Tailwind and the design tokens
 public/songs/     The song library (index.json and one folder per song)
@@ -295,7 +297,8 @@ Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) a
 ## Current limits
 
 - The landing page and the game screens were checked in Chromium at 1440 x 900 and at 390 px wide, with a synthetic camera. The play HUD has not yet been read from two metres by a real player on a real laptop.
-- XP, levels and the daily streak live in `localStorage`: they do not follow a player to another browser, and clearing site data resets them.
+- XP, levels, the daily streak, the run log and the body weight live in `localStorage`: they do not follow a player to another browser, and clearing site data resets them. The run log starts from the first run after Stats shipped; earlier runs have no dates to chart.
+- The calorie figure is a rough estimate by time, not a measurement. It uses one rate for every move and counts the whole run, including time spent standing still.
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.
