@@ -94,7 +94,7 @@ export function App() {
 
   // The doctor loop: the player's program, if they have one, and the session to send after a program run.
   const care = careStoreFor(auth);
-  const { program, reload: reloadProgram } = useMyProgram(care);
+  const { program, loading: programLoading, reload: reloadProgram } = useMyProgram(care);
   const today = dayKey(new Date());
   const programCard = useMemo(() => (program ? programView(program, MOVES, today) : null), [program, today]);
   const freePlay = useMemo(() => freePlan(program, MOVES), [program]);
@@ -333,6 +333,11 @@ export function App() {
                     program={programCard}
                     onStartProgram={startProgram}
                     freePlay={freePlay.moves.length > 0}
+                    onJoin={
+                      care?.kind === 'clinic' && !program && !programLoading
+                        ? (code) => care.joinWithCode(code).then(reloadProgram)
+                        : null
+                    }
                   />
                 )}
                 {screen === 'menu' &&

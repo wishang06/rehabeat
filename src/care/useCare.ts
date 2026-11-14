@@ -1,7 +1,9 @@
 /** React's way into the doctor loop's data: which store to use, and the patient's program. */
 import { useCallback, useEffect, useState } from 'react';
 import type { AuthState } from '../lib/auth';
+import { supabase } from '../lib/supabase';
 import { createDemoClinic } from './demoClinic';
+import { createSupabaseClinic } from './supabaseClinic';
 import { CareSetupError, type CareStore, type MyProgram, type PatientFile } from './types';
 
 function browserStorage(): Storage | undefined {
@@ -14,13 +16,22 @@ function browserStorage(): Storage | undefined {
 }
 
 let demo: CareStore | null = null;
+let clinic: { userId: string; store: CareStore } | null = null;
 
 /**
  * Where programs and sessions live for this visitor, or null until the
- * sign-in state is known. Signed out, it is the demo clinic kept in this browser.
+ * sign-in state is known. Signed out (or with accounts switched off) it is
+ * the demo clinic kept in this browser; signed in, the real clinic. There
+ * is no switch between the two: it follows sign-in.
  */
 export function careStoreFor(auth: AuthState): CareStore | null {
   if (!auth.ready) return null;
+  if (supabase && auth.user) {
+    if (clinic?.userId !== auth.user.id) {
+      clinic = { userId: auth.user.id, store: createSupabaseClinic(supabase, auth.user.id) };
+    }
+    return clinic.store;
+  }
   demo ??= createDemoClinic(browserStorage());
   return demo;
 }

@@ -6,6 +6,7 @@ import type { ProgramView } from '../care';
 import type { AuthState } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { AccountButton } from './AccountButton';
+import { JoinCode } from './JoinCode';
 import { Leaderboard } from './Leaderboard';
 import { ProgramCard } from './ProgramCard';
 import { ProgressMeters } from './ProgressMeters';
@@ -20,6 +21,8 @@ interface TitleScreenProps {
   onStartProgram: () => void;
   /** False when the player's limits leave free play nothing to play. */
   freePlay: boolean;
+  /** Joins a doctor with their code. Null unless the player is signed in to the real clinic and has no program. */
+  onJoin: ((code: string) => Promise<void>) | null;
   /** The player's account. With accounts on, the leaderboard and sign-in sit beside the start button. */
   auth: AuthState;
 }
@@ -36,7 +39,7 @@ const BOARD_ROWS_UNDER_CARD = 3;
  * player with a program gets its card there too, and the card's button
  * becomes the screen's one primary action.
  */
-export function TitleScreen({ onStart, auth, program, onStartProgram, freePlay }: TitleScreenProps) {
+export function TitleScreen({ onStart, auth, program, onStartProgram, freePlay, onJoin }: TitleScreenProps) {
   const session = program?.playable ?? false;
   const begin = session ? onStartProgram : freePlay ? onStart : null;
 
@@ -45,7 +48,7 @@ export function TitleScreen({ onStart, auth, program, onStartProgram, freePlay }
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key !== 'Enter' && event.key !== ' ') return;
       // A focused button or link handles its own key press.
-      if (event.target instanceof Element && event.target.closest('button, a')) return;
+      if (event.target instanceof Element && event.target.closest('button, a, input')) return;
       if (!begin) return;
       event.preventDefault();
       playSfx('confirm');
@@ -112,6 +115,7 @@ export function TitleScreen({ onStart, auth, program, onStartProgram, freePlay }
                   <p className="title__board-text">Sign in to save your points and get on the board.</p>
                 )}
                 <AccountButton auth={auth} />
+                {onJoin && <JoinCode onJoin={onJoin} />}
               </div>
             </section>
           )}
