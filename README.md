@@ -2,7 +2,7 @@
 
 Rehabeat turns rehab moves into a rhythm game. The player stands in front of a webcam and matches a target pose on the beat: reach for it, hold it, release it. Hold it well and the melody comes in.
 
-This repo currently holds **Part 1: the pose scoring and beat engine**. It runs entirely in the browser; there is no backend.
+It runs entirely in the browser: the camera video never leaves the laptop. The landing page is at `/` and the game is at `/play`. The design direction is written up in [`PRODUCT.md`](PRODUCT.md) and [`.interface-design/system.md`](.interface-design/system.md).
 
 ## Setup
 
@@ -24,6 +24,8 @@ The first start downloads the pose model (about 6 MB) from Google's model storag
 | `npm run build` | Typecheck and production build |
 | `npm run songs` | Add, list, preview, move or remove songs (see [Song library](#song-library)) |
 | `npm run test:songs` | Adds a generated click track end to end with Demucs (needs the Python setup) |
+| `node scripts/fps.mjs --headed` | Frame rate of the Play screen, for before and after a UI change |
+| `node scripts/screens.mjs` | Screenshots of every page into `docs/screenshots/` |
 
 ### Smoke check
 
@@ -41,11 +43,13 @@ Chrome's synthetic camera sometimes opens and then delivers no frames. The check
 
 ## Playing
 
-1. **Pick a song.** The start screen lists the songs by catalogue. Hovering or focusing a song plays 10 s of its melody once you've clicked or pressed a key on the page. Arrows move, Enter picks, Esc goes back. Picking a song the first time starts the camera and sound; stand back until your head and knees are in the picture.
+The landing page (`/`) explains the game; **Play now** goes to `/play`, which opens on the title screen with your level, XP and daily streak. **Start** (or Enter) opens the song menu.
+
+1. **Pick a song.** The song menu lists the songs by catalogue. Hovering or focusing a song plays 10 s of its melody once you've clicked or pressed a key on the page. Arrows move, Enter picks, Esc goes back. Picking a song the first time starts the camera and sound; stand back until your head and knees are in the picture.
 2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
 3. **Play.** The routine loops through the three moves. A gold figure shows the pose to hit, on your own body or, when its arms rest at its sides, beside you. It turns green when you are on it. Your own limbs are coloured green, amber or red by how far each is from its target, and a short hint ("left arm higher") points at the one to fix. If part of you is out of view, those limbs go grey and the screen tells you to step back. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
-Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
+Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
 
 ## Architecture
 
@@ -112,9 +116,15 @@ UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws
 - **Click mode** (when a song has no stems): a synthesized click on every beat, accented every fourth.
 - **Calibration**: four clicks; for each, the time the raised arm arrives is compared with the click time. The median difference is stored as `offsetMs` (in `localStorage`) and applied in scoring. It needs only the clock, so it runs before a song is loaded.
 
-### UI (`src/ui/`)
+### UI (`src/ui/`, `src/landing/`)
 
-Three screens (the song menu, Calibrate, Play) over one persistent camera view, plus the debug panel. The menu (`src/ui/menu/`) is used up close with a mouse or keyboard: a rail of catalogues drawn as a metronome rod with a notch per song at its tempo, and song cards with a lamp blinking at the song's BPM. The Play screen is read from about two metres away, so it has one large focal element: the beat dial and the phase word.
+Two routes (`react-router`): the landing page at `/` (`src/landing/`) and the game at `/play` (`src/App.tsx`). The game is loaded on demand, so the landing page does not download the pose model. `/hud` shows the play HUD on a blank stage for design work.
+
+- **Landing page.** A hero with the gold figure looping an overhead raise on a silent beat, "How it works" in three animated steps, the adherence statistic with its source, the privacy note, the song catalogues (read from the song library) and the credits. Motion is GSAP with ScrollTrigger; with reduced motion the page rests in place.
+- **Play HUD (`src/ui/hud/`).** DOM laid over the camera and its canvas, never drawn on them: the phase word and beat pips, a 3-2-1 count-in, the current and next move, a match ring with marks at 60 and 85, PERFECT / GOOD / MISS pops, the combo, the beat pulse and a "step back" banner. Per-frame values come from the engine's `FeedbackFrame` through `feedbackStore`; the beat pulse is a custom property the Play screen writes from the audio clock. Every prop type is in `src/ui/hud/types.ts`, and `src/ui/mockFeedback.ts` is a typed mock frame that drives the same HUD without a camera.
+- **Progress (`src/progress/`).** The grade, stars, XP, levels and the daily streak: pure functions with tests, and a small store in `localStorage`. None of it feeds back into scoring.
+
+Five game screens (title, the song menu, Calibrate, Play, results) over one persistent camera view, plus the debug panel. The menu (`src/ui/menu/`) is used up close with a mouse or keyboard: a rail of catalogues drawn as a metronome rod with a notch per song at its tempo, and song cards with a lamp blinking at the song's BPM. The Play screen is read from about two metres away, so it has one large focal element: the beat dial and the phase word.
 
 ## Accounts and leaderboard
 
@@ -128,6 +138,8 @@ Players sign in with Google through Supabase Auth (project `rkxqtgbcendomwvrfxjf
 ## Deployment
 
 Every push to `main` deploys automatically. The workflow in `.github/workflows/deploy.yml` runs `npm ci`, `npm test` and `npm run build`, then rsyncs `dist/` to the EC2 server at `/var/www/rehabeat`, where nginx serves it. A failing test or typecheck stops the deploy, and the site keeps the previous version. To redeploy without a push, run the workflow by hand from the Actions tab.
+
+The site has no rewrite rule, so the build writes a copy of `index.html` at `dist/play/` and `dist/hud/` (the `rehabeat-route-files` plugin in `vite.config.ts`): a reload of `/play` then finds a real file. On Vercel, `vercel.json` rewrites every route to `/index.html` instead.
 
 The workflow reads three repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`. On the server that key is limited to rsync into the web root (`rrsync`), so it can't open a shell. If the server's address changes, update `DEPLOY_HOST` and `DEPLOY_KNOWN_HOSTS`.
 
@@ -218,15 +230,56 @@ src/
   moves/          moves.json, validation, ghost limbs for the pose glyphs
   scoring/        Frame score, routine, scoring engine, form rules, stats
   audio/          Master clock, beatmap, beat grid, click track, stems, calibration
-  ui/             Calibrate, Play and Results screens, canvas overlay, beat dial, debug panel, credit strip
+  ui/             Title, Calibrate, Play and Results screens, canvas overlay, beat dial, debug panel, credit strip
   ui/menu/        Song menu: catalogue rail, song cards, previews, credits view
+  ui/hud/         The play HUD as DOM, its prop types, and the /hud preview
+  ui/mockFeedback.ts  A typed mock FeedbackFrame for the HUD
+  landing/        The landing page at / and its GSAP motion
+  progress/       Grade, stars, XP, levels and the daily streak
+  components/     The DOM gold figure and the shadcn/ui button
+  styles/theme.css  Tailwind and the design tokens
 public/songs/     The song library (index.json and one folder per song)
 scripts/smoke.mjs Playwright smoke check
+scripts/fps.mjs   Play screen frame rate
+scripts/screens.mjs  Screenshots of every page
 tools/songs/      npm run songs (TypeScript)
 tools/            Beat tracking and stems (Python)
 ```
 
+## Credits
+
+### Libraries
+
+Every component in this repo was written for it. These libraries are used as dependencies:
+
+| Library | Used for | Licence |
+| --- | --- | --- |
+| [React](https://react.dev) and React DOM | The UI | MIT |
+| [React Router](https://reactrouter.com) (`react-router`) | The `/` and `/play` routes | MIT |
+| [Tailwind CSS](https://tailwindcss.com) v4 (`tailwindcss`, `@tailwindcss/vite`) | Design tokens and utilities | MIT |
+| [shadcn/ui](https://ui.shadcn.com) | The button was scaffolded with its CLI (`src/components/ui/button.tsx`), then restyled | MIT |
+| [cn](https://github.com/shadcn-ui/cn) | Class-name merging, installed by the shadcn/ui CLI | MIT |
+| [Radix UI](https://www.radix-ui.com) (`radix-ui`) | `Slot`, used by the button | MIT |
+| [class-variance-authority](https://cva.style) | Button variants | Apache-2.0 |
+| [Motion](https://motion.dev) (`motion`) | Screen transitions and HUD pops | MIT |
+| [GSAP](https://gsap.com) and `@gsap/react` | Landing page loop and scroll reveals, results count-ups | GSAP Standard "no charge" licence |
+| [Lucide](https://lucide.dev) (`lucide-react`) | Icons | ISC |
+| [Sonner](https://sonner.emilkowal.ski) (`sonner`) | Toasts for level-ups and streaks | MIT |
+| [MediaPipe Tasks Vision](https://ai.google.dev/edge/mediapipe) | Pose tracking | Apache-2.0 |
+| [Supabase JS](https://supabase.com) | Sign-in and the leaderboard | MIT |
+
+### Fonts
+
+Served locally through [Fontsource](https://fontsource.org), all under the SIL Open Font License 1.1: Barlow Condensed and Barlow (Jeremy Tribby), Doto (Óliver Lalan), and Archivo (Omnibus-Type), which the canvas overlay uses for its hint labels.
+
+### Music
+
+Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) and in the game's Credits view. The default song is "Past Sadness" by Kevin MacLeod (incompetech.com), CC BY 4.0, separated into drum and melody stems by the Rehabeat team.
+
 ## Current limits
+
+- The landing page and the game screens were checked in Chromium at 1440 x 900 and at 390 px wide, with a synthetic camera. The play HUD has not yet been read from two metres by a real player on a real laptop.
+- XP, levels and the daily streak live in `localStorage`: they do not follow a player to another browser, and clearing site data resets them.
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.
