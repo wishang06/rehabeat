@@ -14,6 +14,7 @@ import {
   buildSilhouette,
   capsuleOutline,
   figureOffset,
+  inflateSilhouette,
   hintAnchor,
   layoutBanner,
   layoutHint,
@@ -31,7 +32,7 @@ import {
   type SilhouettePose,
 } from '../engine';
 import type { JointName, Landmark } from '../types';
-import type { FeedbackFrame } from '../types/ui';
+import type { FeedbackFrame, LimbStatus } from '../types/ui';
 import { CANVAS_COLORS, drawText, type CanvasSurface } from './canvas';
 
 export const LOW_VISIBILITY_MESSAGE = 'Step back so your whole body is in frame';
@@ -54,12 +55,12 @@ function figureAlpha(feedback: FeedbackFrame): number {
 const SAFE_TOP = 0.2;
 const SAFE_BOTTOM = 0.27;
 
-/** Glow passes around the figure, as [width in body scales, opacity]: wide and faint, then tighter. */
+/** Glow bands round the figure, as [reach in body scales, opacity]: wide and faint, then tighter. */
 const GLOW: readonly (readonly [number, number])[] = [
-  [0.3, 0.1],
-  [0.16, 0.16],
+  [0.15, 0.1],
+  [0.08, 0.16],
 ];
-/** The figure's edge, in CSS pixels; half of the stroke is cut away by the fill. */
+/** The figure's brighter edge, in CSS pixels. */
 const EDGE_PX = 3;
 /** When a shoulder or hip is too unsure to anchor the figure, try again down to this. */
 const FALLBACK_ANCHOR_VISIBILITY = 0.1;
@@ -107,7 +108,6 @@ function poseKey(pose: SilhouettePose): string {
 export class PlayOverlay {
   private readonly easer = new FigureEaser();
   private side: Side | null = null;
-  private scratch: HTMLCanvasElement | null = null;
   private offsetCache = { key: '', value: false };
   private lowVisibilitySince: number | null = null;
   /** Where the figure was drawn this frame, so the hint label can keep off it. */
@@ -201,10 +201,14 @@ export class PlayOverlay {
   }
 
   /**
-   * Draws the figure as one solid shape: glow and edge are stroked on a
-   * scratch canvas, the inside is cut out so no seam between overlapping
-   * parts shows, the translucent fill goes in, and the result is composited
-   * at the phase's opacity. Only the figure's bounding box is touched.
+   * Draws the figure as one solid shape: the glow and edge are stroked, the
+   * inside is cut out so no seam between overlapping parts shows, and the
+   * translucent fill goes in. The cut-out erases whatever is under the
+   * figure, so it must be the first thing drawn on a freshly cleared canvas.
+   *
+   * Building the figure on a scratch canvas and compositing it in would look
+   * the same, but copying that canvas every frame measured ~15 ms of GPU time
+   * on an integrated GPU, which the pose model shares.
    */
   private drawSilhouette(
     surface: CanvasSurface,
@@ -214,47 +218,27 @@ export class PlayOverlay {
     scale: number,
   ): void {
     if (alpha <= 0) return;
-    const { ctx, width, height, ratio } = surface;
-    const scratch = (this.scratch ??= document.createElement('canvas'));
-    if (scratch.width !== width || scratch.height !== height) {
-      scratch.width = width;
-      scratch.height = height;
-    }
-    const sctx = scratch.getContext('2d');
-    if (!sctx) return;
-
-    const pad = GLOW[0][0] * scale + EDGE_PX * ratio + 2;
-    const bounds = silhouetteBounds(s);
-    const x = Math.max(0, Math.floor(bounds.left - pad));
-    const y = Math.max(0, Math.floor(bounds.top - pad));
-    const w = Math.min(width, Math.ceil(bounds.right + pad)) - x;
-    const h = Math.min(height, Math.ceil(bounds.bottom + pad)) - y;
-    if (w <= 0 || h <= 0) return;
-
+    const { ctx, ratio } = surface;
     const path = silhouettePath(s);
-    sctx.clearRect(x, y, w, h);
-    sctx.save();
-    sctx.lineJoin = 'round';
-    sctx.strokeStyle = colors.glow;
-    for (const [glowWidth, opacity] of GLOW) {
-      sctx.globalAlpha = opacity;
-      sctx.lineWidth = glowWidth * scale;
-      sctx.stroke(path);
-    }
-    sctx.globalAlpha = 1;
-    sctx.strokeStyle = colors.edge;
-    sctx.lineWidth = 2 * EDGE_PX * ratio;
-    sctx.stroke(path);
-    sctx.globalCompositeOperation = 'destination-out';
-    sctx.fill(path);
-    sctx.globalCompositeOperation = 'source-over';
-    sctx.fillStyle = colors.fill;
-    sctx.fill(path);
-    sctx.restore();
-
     ctx.save();
+    // Glow and edge are fills of grown copies of the figure; the cut-out below
+    // leaves only the bands outside it. Wide strokes of this many arcs cost
+    // several times more to raster.
+    ctx.fillStyle = colors.glow;
+    for (const [reach, opacity] of GLOW) {
+      ctx.globalAlpha = opacity * alpha;
+      ctx.fill(silhouettePath(inflateSilhouette(s, reach * scale)));
+    }
     ctx.globalAlpha = alpha;
-    ctx.drawImage(scratch, x, y, w, h, x, y, w, h);
+    ctx.fillStyle = colors.edge;
+    ctx.fill(silhouettePath(inflateSilhouette(s, EDGE_PX * ratio)));
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fill(path);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = colors.fill;
+    ctx.fill(path);
     ctx.restore();
   }
 }
@@ -276,32 +260,41 @@ function drawPlayer(surface: CanvasSurface, layout: PlayerBodyLayout, feedback: 
     ctx.stroke();
   }
 
+  // One path per colour keeps this to a few draw calls; the pose model shares the GPU.
+  const groups = new Map<LimbStatus, { path: Path2D; glow: Path2D }>();
   for (const c of layout.capsules) {
     const status = feedback.limbs[c.part].status;
-    const color = CANVAS_COLORS.limb[status];
-    const path = new Path2D();
-    traceCapsule(path, c);
+    let group = groups.get(status);
+    if (!group) groups.set(status, (group = { path: new Path2D(), glow: new Path2D() }));
+    traceCapsule(group.path, c);
+    const reach = 0.06 * layout.scale;
+    traceCapsule(group.glow, { ...c, ra: c.ra + reach, rb: c.rb + reach });
+  }
 
+  for (const status of STATUS_ORDER) {
+    const group = groups.get(status);
+    if (!group) continue;
+    const color = CANVAS_COLORS.limb[status];
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
     // Soft glow on limbs that need attention.
     if (status === 'amber' || status === 'red') {
       ctx.globalAlpha = 0.22;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 0.12 * layout.scale;
-      ctx.stroke(path);
+      ctx.fill(group.glow);
     }
     ctx.globalAlpha = status === 'idle' ? 0.35 : status === 'grey' ? 0.45 : 0.6;
-    ctx.fillStyle = color;
-    ctx.fill(path);
+    ctx.fill(group.path);
     ctx.globalAlpha = status === 'idle' ? 0.7 : 0.95;
-    ctx.strokeStyle = color;
     ctx.lineWidth = 2.5 * ratio;
     // A dashed edge marks a limb the camera can't see well enough to score.
     ctx.setLineDash(status === 'grey' ? [6 * ratio, 5 * ratio] : []);
-    ctx.stroke(path);
-    ctx.setLineDash([]);
+    ctx.stroke(group.path);
   }
   ctx.restore();
 }
+
+/** Calmest first, so the limbs that need fixing are drawn on top. */
+const STATUS_ORDER: readonly LimbStatus[] = ['idle', 'grey', 'green', 'amber', 'red'];
 
 const fontSize = (surface: CanvasSurface, fraction: number, minPx: number, maxPx: number) =>
   Math.round(Math.min(maxPx * surface.ratio, Math.max(minPx * surface.ratio, surface.width * fraction)));

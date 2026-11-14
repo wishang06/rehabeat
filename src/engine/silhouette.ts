@@ -390,3 +390,31 @@ export function steadyBody(body: BodyFrame): BodyFrame {
   if (torso <= 0 || shoulders >= 0.6 * torso) return body;
   return standardBody({ center: shoulderMid, shoulderWidth: torso / PROPORTION.torso, mirrored: false });
 }
+
+/**
+ * The silhouette grown outward by `distance`: capsule and head radii grow by
+ * it and each torso edge moves straight out by it (corners mitred, capped at
+ * twice the distance). Filling this and then cutting the real silhouette out
+ * leaves an even band round the figure, which is far cheaper to draw than a
+ * wide stroke of the same outline.
+ */
+export function inflateSilhouette(s: Silhouette, distance: number): Silhouette {
+  const n = s.torso.length;
+  const torso = s.torso.map((p, i) => {
+    const prev = s.torso[(i - 1 + n) % n];
+    const next = s.torso[(i + 1) % n];
+    // Outward normals of the two edges meeting here; outward is (dy, -dx) for a clockwise y-down polygon.
+    const n1 = unit({ x: p.y - prev.y, y: -(p.x - prev.x) });
+    const n2 = unit({ x: next.y - p.y, y: -(next.x - p.x) });
+    const bisector = unit({ x: n1.x + n2.x, y: n1.y + n2.y });
+    const cos = bisector.x * n1.x + bisector.y * n1.y;
+    const reach = Math.min(2 * distance, distance / Math.max(cos, 1e-6));
+    return add(p, bisector, reach);
+  });
+  return {
+    capsules: s.capsules.map((c) => ({ ...c, ra: c.ra + distance, rb: c.rb + distance })),
+    torso,
+    head: { center: s.head.center, radius: s.head.radius + distance },
+    scale: s.scale,
+  };
+}

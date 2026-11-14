@@ -18,6 +18,7 @@ export {
   bodyScale,
   buildSilhouette,
   capsuleOutline,
+  inflateSilhouette,
   poseForMove,
   silhouetteBounds,
   standardBody,

@@ -7,6 +7,7 @@ import {
   bodyFromLandmarks,
   buildSilhouette,
   capsuleOutline,
+  inflateSilhouette,
   poseForMove,
   silhouetteBounds,
   standardBody,
@@ -282,5 +283,46 @@ describe('steadyBody', () => {
     expect((steady.leftShoulder.x + steady.rightShoulder.x) / 2).toBeCloseTo((BODY.leftShoulder.x + 510) / 2, 5);
     // Still in camera-image convention: the player's left at the larger x.
     expect(steady.leftShoulder.x).toBeGreaterThan(steady.rightShoulder.x);
+  });
+});
+
+describe('inflateSilhouette', () => {
+  const square: Silhouette = {
+    capsules: [{ part: 'leftUpperArm', a: { x: 0, y: 0 }, b: { x: 10, y: 0 }, ra: 3, rb: 2 }],
+    torso: [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ],
+    head: { center: { x: 5, y: -5 }, radius: 4 },
+    scale: 10,
+  };
+
+  it('grows every capsule and the head by the same distance, leaving their centres put', () => {
+    const grown = inflateSilhouette(square, 2);
+    expect(grown.capsules[0]).toMatchObject({ a: { x: 0, y: 0 }, b: { x: 10, y: 0 }, ra: 5, rb: 4 });
+    expect(grown.head).toEqual({ center: { x: 5, y: -5 }, radius: 6 });
+  });
+
+  it('pushes each torso edge straight out by that distance', () => {
+    expect(inflateSilhouette(square, 2).torso).toEqual([
+      { x: -2, y: -2 },
+      { x: 12, y: -2 },
+      { x: 12, y: 12 },
+      { x: -2, y: 12 },
+    ]);
+  });
+
+  it('keeps a real torso wound clockwise and grows it outward on every side', () => {
+    const s = buildSilhouette(REST_POSE, BODY);
+    const grown = inflateSilhouette(s, 5);
+    expect(signedArea(grown.torso)).toBeGreaterThan(signedArea(s.torso));
+    const cx = s.torso.reduce((sum, p) => sum + p.x, 0) / s.torso.length;
+    const cy = s.torso.reduce((sum, p) => sum + p.y, 0) / s.torso.length;
+    s.torso.forEach((p, i) => {
+      const q = grown.torso[i];
+      expect(Math.hypot(q.x - cx, q.y - cy)).toBeGreaterThan(Math.hypot(p.x - cx, p.y - cy));
+    });
   });
 });
