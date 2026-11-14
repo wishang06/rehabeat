@@ -7,6 +7,10 @@
 // It walks the landing page, the title, the song menu and its credits,
 // calibration, the Play screen and the results with a synthetic camera, then
 // the play HUD's named states from the mock frame (/hud).
+//
+// Chrome's synthetic camera sometimes opens and then delivers no frames, and the
+// walk stops waiting for the Calibrate screen. That is the test camera, not the
+// app: run the script again.
 
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
@@ -119,7 +123,7 @@ try {
   }
   await desktop.close();
 
-  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const small = await phone.newPage();
   await small.goto(`${base}/`, { waitUntil: 'networkidle' });
   await settle(small, 2600);

@@ -4,7 +4,7 @@
 //   node scripts/fps.mjs --headed        visible window on the real GPU (use this for numbers worth quoting)
 //   node scripts/fps.mjs --seconds 15    how long to count display frames (default 10)
 //   node scripts/fps.mjs --runs 3        repeat and report each run and the mean (default 3)
-//   node scripts/fps.mjs --url http://localhost:5173 --path /play
+//   node scripts/fps.mjs --url http://localhost:5173 --path play   another server, another path (default: play)
 //
 // It reports two things:
 //   display fps   requestAnimationFrame callbacks per second while the Play screen is up (HUD + canvas overlay)
@@ -98,7 +98,8 @@ async function measure(url) {
 const server = externalUrl ? null : await createServer({ root, logLevel: 'error', server: { port: 5198, strictPort: false } });
 await server?.listen();
 const base = (externalUrl ?? server.resolvedUrls.local[0]).replace(/\/$/, '');
-const url = base + option('--path', '/');
+// Git Bash rewrites an argument that starts with a slash, so the path may be given without one.
+const url = `${base}/${option('--path', 'play').replace(/^\/+/, '')}`;
 console.log(`Play screen frame rate at ${url} (${headed ? 'headed, real GPU' : 'headless'}), ${runs} run(s) of ${seconds} s\n`);
 
 const results = [];
