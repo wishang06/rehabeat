@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { hasStems } from 'virtual:public-assets';
 import { useAuth } from './lib/auth';
 import { takePendingRun } from './lib/scores';
@@ -15,7 +15,6 @@ import { describeStartError, startSession, type Session, type StartStep } from '
 import { AccountButton } from './ui/AccountButton';
 import { CalibrateScreen } from './ui/CalibrateScreen';
 import { DebugPanel } from './ui/DebugPanel';
-import { Leaderboard } from './ui/Leaderboard';
 import { MusicCredit } from './ui/MusicCredit';
 import { PlayScreen, type PlayDebug, type PlayRun } from './ui/PlayScreen';
 import { ResultsScreen } from './ui/ResultsScreen';
@@ -29,7 +28,6 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playDebugRef = useRef<PlayDebug | null>(null);
   const playRunRef = useRef<PlayRun | null>(null);
-  const boardRef = useRef<HTMLDialogElement>(null);
   const auth = useAuth();
 
   // A run finished before signing in comes back from the Google redirect here.
@@ -107,16 +105,7 @@ export function App() {
               </button>
             </>
           )}
-          {supabase && screen !== 'play' && (
-            <>
-              {screen !== 'welcome' && (
-                <button type="button" className="button button--quiet" onClick={() => boardRef.current?.showModal()}>
-                  Leaderboard
-                </button>
-              )}
-              <AccountButton auth={auth} />
-            </>
-          )}
+          {supabase && screen !== 'play' && <AccountButton auth={auth} />}
           {session && (
             <span className="app__hint">
               <kbd>D</kbd> debug
@@ -154,27 +143,6 @@ export function App() {
         {debug && <DebugPanel session={session} calibration={calibration} playRef={playDebugRef} />}
       </main>
 
-      {supabase && (
-        <dialog
-          ref={boardRef}
-          className="board-dialog"
-          aria-labelledby="board-title"
-          onClick={(event) => event.target === event.currentTarget && boardRef.current?.close()}
-        >
-          <div className="board-dialog__body">
-            <header className="board-dialog__head">
-              <h2 id="board-title" className="panel__title">
-                Leaderboard
-              </h2>
-              <button type="button" className="button button--quiet" onClick={() => boardRef.current?.close()}>
-                Close
-              </button>
-            </header>
-            <p className="panel__text">Best run per player. Sign in and finish a run to get on it.</p>
-            <BoardWhenOpen dialogRef={boardRef} userId={auth.user?.id ?? null} />
-          </div>
-        </dialog>
-      )}
 
       {/* The strip keeps its height on every screen so the camera view never jumps. */}
       {hasStems && (
@@ -186,23 +154,3 @@ export function App() {
   );
 }
 
-/** Loads the leaderboard each time the dialog opens, not on page load. */
-function BoardWhenOpen({
-  dialogRef,
-  userId,
-}: {
-  dialogRef: RefObject<HTMLDialogElement | null>;
-  userId: string | null;
-}) {
-  const [opened, setOpened] = useState(0);
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const observer = new MutationObserver(() => {
-      if (dialog.open) setOpened((count) => count + 1);
-    });
-    observer.observe(dialog, { attributes: true, attributeFilter: ['open'] });
-    return () => observer.disconnect();
-  }, [dialogRef]);
-  return opened > 0 ? <Leaderboard userId={userId} refreshKey={opened} /> : null;
-}

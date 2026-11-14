@@ -73,7 +73,7 @@ export function WelcomeScreen({ step, error, onStart, auth }: WelcomeScreenProps
               Leaderboard
             </h2>
           </div>
-          <Leaderboard userId={auth.user?.id ?? null} refreshKey={auth.user?.id} limit={8} />
+          <Leaderboard userId={auth.user?.id ?? null} refreshKey={auth.user?.id} limit={7} />
           <div className="welcome__board-foot">
             {auth.user ? (
               <p className="card__text">

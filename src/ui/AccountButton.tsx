@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { signInWithGoogle, signOut, type AuthState } from '../lib/auth';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface AccountButtonProps {
   auth: AuthState;
@@ -38,31 +39,11 @@ export function AccountButton({ auth, onBeforeSignIn }: AccountButtonProps) {
   const name = auth.profile?.displayName ?? 'Player';
   return (
     <span className="account" data-testid="account">
-      <Avatar name={name} url={auth.profile?.avatarUrl ?? null} />
+      <PlayerAvatar seed={auth.user.id} className="critter--small" />
       <span className="account__name">{name}</span>
       <button type="button" className="button button--quiet" onClick={() => void signOut()}>
         Sign out
       </button>
-    </span>
-  );
-}
-
-export function Avatar({ name, url }: { name: string; url: string | null }) {
-  const [failed, setFailed] = useState(false);
-  if (url && !failed) {
-    return (
-      <img
-        className="avatar"
-        src={url}
-        alt=""
-        referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
-      />
-    );
-  }
-  return (
-    <span className="avatar avatar--initial" aria-hidden="true">
-      {name.trim().charAt(0).toUpperCase() || '?'}
     </span>
   );
 }

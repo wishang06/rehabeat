@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchLeaderboard, type LeaderboardRow } from '../lib/scores';
-import { Avatar } from './AccountButton';
+import { PlayerAvatar } from './PlayerAvatar';
 
 interface LeaderboardProps {
   /** The signed-in player, highlighted in the list. */
@@ -38,7 +38,7 @@ export function Leaderboard({ userId, refreshKey, limit = 10 }: LeaderboardProps
       {rows.map((row) => (
         <li key={row.userId} className="board__row" data-me={row.userId === userId}>
           <span className="board__rank">{row.rank}</span>
-          <Avatar name={row.displayName} url={row.avatarUrl} />
+          <PlayerAvatar seed={row.userId} />
           <span className="board__name">{row.displayName}</span>
           <span className="board__runs">
             {row.runs} {row.runs === 1 ? 'run' : 'runs'}
