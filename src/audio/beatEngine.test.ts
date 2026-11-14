@@ -487,6 +487,30 @@ describe('BeatEngine in stems mode', () => {
     engine.stop();
   });
 
+  it('loops where the last full beat ends rather than at the end of the file', async () => {
+    // Four beats from 0.25 s at 120 BPM in 3 s of audio: the fourth beat ends at 2.25 s.
+    const { engine, ctx } = await createEngine({
+      '/beatmap.json': () =>
+        new Response(JSON.stringify({ bpm: 120, offset: 0.25, beats: [0.25, 0.75, 1.25, 1.75] })),
+      '/stems/drums.mp3': () => audio(3),
+      '/stems/melody.mp3': () => audio(3),
+    });
+    engine.start(0);
+
+    for (const source of ctx.sources) expect(source.loopEnd).toBe(2);
+    expect(engine.loopLength).toBe(2);
+    // The first beat of the second pass lands exactly one beat after the last beat of the first.
+    expect(engine.grid.timeOfBeat(3)).toBe(1.75);
+    expect(engine.grid.timeOfBeat(4)).toBe(2.25);
+    expect(engine.grid.timeOfBeat(8)).toBe(4.25);
+    engine.stop();
+  });
+
+  it('has no loop length in click mode', async () => {
+    const { engine } = await createEngine();
+    expect(engine.loopLength).toBeNull();
+  });
+
   it('plays drums at full volume and the melody through a gain that starts at 0', async () => {
     const { engine, ctx } = await createEngine(STEM_FILES);
     engine.start();

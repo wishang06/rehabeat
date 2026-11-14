@@ -5,6 +5,7 @@ import { BeatScheduler } from './beatScheduler';
 import { scheduleClick } from './clickTrack';
 import { MasterClock } from './clock';
 import { GainFader } from './gainFader';
+import { beatAlignedLoopLength } from './loopPoint';
 import { loadStems, type Stems } from './stems';
 
 export type BeatEngineMode = 'stems' | 'click';
@@ -40,8 +41,9 @@ interface Run {
 
 /**
  * Plays the backing track and owns the timeline everything else is scored
- * against. In 'stems' mode it loops the drum and melody stems; in 'click'
- * mode (no stems found) it synthesizes a click on every beat.
+ * against. In 'stems' mode it loops the drum and melody stems over a whole
+ * number of beats; in 'click' mode (no stems found) it synthesizes a click on
+ * every beat.
  *
  * Before start() and after stop() the track is parked at time 0: see
  * trackTime, beatPosition and clockTimeOfBeat.
@@ -83,8 +85,11 @@ export class BeatEngine {
     this.beatmapSource = beatmapSource;
     this.ownsContext = ownsContext;
 
-    // Both stems loop over the shorter one's length so they can never drift apart.
-    const loopDuration = stems ? Math.min(stems.drums.duration, stems.melody.duration) : 0;
+    // Both stems loop over the same length so they can never drift apart. That
+    // length is a whole number of beats taken from the beatmap, not the length of
+    // the files, so the beat grid stays continuous where the audio wraps.
+    const audioDuration = stems ? Math.min(stems.drums.duration, stems.melody.duration) : 0;
+    const loopDuration = audioDuration > 0 ? beatAlignedLoopLength(beatmap, audioDuration) : 0;
     const loops = loopDuration > 0;
     this.stems = loops ? stems : null;
     this.loopDuration = loopDuration;
@@ -94,6 +99,11 @@ export class BeatEngine {
 
   get running(): boolean {
     return this.run !== null;
+  }
+
+  /** Seconds of each stem that play before they wrap to the start, or null in click mode. */
+  get loopLength(): number | null {
+    return this.stems ? this.loopDuration : null;
   }
 
   /** Master-clock time at which track time 0 plays, or null while stopped. */

@@ -7,6 +7,8 @@ export type { BeatmapSource, LoadedBeatmap } from './beatmap';
 export { BeatGrid } from './beatGrid';
 export type { BeatGridOptions } from './beatGrid';
 
+export { beatAlignedLoopLength } from './loopPoint';
+
 export { BeatScheduler } from './beatScheduler';
 export type { DueBeat } from './beatScheduler';
 
