@@ -9,6 +9,14 @@ export {
 } from './frameScore';
 export { Routine, type Cycle, type Phase, type PhaseInfo } from './routine';
 export {
+  LOCK_ENTER_SCORE,
+  LOCK_ENTER_SEC,
+  LOCK_EXIT_SCORE,
+  LOCK_EXIT_SEC,
+  PoseLock,
+  type ScoredSample,
+} from './poseLock';
+export {
   FORM_PERSIST_MS,
   FORM_RULES,
   FormMonitor,

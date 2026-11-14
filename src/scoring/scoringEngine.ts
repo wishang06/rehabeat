@@ -1,6 +1,7 @@
 import type { BeatResult, FormMetrics, PoseFrame } from '../types';
 import { FormMonitor, formNoteFor } from './formRules';
 import { GOOD_SCORE, labelFor, scoreFrame } from './frameScore';
+import { PoseLock } from './poseLock';
 import type { Cycle, Phase, Routine } from './routine';
 import { applyResult, initialStats, type Stats } from './stats';
 
@@ -28,6 +29,11 @@ export interface LiveState {
   holdScore: number | null;
   /** Form guidance flagged during the current cycle, if any. */
   formNote: string | null;
+  /**
+   * True while the player is in the current move's pose: Good for 100 ms,
+   * until the score spends 150 ms under 50. See PoseLock.
+   */
+  locked: boolean;
 }
 
 interface CycleTimes {
@@ -66,6 +72,7 @@ export class ScoringEngine {
   private readonly timeOfBeat: (beat: number) => number;
   private readonly offsetSec: number;
   private readonly form: FormMonitor;
+  private readonly lock = new PoseLock();
 
   private current: CycleTimes;
   private finalized = false;
@@ -83,6 +90,7 @@ export class ScoringEngine {
     frameScore: 0,
     holdScore: null,
     formNote: null,
+    locked: false,
   };
   private statsState: Stats = initialStats();
   private last: BeatResult | null = null;
@@ -123,9 +131,12 @@ export class ScoringEngine {
     const { cycle, holdStart, holdEnd } = this.current;
     const phase: Phase = t < holdStart ? 'reach' : t < holdEnd ? 'hold' : 'release';
     const score = scoreFrame(frame, cycle.move);
+    const before = previous && { t: previous.t, score: scoreFrame(previous.frame, cycle.move) };
+    this.lock.update({ t, score }, before);
 
     if (phase !== 'release') {
-      if (this.arrivedAt === null && score >= GOOD_SCORE) this.arrivedAt = t;
+      // Arriving is landing the pose, not sweeping through it: the start of the first lock.
+      if (this.arrivedAt === null && this.lock.locked) this.arrivedAt = this.lock.since;
       const flagged = this.form.update(t, form, cycle.move.formRules);
       if (this.formNote === null && flagged.length > 0) {
         this.formNote = formNoteFor(flagged[0]) ?? null;
@@ -138,6 +149,7 @@ export class ScoringEngine {
       frameScore: score,
       holdScore: phase === 'hold' ? this.holdMean(score) : null,
       formNote: this.formNote,
+      locked: this.lock.locked,
     };
     return results;
   }
@@ -184,6 +196,7 @@ export class ScoringEngine {
         frameScore: 0,
         holdScore: null,
         formNote: null,
+        locked: false,
       };
     }
     return results;
@@ -224,13 +237,16 @@ export class ScoringEngine {
     this.arrivedAt = null;
     this.formNote = null;
     this.form.reset();
+    this.lock.reset();
   }
 
   private finalize(): BeatResult {
     const { cycle, holdStart, holdEnd } = this.current;
     const score = this.holdMean(0);
+    // A pose landed too close to the end for the lock to engage still counts.
     // Never reaching the pose reports the full hold length as the lateness.
-    const arrival = this.arrivedAt ?? holdEnd;
+    const pending = this.lock.since;
+    const arrival = this.arrivedAt ?? (pending !== null && pending < holdEnd ? pending : holdEnd);
 
     const result: BeatResult = {
       moveId: cycle.move.id,

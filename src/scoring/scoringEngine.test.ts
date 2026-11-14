@@ -5,6 +5,23 @@ import { Routine } from './routine';
 import { MAX_FRAME_SPAN_SEC, ScoringEngine, melodyShouldPlay, type ScoringEngineOptions } from './scoringEngine';
 
 const FPS = 30;
+const FRAME_MS = 1000 / FPS;
+
+/** Minimum-jerk position 0 to 1 for s in [0, 1]: how a hand moves to a target. */
+const minJerk = (s: number) => (s <= 0 ? 0 : s >= 1 ? 1 : 10 * s ** 3 - 15 * s ** 4 + 6 * s ** 5);
+
+/** The time the clean reach `from` to `to` over `duration` from `start` passes `level`. */
+function crossingTime(from: number, to: number, level: number, start: number, duration: number): number {
+  const target = (level - from) / (to - from);
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2;
+    if (minJerk(mid) < target) low = mid;
+    else high = mid;
+  }
+  return start + low * duration;
+}
 /** 120 BPM: beat i is at i * 0.5 s. */
 const timeOfBeat = (beat: number) => beat * 0.5;
 
@@ -117,17 +134,52 @@ describe('ScoringEngine', () => {
   });
 
   it('reports how early or late the player arrived at the pose', () => {
+    // A step pose lands somewhere between two frames; the engine places it within that frame.
     const [onTime] = play(engine(), 0, 4, (t) => (t >= HOLD_START ? ON_TARGET : ARMS_DOWN));
-    expect(onTime.timingOffsetMs).toBeCloseTo(0, 5);
+    expect(Math.abs(onTime.timingOffsetMs)).toBeLessThan(FRAME_MS);
 
     const [early] = play(engine(), 0, 4, (t) => (t >= 0.5 ? ON_TARGET : ARMS_DOWN));
-    expect(early.timingOffsetMs).toBeCloseTo(-500, 5);
+    expect(Math.abs(early.timingOffsetMs + 500)).toBeLessThan(FRAME_MS);
 
     const [late] = play(engine(), 0, 4, (t) => (t >= 2 ? ON_TARGET : ARMS_DOWN));
-    expect(late.timingOffsetMs).toBeCloseTo(1000, 5);
+    expect(Math.abs(late.timingOffsetMs - 1000)).toBeLessThan(FRAME_MS);
 
     const [never] = play(engine(), 0, 4, () => ARMS_DOWN);
     expect(never.timingOffsetMs).toBeCloseTo(2000, 5);
+  });
+
+  it('measures arrival between frames on a continuous reach', () => {
+    // Both arms rise 10 to 90 degrees over 0.6 s, arriving on the first hold beat.
+    const [from, to, start, duration] = [10, 90, 0.4, 0.6];
+    const arm = (t: number) => from + (to - from) * minJerk((t - start) / duration);
+    const [result] = play(engine(), 0, 4, (t) => ({ leftShoulder: arm(t), rightShoulder: arm(t) }));
+    // The score crosses 60 where the error is one tolerance: at 70 degrees.
+    const truthMs = (crossingTime(from, to, 70, start, duration) - HOLD_START) * 1000;
+    expect(Math.abs(result.timingOffsetMs - truthMs)).toBeLessThan(3);
+  });
+
+  it('does not count a pass-through as arriving', () => {
+    // On target for two frames in the reach (67 ms), then not again until 2 s.
+    const [result] = play(engine(), 0, 4, (t) => ((t >= 0.5 && t < 0.55) || t >= 2 ? ON_TARGET : ARMS_DOWN));
+    expect(Math.abs(result.timingOffsetMs - 1000)).toBeLessThan(FRAME_MS);
+  });
+
+  it('counts a pose landed just before the hold closes', () => {
+    // On target from 2.95 s: the hold closes at 3 s, before the 100 ms lock could engage.
+    const [result] = play(engine(), 0, 4, (t) => (t >= 2.95 ? ON_TARGET : ARMS_DOWN));
+    expect(result.timingOffsetMs).toBeLessThan(2000 - 30);
+  });
+
+  it('exposes whether the player is locked in the pose, with hysteresis', () => {
+    const target = engine();
+    play(target, 0, 1.5, () => ON_TARGET);
+    expect(target.live.locked).toBe(true);
+    // 22.5 degrees short scores 55: under Good, but above the line that lets go.
+    play(target, 1.5, 2, () => ({ leftShoulder: 67.5, rightShoulder: 67.5 }));
+    expect(target.live.frameScore).toBeCloseTo(55, 6);
+    expect(target.live.locked).toBe(true);
+    play(target, 2, 2.2, () => ARMS_DOWN);
+    expect(target.live.locked).toBe(false);
   });
 
   it('shifts frames by the calibration offset before scoring', () => {
@@ -138,12 +190,12 @@ describe('ScoringEngine', () => {
     const [uncalibrated] = play(engine(), 0, 4, seenLate);
     expect(uncalibrated.score).toBeCloseTo(80, 5);
     expect(uncalibrated.label).toBe('Good');
-    expect(uncalibrated.timingOffsetMs).toBeCloseTo(400, 5);
+    expect(Math.abs(uncalibrated.timingOffsetMs - 400)).toBeLessThan(FRAME_MS);
 
     const [calibrated] = play(engine({ offsetMs: 400 }), 0, 4.5, seenLate);
     expect(calibrated.score).toBe(100);
     expect(calibrated.label).toBe('Perfect');
-    expect(Math.abs(calibrated.timingOffsetMs)).toBeLessThan(1);
+    expect(Math.abs(calibrated.timingOffsetMs)).toBeLessThan(FRAME_MS);
   });
 
   it('moves through the routine and loops it', () => {
@@ -346,7 +398,7 @@ describe('form guidance in the engine', () => {
 });
 
 describe('melodyShouldPlay', () => {
-  const live = { cycle: null, phase: null, frameScore: 0, formNote: null };
+  const live = { cycle: null, phase: null, frameScore: 0, formNote: null, locked: false };
   const result = (score: number): BeatResult => ({ moveId: 'm', score, label: 'Good', timingOffsetMs: 0 });
 
   it('follows the running hold score during a hold', () => {
