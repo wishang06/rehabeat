@@ -213,7 +213,8 @@ export function App() {
                 </button>
               </>
             )}
-            {supabase && screen !== 'play' && (
+            {/* The title screen has the board and sign-in on it already. */}
+            {supabase && screen !== 'play' && screen !== 'title' && (
               <>
                 <button type="button" className="button button--quiet" onClick={() => boardRef.current?.showModal()}>
                   Leaderboard
@@ -240,7 +241,7 @@ export function App() {
                 animate="on"
                 exit="exit"
               >
-                {screen === 'title' && <TitleScreen onStart={() => setScreen('menu')} />}
+                {screen === 'title' && <TitleScreen onStart={() => setScreen('menu')} auth={auth} />}
                 {screen === 'menu' &&
                   (library ? (
                     <SongMenu

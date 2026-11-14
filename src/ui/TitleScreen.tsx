@@ -2,19 +2,29 @@ import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { Figure } from '@/components/Figure';
 import { playSfx } from '../audio/sfx';
+import type { AuthState } from '../lib/auth';
+import { supabase } from '../lib/supabase';
+import { AccountButton } from './AccountButton';
+import { Leaderboard } from './Leaderboard';
 import { ProgressMeters } from './ProgressMeters';
 import './screens.css';
 
 interface TitleScreenProps {
   /** Go to the song menu. */
   onStart: () => void;
+  /** The player's account. With accounts on, the leaderboard and sign-in sit beside the start button. */
+  auth: AuthState;
 }
+
+/** Rows on the title screen's board: few enough to read from two metres. */
+const BOARD_ROWS = 5;
 
 /**
  * The first screen of the game: the name, the player's level and daily
- * streak, and one button. Enter or Space starts from anywhere on it.
+ * streak, and one button. Enter or Space starts from anywhere on it. With
+ * accounts on, the leaderboard and sign-in take the right-hand column.
  */
-export function TitleScreen({ onStart }: TitleScreenProps) {
+export function TitleScreen({ onStart, auth }: TitleScreenProps) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
@@ -30,7 +40,7 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
   }, [onStart]);
 
   return (
-    <section className="title" data-testid="title-screen">
+    <section className="title" data-testid="title-screen" data-board={supabase ? 'true' : 'false'}>
       <div className="title__lanes" aria-hidden="true">
         <i />
         <i />
@@ -58,6 +68,19 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
       <div className="title__figure">
         <Figure pose="overhead" label="The gold figure with both arms raised" />
       </div>
+
+      {supabase && (
+        <section className="title__board slab slab-edge" aria-labelledby="title-board-heading">
+          <h2 id="title-board-heading" className="title__board-head display">
+            High scores
+          </h2>
+          <Leaderboard userId={auth.user?.id ?? null} refreshKey={auth.user?.id} limit={BOARD_ROWS} />
+          <div className="title__board-foot">
+            {auth.ready && !auth.user && <p className="title__board-text">Sign in to save your points and get on the board.</p>}
+            <AccountButton auth={auth} />
+          </div>
+        </section>
+      )}
     </section>
   );
 }
