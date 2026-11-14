@@ -10,6 +10,7 @@ import type { RunSummary } from '../scoring';
 import { AccountButton } from './AccountButton';
 import { Leaderboard } from './Leaderboard';
 import { XpBar } from './ProgressMeters';
+import { useResultsSounds } from './resultsSounds';
 import './screens.css';
 
 interface ResultsScreenProps {
@@ -45,6 +46,7 @@ export function ResultsScreen({ run, gains, auth, onPlayAgain, onChangeSong }: R
   const stars = gains?.stars ?? starsFor(run);
   const xpBefore = gains ? levelFor(gains.xpBefore) : null;
   const xpAfter = levelFor(gains?.xpAfter ?? progress.xp);
+  useResultsSounds({ stars, scored: run.moves > 0, leveledUp: !!gains && gains.levelAfter > gains.levelBefore });
 
   // Save once, as soon as there is a signed-in player (also right after the Google redirect).
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { Figure } from '@/components/Figure';
+import { playSfx } from '../audio/sfx';
 import { ProgressMeters } from './ProgressMeters';
 import './screens.css';
 
@@ -21,6 +22,7 @@ export function TitleScreen({ onStart }: TitleScreenProps) {
       // A focused button or link handles its own key press.
       if (event.target instanceof Element && event.target.closest('button, a')) return;
       event.preventDefault();
+      playSfx('confirm');
       onStart();
     };
     window.addEventListener('keydown', onKey);
