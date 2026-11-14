@@ -44,4 +44,9 @@ describe('titleFromFileName', () => {
     expect(titleFromFileName('/x/kevin-macleod-past-sadness.mp3')).toBe('kevin-macleod-past-sadness');
     expect(titleFromFileName('.mp3')).toBe('Untitled');
   });
+
+  it('strips the folder of a Windows path on any platform (CI runs on Linux)', () => {
+    expect(titleFromFileName('D:\\Downloads\\songs/Calm_Track.wav')).toBe('Calm Track');
+    expect(titleFromFileName('\\\\server\\share\\Song.mp3')).toBe('Song');
+  });
 });
