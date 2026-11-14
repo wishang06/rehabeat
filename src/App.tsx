@@ -27,6 +27,7 @@ import { PlayScreen, type PlayDebug, type PlayRun } from './ui/PlayScreen';
 import { ProgressMeters } from './ui/ProgressMeters';
 import { ResultsScreen } from './ui/ResultsScreen';
 import { Stage } from './ui/Stage';
+import { StatsPanel } from './ui/StatsPanel';
 import { TitleScreen } from './ui/TitleScreen';
 import { SongMenu } from './ui/menu/SongMenu';
 import { loadLastSong, saveLastSong } from './ui/menu/lastSong';
@@ -52,6 +53,7 @@ export function App() {
   const playDebugRef = useRef<PlayDebug | null>(null);
   const playRunRef = useRef<PlayRun | null>(null);
   const boardRef = useRef<HTMLDialogElement>(null);
+  const statsRef = useRef<HTMLDialogElement>(null);
   const audioRef = useRef<AudioContext | null>(null);
   const songRef = useRef<LoadedSong | null>(null);
   const auth = useAuth();
@@ -75,6 +77,12 @@ export function App() {
   /** Calibrated or skipped during this visit: later picks go straight to Play. */
   const [calibrated, setCalibrated] = useState(false);
   const [debug, setDebug] = useState(false);
+  /** The Stats panel is mounted only while its dialog is open, so it reads today's date each time. */
+  const [statsOpen, setStatsOpen] = useState(false);
+  const openStats = useCallback(() => {
+    setStatsOpen(true);
+    statsRef.current?.showModal();
+  }, []);
 
   /** One AudioContext for previews and play. Browsers keep it silent until the page has had a click or key press. */
   const getAudioContext = useCallback((): AudioContext => {
@@ -116,9 +124,12 @@ export function App() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
+      // Keys typed into a field (the weight in Stats) are not shortcuts.
+      if (event.target instanceof HTMLInputElement) return;
       if (event.key.toLowerCase() === 'd') setDebug((shown) => !shown);
-      // The menu handles Esc itself, and an open leaderboard dialog closes on its own.
-      if (event.key === 'Escape' && screen !== 'menu' && screen !== 'title' && !boardRef.current?.open) backToMenu();
+      // The menu handles Esc itself, and an open dialog closes on its own.
+      const dialogOpen = boardRef.current?.open || statsRef.current?.open;
+      if (event.key === 'Escape' && screen !== 'menu' && screen !== 'title' && !dialogOpen) backToMenu();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -217,6 +228,12 @@ export function App() {
                 </button>
               </>
             )}
+            {/* The title screen has its own Stats button, and Play keeps the bar clear. */}
+            {screen !== 'play' && screen !== 'title' && (
+              <button type="button" className="button button--quiet" onClick={openStats} data-testid="stats-button">
+                Stats
+              </button>
+            )}
             {/* The title screen has the board and sign-in on it already. */}
             {supabase && screen !== 'play' && screen !== 'title' && (
               <>
@@ -245,7 +262,7 @@ export function App() {
                 animate="on"
                 exit="exit"
               >
-                {screen === 'title' && <TitleScreen onStart={() => setScreen('menu')} auth={auth} />}
+                {screen === 'title' && <TitleScreen onStart={() => setScreen('menu')} onStats={openStats} auth={auth} />}
                 {screen === 'menu' &&
                   (library ? (
                     <SongMenu
@@ -330,6 +347,27 @@ export function App() {
             </div>
           </dialog>
         )}
+
+        <dialog
+          ref={statsRef}
+          className="board-dialog stats-dialog"
+          aria-labelledby="stats-title"
+          onClose={() => setStatsOpen(false)}
+          onClick={(event) => event.target === event.currentTarget && statsRef.current?.close()}
+          data-testid="stats-dialog"
+        >
+          <div className="board-dialog__body">
+            <header className="board-dialog__head">
+              <h2 id="stats-title" className="panel__title">
+                Stats
+              </h2>
+              <button type="button" className="button button--quiet" onClick={() => statsRef.current?.close()}>
+                Close
+              </button>
+            </header>
+            {statsOpen && <StatsPanel />}
+          </div>
+        </dialog>
 
         {/* The strip keeps its height on every screen so the camera view never jumps. */}
         <footer className="app__footer">{showCredit && creditSong && <MusicCredit song={creditSong} />}</footer>
