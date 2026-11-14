@@ -17,6 +17,15 @@ export {
   formNoteFor,
   type FormContext,
 } from './formRules';
+export {
+  LIMIT_MARGIN_DEG,
+  LIMIT_PERSIST_MS,
+  LimitWatcher,
+  angleForMovement,
+  movementOf,
+  type JointLimit,
+  type JointLimits,
+} from './limits';
 export { applyResult, initialStats, type Stats } from './stats';
 export {
   ScoringEngine,
