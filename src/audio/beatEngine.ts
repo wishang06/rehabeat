@@ -24,6 +24,13 @@ const SCHEDULER_INTERVAL_MS = 25;
 const SCHEDULER_LOOKAHEAD_SEC = 0.15;
 const BEATS_PER_ACCENT = 4;
 const MELODY_RAMP_SEC = 0.3;
+/**
+ * How much the stems are raised on their way to the speakers. The shipped
+ * track peaks at about -12 dBFS, so 2.5x (+8 dB) brings the full mix to about
+ * -4 dBFS. A louder track needs a smaller number: `npm run smoke` fails if the
+ * stems would clip at this gain.
+ */
+export const STEM_GAIN = 2.5;
 /** Long enough to avoid the pop of cutting a waveform mid-cycle, short enough to feel instant. */
 const STOP_FADE_SEC = 0.03;
 
@@ -32,6 +39,8 @@ interface Run {
   startTime: number;
   /** All of this run's audio passes through here on its way to the speakers. */
   output: GainNode;
+  /** The gain `output` plays at, which is where a fade-out starts from. */
+  level: number;
   sources: AudioBufferSourceNode[];
   /** Every node to disconnect once the run is silent. */
   nodes: AudioNode[];
@@ -156,7 +165,7 @@ export class BeatEngine {
     }
     const now = this.ctx.currentTime;
     const silentAt = now + STOP_FADE_SEC;
-    run.output.gain.setValueAtTime(1, now);
+    run.output.gain.setValueAtTime(run.level, now);
     run.output.gain.linearRampToValueAtTime(0, silentAt);
     run.sources[0].onended = release;
     for (const source of run.sources) source.stop(silentAt);
@@ -215,6 +224,7 @@ export class BeatEngine {
   }
 
   private startStems(stems: Stems, output: GainNode, startTime: number): Run {
+    output.gain.value = STEM_GAIN;
     const melodyGain = this.ctx.createGain();
     melodyGain.gain.value = 0;
     melodyGain.connect(output);
@@ -227,6 +237,7 @@ export class BeatEngine {
     return {
       startTime,
       output,
+      level: STEM_GAIN,
       sources: [drums, melody],
       nodes: [drums, melody, melodyGain, output],
       melody: new GainFader(melodyGain.gain, MELODY_RAMP_SEC),
@@ -255,6 +266,7 @@ export class BeatEngine {
     return {
       startTime,
       output,
+      level: 1,
       sources: [],
       nodes: [output],
       melody: null,

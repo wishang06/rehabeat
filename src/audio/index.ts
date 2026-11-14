@@ -21,7 +21,7 @@ export type { Stems } from './stems';
 export { GainFader } from './gainFader';
 export type { RampParam } from './gainFader';
 
-export { BeatEngine } from './beatEngine';
+export { BeatEngine, STEM_GAIN } from './beatEngine';
 export type { BeatEngineMode, BeatEngineOptions } from './beatEngine';
 
 export { ArmRaiseDetector, CalibrationSession, matchOffsets, median } from './calibration';
