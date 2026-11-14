@@ -956,3 +956,9 @@ kbd {
   color: var(--chalk-soft);
   text-align: center;
 }
+
+/* Once the camera is live, the menu sits over the player's own picture: dim it so the menu stays readable. */
+.app[data-screen='menu'] .stage[data-live='true'] .stage__overlay {
+  background: rgb(var(--scrim) / 0.88);
+  backdrop-filter: blur(8px);
+}

@@ -1,7 +1,8 @@
 # Music credits
 
-The game plays **"Past Sadness" by Kevin MacLeod**, split into a drum stem and a melody stem
-(`public/stems/drums.mp3`, `public/stems/melody.mp3`). `public/beatmap.json` is its beat grid.
+The game's songs, with their licences and credit lines, are listed in the **Song library** section
+at the end of this file. Each one is split into a drum stem and a melody stem in `public/songs/<id>/`.
+The table below is the original track list: the three source files in `tools/tracks/`.
 
 | Track | Artist | Source | Licence | BPM | File |
 | --- | --- | --- | --- | --- | --- |
@@ -16,14 +17,14 @@ Licences are as stated on each source page on 2026-11-14. BPM is measured from t
 
 "Past Sadness" by Kevin MacLeod ([incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007)),
 licensed under [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
-Split into drum and melody stems for this game.
+Separated into drum and melody stems by the Rehabeat team.
 
 Plain text, for an in-game credits screen:
 
 ```
 "Past Sadness" by Kevin MacLeod (incompetech.com)
 Licensed under Creative Commons Attribution 4.0: https://creativecommons.org/licenses/by/4.0/
-Split into drum and melody stems for this game.
+Separated into drum and melody stems by the Rehabeat team.
 ```
 
 CC BY 4.0 asks you to say when the audio has been changed, which is what the last line does.

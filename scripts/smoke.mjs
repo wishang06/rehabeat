@@ -157,7 +157,11 @@ function watchConsole(page) {
   page.on('response', (response) => {
     if (response.status() >= 400) errors.push(`HTTP ${response.status()} for ${response.url()}`);
   });
-  page.on('requestfailed', (request) => errors.push(`Request failed: ${request.url()} (${request.failure()?.errorText})`));
+  page.on('requestfailed', (request) => {
+    // An audio element aborts its stream whenever its source changes or it stops (song previews do both).
+    if (request.resourceType() === 'media' && request.failure()?.errorText === 'net::ERR_ABORTED') return;
+    errors.push(`Request failed: ${request.url()} (${request.failure()?.errorText})`);
+  });
   return { errors, ignored };
 }
 
@@ -321,6 +325,7 @@ async function happyPath(url) {
     await page.keyboard.press('Escape');
     await page.getByTestId('song-menu').waitFor({ timeout: 10_000 });
     check('Esc goes back to the song menu', true);
+    await page.screenshot({ path: path.join(outDir, 'menu-after-play.png') });
     if (otherCatalogue) {
       const target = otherCatalogue.songIds[0];
       await page.getByTestId(`catalogue-tab-${otherCatalogue.id}`).click();

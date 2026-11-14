@@ -15,6 +15,9 @@ const beatmaps = import.meta.glob<{ bpm: number; beats: number[] }>('/public/son
   eager: true,
   import: 'default',
 });
+const credits = Object.values(
+  import.meta.glob<string>('/public/CREDITS.md', { eager: true, query: '?raw', import: 'default' }),
+)[0];
 // Not eager: only the file names are needed.
 const stems = Object.keys(import.meta.glob('/public/songs/*/*.mp3'));
 
@@ -56,6 +59,12 @@ describe('the shipped song library', () => {
       expect(meta.creditLine).toContain(`"${meta.title}" by ${meta.artist}`);
       expect(meta.creditLine).toContain(STEMS_NOTE);
       expect(meta.creditLine).toBe(buildCreditLine(meta));
+    });
+
+    it("is listed with its credit line in CREDITS.md's song library section", () => {
+      const section = credits.slice(credits.indexOf('<!-- songs:start -->'), credits.indexOf('<!-- songs:end -->'));
+      expect(section).toContain(`\`${songId}\`: ${meta.creditLine}`);
+      expect(section).toContain(meta.sourceUrl);
     });
 
     it('has a steady beat grid (jitter under 10 ms)', () => {
