@@ -51,9 +51,9 @@ describe('beatAlignedLoopLength', () => {
   });
 });
 
-// public/beatmap.json is optional, so it is looked up rather than imported outright.
+// The default song's beatmap. It is looked up rather than imported, so the test skips if it is ever removed.
 const shipped = Object.values(
-  import.meta.glob<Beatmap>('/public/beatmap.json', { eager: true, import: 'default' }),
+  import.meta.glob<Beatmap>('/public/songs/past-sadness/beatmap.json', { eager: true, import: 'default' }),
 )[0];
 
 describe.runIf(shipped !== undefined)('the shipped beatmap', () => {

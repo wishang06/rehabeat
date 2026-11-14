@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { hasStems } from 'virtual:public-assets';
 import { DEFAULT_CALIBRATION, loadCalibration, type Calibration } from './scoring';
 import { describeStartError, startSession, type Session, type StartStep } from './session';
 import { CalibrateScreen } from './ui/CalibrateScreen';
@@ -54,7 +53,7 @@ export function App() {
   };
 
   return (
-    <div className="app" data-screen={screen} data-credit={hasStems}>
+    <div className="app" data-screen={screen} data-credit="true">
       <header className="app__bar">
         <span className="app__wordmark">Rehabeat</span>
         {session && (
@@ -105,11 +104,9 @@ export function App() {
       </main>
 
       {/* The strip keeps its height on every screen so the camera view never jumps. */}
-      {hasStems && (
-        <footer className="app__footer">
-          {(screen === 'welcome' || screen === 'play') && <MusicCredit />}
-        </footer>
-      )}
+      <footer className="app__footer">
+        {(screen === 'welcome' || screen === 'play') && <MusicCredit />}
+      </footer>
     </div>
   );
 }

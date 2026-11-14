@@ -28,8 +28,9 @@ const externalUrl = option('--url');
 const expectHit = flag('--expect-hit');
 
 // What the beat engine should report, given the optional audio files present in public/.
-const hasBeatmap = existsSync(path.join(root, 'public', 'beatmap.json'));
-const hasStems = ['drums.mp3', 'melody.mp3'].every((name) => existsSync(path.join(root, 'public', 'stems', name)));
+const songDir = path.join(root, 'public', 'songs', 'past-sadness');
+const hasBeatmap = existsSync(path.join(songDir, 'beatmap.json'));
+const hasStems = ['drums.mp3', 'melody.mp3'].every((name) => existsSync(path.join(songDir, name)));
 const expectedAudio = `${hasStems ? 'stems' : 'click'}, ${hasBeatmap ? 'file' : 'generated'} beatmap`;
 
 // MediaPipe's WASM runtime writes its own log lines through console.error.
@@ -88,7 +89,7 @@ function stemHeadroom(page) {
   return page.evaluate(async () => {
     const { STEM_GAIN } = await import('/src/audio/index.ts');
     const ctx = new OfflineAudioContext(2, 44100, 44100);
-    const load = async (name) => ctx.decodeAudioData(await (await fetch(`/stems/${name}.mp3`)).arrayBuffer());
+    const load = async (name) => ctx.decodeAudioData(await (await fetch(`/songs/past-sadness/${name}.mp3`)).arrayBuffer());
     const [drums, melody] = await Promise.all([load('drums'), load('melody')]);
     const frames = Math.min(drums.length, melody.length);
     let peak = 0;
@@ -239,7 +240,7 @@ async function happyPath(url) {
 
       // The audio wraps after `loop` seconds. For the grid to carry straight on, the first
       // beat of the next pass has to land one beat after the last beat of this one.
-      const beatmap = JSON.parse(await readFile(path.join(root, 'public', 'beatmap.json'), 'utf8'));
+      const beatmap = JSON.parse(await readFile(path.join(songDir, 'beatmap.json'), 'utf8'));
       const loop = Number.parseFloat((await page.getByTestId('debug-loop').textContent()) ?? '');
       const inLoop = beatmap.beats.filter((time) => time < loop);
       const seam = loop + inLoop[0] - inLoop[inLoop.length - 1];

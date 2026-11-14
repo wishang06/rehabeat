@@ -1,5 +1,5 @@
-import { hasBeatmap, hasStems } from 'virtual:public-assets';
 import { BeatEngine } from './audio';
+import { DEFAULT_SONG_ID, songUrls } from './songs/library';
 import { createPoseTracker, openCamera, stopCamera, type PoseTracker } from './pose';
 import type { PoseSample } from './types';
 
@@ -38,13 +38,8 @@ export async function startSession(
 
   try {
     onStep('sound');
-    // Only request the optional audio files that exist; a missing one means the fallback.
-    const base = import.meta.env.BASE_URL;
-    engine = await BeatEngine.create({
-      ctx,
-      beatmapUrl: hasBeatmap ? `${base}beatmap.json` : null,
-      stemsBaseUrl: hasStems ? `${base}stems` : null,
-    });
+    const song = songUrls(DEFAULT_SONG_ID);
+    engine = await BeatEngine.create({ ctx, beatmapUrl: song.beatmap, stemsBaseUrl: song.folder });
     await engine.resume();
 
     onStep('camera');
