@@ -1,23 +1,23 @@
 /** Colours used on the overlay canvas. Keep in step with the tokens in index.css. */
 export const CANVAS_COLORS = {
-  /** --chalk: the player's own skeleton (Calibrate screen). */
-  skeletonLine: 'rgba(246, 241, 231, 0.82)',
-  skeletonJoint: '#f6f1e7',
-  /** --brass: the target figure to reach for. */
-  figure: { fill: 'rgba(242, 178, 76, 0.55)', edge: '#ffd27a', glow: '#f2b24c' },
-  /** --on-target: the target figure once the player is within Good range. */
-  figureMatched: { fill: 'rgba(134, 219, 166, 0.55)', edge: '#c9f5da', glow: '#86dba6' },
-  /** The player's limbs by FeedbackFrame status. Amber leans orange so it never reads as the gold target. */
+  /** White: the player's own skeleton (Calibrate screen). */
+  skeletonLine: 'rgba(255, 255, 255, 0.88)',
+  skeletonJoint: '#ffffff',
+  /** --sun: the target figure to reach for. */
+  figure: { fill: 'rgba(255, 201, 52, 0.55)', edge: '#ffe08a', glow: '#ffc934' },
+  /** --mint: the target figure once the player is within Good range. */
+  figureMatched: { fill: 'rgba(34, 201, 160, 0.55)', edge: '#b5f5e3', glow: '#22c9a0' },
+  /** The player's limbs by FeedbackFrame status. Amber leans orange so it never reads as the yellow target. */
   limb: {
-    green: '#86dba6',
-    amber: '#ff9a3d',
-    red: '#ff5f57',
-    grey: '#8d8880',
-    idle: '#f6f1e7',
+    green: '#22c9a0',
+    amber: '#ff8a1f',
+    red: '#ff5c73',
+    grey: '#a59fc2',
+    idle: '#ffffff',
   },
-  /** --chalk and the --scrim studio colour, for text on the camera picture. */
-  chalk: '#f6f1e7',
-  scrim: 'rgba(20, 17, 14, 0.84)',
+  /** White and the --scrim room colour, for text on the camera picture. */
+  chalk: '#ffffff',
+  scrim: 'rgba(30, 16, 92, 0.86)',
 };
 
 /** A sized, cleared overlay canvas, ready to draw on. */

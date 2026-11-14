@@ -109,9 +109,11 @@ export function App() {
           )}
           {supabase && screen !== 'play' && (
             <>
-              <button type="button" className="button button--quiet" onClick={() => boardRef.current?.showModal()}>
-                Leaderboard
-              </button>
+              {screen !== 'welcome' && (
+                <button type="button" className="button button--quiet" onClick={() => boardRef.current?.showModal()}>
+                  Leaderboard
+                </button>
+              )}
               <AccountButton auth={auth} />
             </>
           )}
@@ -125,7 +127,7 @@ export function App() {
 
       <main className="app__main">
         <Stage videoRef={videoRef} canvasRef={canvasRef} live={session !== null}>
-          {screen === 'welcome' && <WelcomeScreen step={step} error={error} onStart={start} />}
+          {screen === 'welcome' && <WelcomeScreen step={step} error={error} onStart={start} auth={auth} />}
           {screen === 'calibrate' && session && (
             <CalibrateScreen
               session={session}

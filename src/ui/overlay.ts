@@ -299,7 +299,7 @@ const STATUS_ORDER: readonly LimbStatus[] = ['idle', 'grey', 'green', 'amber', '
 const fontSize = (surface: CanvasSurface, fraction: number, minPx: number, maxPx: number) =>
   Math.round(Math.min(maxPx * surface.ratio, Math.max(minPx * surface.ratio, surface.width * fraction)));
 
-const FONT = '"Archivo Variable", system-ui, sans-serif';
+const FONT = '"Fredoka Variable", ui-rounded, system-ui, sans-serif';
 
 function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
   ctx.beginPath();
@@ -322,7 +322,7 @@ function drawHint(
 
   const size = fontSize(surface, 0.026, 15, 30);
   ctx.save();
-  ctx.font = `650 ${size}px ${FONT}`;
+  ctx.font = `600 ${size}px ${FONT}`;
   const labelHeight = Math.round(size * 2);
   const labelWidth = Math.ceil(ctx.measureText(text).width) + labelHeight;
   const { label, tail, tip } = layoutHint({
@@ -379,7 +379,7 @@ function drawLowVisibility(surface: CanvasSurface, appear: number, avoid: readon
   const { ctx, width, height, ratio } = surface;
   const size = fontSize(surface, 0.03, 16, 34);
   ctx.save();
-  ctx.font = `650 ${size}px ${FONT}`;
+  ctx.font = `600 ${size}px ${FONT}`;
   const textWidth = ctx.measureText(LOW_VISIBILITY_MESSAGE).width;
   const h = Math.round(size * 2.3);
   const dot = size * 0.32;
