@@ -51,11 +51,14 @@
   font-size: clamp(22px, 4cqh, 34px);
 }
 
-/* The score tube runs down the rail between the stats and the ring. */
+/*
+ * The score tube runs down the rail between the stats and the ring, in the
+ * middle of the rail: the tube and its stars together are centred across it.
+ */
 .stage[data-rails='true'] .tube {
   top: clamp(150px, 24cqh, 210px);
   bottom: calc(var(--rail-gap) + var(--ring-size) + 44px);
-  left: calc(var(--rail-gap) + 4px);
+  left: calc((var(--rail) - (var(--tube-width) + clamp(30px, 3.6cqw, 46px))) / 2);
 }
 
 .stage[data-rails='true'] .hud-ring {
