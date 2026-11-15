@@ -1,8 +1,12 @@
 /*
  * The play HUD (PlayHud.tsx): DOM over the camera and its canvas. Sizes are
- * in container units of the stage, so the HUD scales with the picture. It is
- * read from two metres: the phase word, the count and the pop are the
- * largest things on screen.
+ * in container units of the stage, so the HUD scales with the window.
+ *
+ * The picture is kept clear for the player and the target figure. Nothing
+ * is written across it: the phase word, the count, the grade and the moves
+ * are in the move lane (lane.css), the numbers are in the left rail
+ * (rails.css), and the one message that can appear over the picture is a
+ * slim strip on its bottom edge.
  *
  * The Play screen writes three custom properties on .hud once per frame,
  * from the audio clock: --pulse (1 on the beat, falling to 0), --progress
@@ -45,141 +49,6 @@
   color: var(--color-gold);
 }
 
-/* ---------- phase word and beat pips, top centre */
-.hud-phase {
-  position: absolute;
-  inset: clamp(34px, 9cqh, 76px) 0 auto;
-  display: grid;
-  justify-items: center;
-  gap: clamp(6px, 1.4cqh, 14px);
-}
-
-.hud-phase__word {
-  margin: 0;
-  font-size: clamp(54px, 13cqw, 150px);
-  line-height: 1;
-  letter-spacing: 0.01em;
-  text-shadow:
-    0 0 44px rgb(238 242 255 / 0.4),
-    0 2px 0 rgb(2 3 8 / 0.5);
-}
-
-.hud-phase[data-phase='reach'] .hud-phase__word {
-  color: var(--color-cyan);
-  text-shadow: 0 0 44px rgb(39 224 240 / 0.6);
-}
-
-.hud-phase[data-phase='hold'] .hud-phase__word {
-  color: var(--color-gold);
-  text-shadow: 0 0 44px rgb(255 210 63 / 0.6);
-}
-
-.hud-beats {
-  display: flex;
-  gap: clamp(4px, 0.8cqw, 8px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.hud-beats li {
-  --tone: var(--color-cyan);
-  width: clamp(22px, 4.6cqw, 54px);
-  height: clamp(10px, 1.7cqw, 16px);
-  background: rgb(238 242 255 / 0.2);
-  transform: skewX(-24deg);
-}
-
-.hud-beats li[data-phase='hold'] {
-  --tone: var(--color-gold);
-}
-
-.hud-beats li[data-phase='release'] {
-  --tone: var(--color-white);
-}
-
-.hud-beats li[data-first='true']:not(:first-child) {
-  margin-left: clamp(6px, 1.2cqw, 14px);
-}
-
-.hud-beats li[data-lit='true'] {
-  background: var(--tone);
-  box-shadow: 0 0 18px var(--tone);
-}
-
-/* ---------- 3, 2, 1 */
-.hud-count {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-
-.hud-count span {
-  grid-area: 1 / 1;
-  font-size: clamp(150px, 44cqw, 480px);
-  line-height: 1;
-  text-shadow: 0 0 60px rgb(238 242 255 / 0.5);
-}
-
-/* ---------- side cards: now and next */
-.hud-moves {
-  position: absolute;
-  right: calc(var(--edge-gap) + 12px);
-  top: 54%;
-  display: grid;
-  gap: clamp(8px, 1.6cqh, 14px);
-  width: clamp(170px, 27cqw, 320px);
-  transform: translateY(-50%);
-}
-
-.hud-move {
-  --slab: rgb(12 16 32 / 0.92);
-  --slab-skew: -5deg;
-  --fig-bg: var(--color-deck);
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto 1fr;
-  column-gap: 8px;
-  padding: clamp(12px, 2.2cqw, 20px) clamp(14px, 2.4cqw, 22px) clamp(14px, 2.4cqw, 22px) clamp(18px, 3.4cqw, 32px);
-}
-
-.hud-move .fig {
-  grid-area: 1 / 2 / 3 / 3;
-  height: clamp(84px, 17cqh, 168px);
-  width: auto;
-}
-
-.hud-move__tag {
-  font-size: clamp(11px, 1.6cqw, 17px);
-  color: var(--color-gold);
-}
-
-.hud-move__name {
-  align-self: end;
-  font-size: clamp(18px, 3.3cqw, 37px);
-}
-
-.hud-move--next {
-  --tone: var(--color-cyan);
-  --edge: 4px;
-  --fig: var(--color-cyan);
-  padding-block: clamp(8px, 1.6cqw, 14px) clamp(10px, 1.8cqw, 16px);
-}
-
-.hud-move--next .fig {
-  height: clamp(48px, 9.5cqh, 92px);
-}
-
-.hud-move--next .hud-move__tag {
-  color: var(--color-cyan);
-}
-
-.hud-move--next .hud-move__name {
-  font-size: clamp(14px, 2.4cqw, 26px);
-  color: var(--color-dim);
-}
-
 /* ---------- the match ring, bottom left */
 .hud-ring {
   position: absolute;
@@ -189,7 +58,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: clamp(130px, 25cqw, 280px);
+  width: clamp(110px, 17cqw, 190px);
   aspect-ratio: 1;
 }
 
@@ -236,7 +105,7 @@
 
 .hud-ring__value {
   position: relative;
-  font-size: clamp(30px, 7.4cqw, 84px);
+  font-size: clamp(26px, 5cqw, 56px);
   line-height: 0.9;
   text-shadow: 0 0 22px rgb(238 242 255 / 0.5);
 }
@@ -265,7 +134,7 @@
 
 .hud-combo__n {
   display: inline-block;
-  font-size: clamp(52px, 12.8cqw, 146px);
+  font-size: clamp(40px, 7.6cqw, 86px);
   line-height: 0.8;
   letter-spacing: -0.02em;
   color: var(--color-gold);
@@ -273,112 +142,65 @@
 }
 
 .hud-combo__label {
-  font-size: clamp(16px, 3.2cqw, 36px);
+  font-size: clamp(15px, 2.2cqw, 24px);
   letter-spacing: 0.03em;
   color: var(--color-cyan);
 }
 
-/* ---------- PERFECT / GOOD / MISS */
-.hud-pop {
-  position: absolute;
-  inset: 40% 0 auto;
-  display: grid;
-  justify-items: center;
-}
-
-.hud-pop__body {
-  --tone: var(--color-gold);
-  grid-area: 1 / 1;
-  display: grid;
-  justify-items: center;
-}
-
-.hud-pop__body[data-label='Good'] {
-  --tone: var(--color-cyan);
-}
-
-.hud-pop__body[data-label='Miss'] {
-  --tone: var(--color-pink);
-}
-
-.hud-pop__word {
-  padding-inline: 0.12em;
-  font-size: clamp(48px, 11.5cqw, 140px);
-  line-height: 1;
-  letter-spacing: 0.01em;
-  color: var(--tone);
-  text-shadow: 0 0 52px color-mix(in srgb, var(--tone) 70%, transparent);
-}
-
-.hud-pop__detail {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  font-size: clamp(22px, 4cqw, 44px);
-  line-height: 1;
-}
-
-.hud-pop__detail .label {
-  font-size: clamp(13px, 2cqw, 20px);
-  color: var(--color-dim);
-}
-
-/* ---------- messages along the bottom */
+/* ---------- one message at a time, a slim strip on the bottom edge of the picture */
 .hud-banner,
 .hud-note {
   position: absolute;
   left: 50%;
-  bottom: clamp(26px, 7cqh, 64px);
+  bottom: clamp(14px, 2.6cqh, 24px);
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.55em;
   width: max-content;
   max-width: 46cqw;
   margin: 0;
+  padding: 0.5em 1.1em 0.5em 0.9em;
   translate: -50% 0;
+  font-size: clamp(14px, 2.1cqh, 18px);
+  line-height: 1.15;
 }
 
-/* Two words to read from across the room. The canvas overlay carries the full sentence beside the player. */
+/* "Step back" and "Ease off": the warnings. */
 .hud-banner {
   --slab: var(--color-pink);
-  --slab-glow: 0 0 30px rgb(255 46 136 / 0.6);
-  display: grid;
-  grid-template-columns: auto auto;
-  column-gap: 0.3em;
-  padding: 0.22em 0.7em 0.26em 0.5em;
-  font-size: clamp(30px, 6.4cqw, 70px);
+  --slab-skew: -8deg;
+  --slab-glow: 0 0 18px rgb(255 46 136 / 0.45);
   color: var(--color-white);
 }
 
 .hud-banner svg {
-  grid-row: 1 / 3;
-  align-self: center;
-  width: 1em;
-  height: 1em;
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
 }
 
 .hud-banner__word {
-  line-height: 0.9;
+  font-size: 1.3em;
+  line-height: 1;
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .hud-banner__detail {
-  font-size: 0.26em;
+  font-size: 0.8em;
+  line-height: 1.15;
 }
 
 .hud-note {
   --slab: rgb(12 16 32 / 0.94);
-  --slab-skew: -6deg;
+  --slab-skew: -8deg;
   --tone: var(--color-cyan);
-  --edge: 4px;
-  padding: 0.6em 1.2em;
-  font-size: clamp(16px, 2.6cqw, 26px);
+  --edge: 3px;
   font-weight: 500;
-  line-height: 1.2;
 }
 
 .hud-note .label {
-  font-size: 0.64em;
+  font-size: 0.8em;
   color: var(--color-cyan);
 }
 
@@ -399,21 +221,11 @@
   }
 }
 
-/* ---------- the preview page (/hud): a blank stage with the HUD on it */
+/* ---------- the preview page (/hud): the game's stage with the HUD on it and no camera */
 .hud-preview {
-  display: grid;
-  place-items: center;
+  display: flex;
   height: 100dvh;
   background: var(--color-void);
-}
-
-.hud-preview__stage {
-  position: relative;
-  width: min(100vw, 100dvh * 4 / 3);
-  aspect-ratio: 4 / 3;
-  background: var(--color-cam);
-  container-type: size;
-  overflow: hidden;
 }
 
 .hud-preview__note {

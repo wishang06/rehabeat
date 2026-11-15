@@ -58,20 +58,19 @@ export interface PlayHudProps {
   ref?: Ref<HTMLDivElement>;
 }
 
-/** The phase word, the beat pips under it and the count-in number. */
-export interface PhaseCueProps {
-  frames: FeedbackStore;
-  /** The moves being played: the pips are drawn from their beats. */
-  moves: readonly Move[];
-}
-
-/** The current move and the one after it. */
-export interface MoveCardsProps {
+/**
+ * The move lane: the move in play (its phase word, beat pips, count-in and
+ * grade) and the queue of moves to come.
+ */
+export interface MoveLaneProps {
   frames: FeedbackStore;
   moveNumber: number;
   moveCount: number;
   round: HudRun['round'];
+  /** The moves being played, in order: the queue and the figures are drawn from them. */
   moves: readonly Move[];
+  /** The last scored move: its grade shows on the panel through the release that follows. */
+  result: HudResult | null;
 }
 
 /** The match score as a ring, with marks at Good and Perfect. */
@@ -79,10 +78,8 @@ export interface HoldRingProps {
   frames: FeedbackStore;
 }
 
-export interface ResultPopProps {
+export interface ResultLabelProps {
   result: HudResult | null;
-  /** The pop stays up through the release that follows the move it scored. */
-  frames: FeedbackStore;
 }
 
 export interface ComboCounterProps {

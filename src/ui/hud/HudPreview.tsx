@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createFeedbackStore } from '../../engine';
 import { MOCK_STATES, mockFrameAt, mockRunAt, type MockState } from '../mockFeedback';
+import { Stage } from '../Stage';
 import { PlayHud } from './PlayHud';
 import type { HudRun } from './types';
 
@@ -8,9 +9,10 @@ import type { HudRun } from './types';
 const BEATS_PER_SECOND = 72 / 60;
 
 /**
- * The play HUD on a blank stage, fed by the mock frame instead of a camera:
- * for design work, screenshots and checking states that are hard to reach by
- * hand. Not linked from the app.
+ * The play HUD on the game's own stage, fed by the mock frame instead of a
+ * camera: for design work, screenshots and checking states that are hard to
+ * reach by hand. The stage lays out its rails exactly as on the Play screen,
+ * for a 4:3 camera. Not linked from the app.
  *
  *   /hud               the scripted run, looping
  *   /hud?state=perfect one named moment, frozen (see MOCK_STATES)
@@ -23,6 +25,9 @@ const BEATS_PER_SECOND = 72 / 60;
 export function HudPreview() {
   const frames = useMemo(() => createFeedbackStore(), []);
   const hud = useRef<HTMLDivElement>(null);
+  // The stage needs somewhere to put the picture; there is no camera here, so both stay empty.
+  const video = useRef<HTMLVideoElement>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
 
   const frozenBeat = useMemo(() => {
     const query = new URLSearchParams(window.location.search);
@@ -79,12 +84,12 @@ export function HudPreview() {
 
   return (
     <div className="hud-preview">
-      <div className="hud-preview__stage">
+      <Stage videoRef={video} canvasRef={canvas} live rails>
         <p className="hud-preview__note">
           HUD preview. The camera picture and the canvas overlay go here; this page feeds the HUD a mock frame.
         </p>
         <PlayHud frames={frames} run={run} ref={hud} />
-      </div>
+      </Stage>
     </div>
   );
 }

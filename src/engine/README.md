@@ -154,7 +154,8 @@ const figure = stickFigure(stickPoints(view, body), bodyScale(body), view.order)
    - A limb's edge starts a little way out from the joint it hangs from, so it doesn't notch the shoulder or hip.
 2. **A dot on each scored joint.** On the far end of each limb the move scores (elbow, wrist, knee, ankle), in a reach or hold. White until that limb is within tolerance, then green. A limb the camera has lost gets a dashed grey ring at the detector's best guess. The dots sit on landmarks steadied by `LandmarkSmoother` (a One Euro filter run every display frame), so they neither shake nor step at the camera's frame rate.
 3. **The hint.** A label beside the limb, with an arrow to the part it names: the elbow for "arm" hints, the knee for "knee" hints. The label stays out of the HUD corners and off the figure.
-4. **The low-visibility banner.** "Step back so your whole body is in frame", placed so it doesn't cover the scored limbs.
+
+"Step back" is not drawn on the canvas: when a scored joint is out of view its limb is greyed here, and the HUD's message strip under the picture says why.
 
 The canvas uses three colours, each with one meaning: the figure's colour (the pose to copy), white (you), green (in place).
 

@@ -1,0 +1,243 @@
+/*
+ * The move lane (MoveLane.tsx): the move in play, and the queue of moves to
+ * come scrolling up toward it. It lives in the right rail (rails.css places
+ * it); on a narrow window with no rails it is a small panel in the top
+ * right corner of the picture, without the queue.
+ *
+ * MoveLane writes --gap on .lane__track once per frame: 1 as a move starts,
+ * 0 as it ends. Only the track's transform follows it.
+ */
+.lane {
+  --lane-pitch: clamp(60px, 11cqh, 96px);
+  position: absolute;
+  top: var(--edge-gap);
+  right: var(--edge-gap);
+  display: flex;
+  flex-direction: column;
+  width: clamp(168px, 24cqw, 280px);
+}
+
+/* ---------- the move in play */
+.lane__now {
+  --slab: rgb(12 16 32 / 0.9);
+  --slab-skew: -3deg;
+  --edge: 5px;
+  --tone: var(--color-white);
+  --fig-bg: var(--color-deck);
+  flex: none;
+  display: grid;
+  gap: clamp(6px, 1.1cqh, 10px);
+  padding: clamp(12px, 1.8cqh, 18px) clamp(12px, 1.2cqw, 18px) clamp(10px, 1.5cqh, 14px);
+}
+
+.lane[data-phase='reach'] .lane__now {
+  --tone: var(--color-cyan);
+}
+
+.lane[data-phase='hold'] .lane__now {
+  --tone: var(--color-gold);
+}
+
+.lane__tag {
+  font-size: clamp(11px, 1.5cqh, 13px);
+  color: var(--color-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The phase word, with the count beside it before the first move. */
+.lane__cue {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lane__word {
+  margin: 0;
+  font-size: clamp(30px, 6cqh, 52px);
+  line-height: 0.9;
+  color: var(--tone);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--tone) 45%, transparent);
+}
+
+.lane__count {
+  font-size: clamp(30px, 6cqh, 52px);
+  line-height: 0.9;
+  color: var(--color-gold);
+}
+
+/* One pip a beat: reach, hold, release. The lit one is the beat in play. */
+.lane__beats {
+  display: flex;
+  gap: 3px;
+  height: clamp(6px, 1cqh, 9px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lane__beats li {
+  --pip: var(--color-cyan);
+  flex: 1;
+  max-width: 34px;
+  background: rgb(238 242 255 / 0.16);
+  transform: skewX(-24deg);
+}
+
+.lane__beats li[data-phase='hold'] {
+  --pip: var(--color-gold);
+}
+
+.lane__beats li[data-phase='release'] {
+  --pip: var(--color-white);
+}
+
+.lane__beats li[data-first='true']:not(:first-child) {
+  margin-left: 5px;
+}
+
+.lane__beats li[data-lit='true'] {
+  background: var(--pip);
+  box-shadow: 0 0 12px var(--pip);
+}
+
+/* The move's name and figure. A finished move leaves to the side; the next one docks from below. */
+.lane__dock {
+  position: relative;
+}
+
+/*
+ * The name has the panel's full width, so it never breaks inside a word; the
+ * figure and the grade share the row under it. The figure's column is a fixed
+ * share of the panel, so a wide pose (arms out) cannot push the grade off it.
+ */
+.lane__card {
+  display: grid;
+  grid-template-columns: minmax(0, 50%) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(6px, 1cqh, 10px) 10px;
+}
+
+/* Two lines are kept for the name whatever its length, so the panel is the same height for every move. */
+.lane__name {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  min-height: 2lh;
+  font-size: clamp(18px, 3.3cqh, 27px);
+  line-height: 0.98;
+  overflow-wrap: break-word;
+}
+
+.lane__card .fig {
+  grid-area: 2 / 1;
+  justify-self: start;
+  width: auto;
+  max-width: 100%;
+  height: clamp(84px, 17cqh, 140px);
+}
+
+/* PERFECT, GOOD or MISS for the hold that just closed, through its release. */
+.lane__grade {
+  --grade: var(--color-gold);
+  grid-area: 2 / 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: clamp(18px, 3.2cqh, 28px);
+  line-height: 1;
+}
+
+.lane__grade[data-label='Good'] {
+  --grade: var(--color-cyan);
+}
+
+.lane__grade[data-label='Miss'] {
+  --grade: var(--color-pink);
+}
+
+.lane__grade-word {
+  color: var(--grade);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--grade) 55%, transparent);
+}
+
+.lane__grade-timing {
+  flex-basis: 100%;
+  font-size: 0.46em;
+  color: var(--color-dim);
+}
+
+/* ---------- the moves to come. Hidden without rails: over the picture there is no room for it. */
+.lane__queue {
+  position: relative;
+  display: none;
+  flex: 1;
+  min-height: 0;
+  margin-top: 6px;
+  overflow: hidden;
+  /* Cards fade out toward the bottom of the rail instead of being cut off. */
+  mask-image: linear-gradient(#000 62%, transparent);
+}
+
+/* The gate: where a card arrives as its move starts. It beats with the music. */
+.lane__queue::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 3px;
+  background: var(--color-cyan);
+  box-shadow: 0 0 14px var(--color-cyan);
+  opacity: calc(0.25 + var(--pulse, 0) * 0.75);
+}
+
+.lane__track {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translateY(calc(var(--gap, 1) * var(--lane-pitch)));
+  will-change: transform;
+}
+
+.lane__up {
+  --fig: var(--color-cyan);
+  --fig-bg: var(--color-void);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 12px;
+  height: var(--lane-pitch);
+  padding: 6px 4px 6px 10px;
+  border-top: 1px solid rgb(238 242 255 / 0.12);
+}
+
+.lane__up .fig {
+  width: auto;
+  height: calc(var(--lane-pitch) - 16px);
+}
+
+.lane__up-name {
+  font-size: clamp(14px, 2.5cqh, 21px);
+  line-height: 1;
+  color: var(--color-dim);
+  overflow-wrap: break-word;
+}
+
+/* The nearest card is the next move: a little brighter than the rest. */
+.lane__up:first-child .lane__up-name {
+  color: var(--color-white);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No scrolling: the queue waits under the panel and each move swaps in as it starts. */
+  .lane__track {
+    transform: none;
+  }
+}
