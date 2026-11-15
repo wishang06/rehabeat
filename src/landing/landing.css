@@ -7,6 +7,14 @@
   /* One beat at the tempo of the default song, for the CSS lamps. */
   --beat: 0.833s;
   min-height: 100vh;
+  /*
+   * The page never scrolls sideways. Panels ride in from the right as they
+   * are revealed (motion.ts) and lean past their boxes; without this, where
+   * they wait off to the side widens the page. clip, unlike hidden, does not
+   * make this a scroll container, so the page still scrolls as one document.
+   */
+  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--color-void);
   color: var(--color-white);
   font: 400 18px/1.5 var(--font-sans);

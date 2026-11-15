@@ -181,6 +181,20 @@ async function happyPath(url) {
     check('app loads', (await page.title()) === 'Rehabeat');
     const headline = (await page.getByRole('heading', { level: 1 }).textContent())?.replace(/\s+/g, ' ').trim();
     check('landing page shows its headline', headline === 'Your home stretching routine, as a rhythm game', headline);
+    // Panels wait off to the right before they are revealed; that must not widen the page.
+    const sideways = await page.evaluate(async () => {
+      let widest = 0;
+      for (let y = 0; y <= document.documentElement.scrollHeight; y += 400) {
+        window.scrollTo(0, y);
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        widest = Math.max(widest, document.documentElement.scrollWidth);
+      }
+      window.scrollTo(300, 0);
+      const moved = window.scrollX;
+      window.scrollTo(0, 0);
+      return { widest, window: window.innerWidth, moved };
+    });
+    check('the landing page cannot be scrolled sideways', sideways.widest <= sideways.window && sideways.moved === 0, JSON.stringify(sideways));
     await page.screenshot({ path: path.join(outDir, '0-landing.png') });
     await page.getByTestId('landing-play').click();
     await page.getByTestId('title-screen').waitFor({ timeout: 15_000 });
