@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { point, standingPose } from '../pose/poseFixtures';
 import type { Landmark } from '../types';
-import { FloorTracker, groundPoints, lowestPoint, standingFloor } from './floor';
+import { FloorTracker, groundPoints, lowestPoint, onTheFloor, standingFloor, standsOnItsFeet } from './floor';
 import { viewForMove } from './moveViews';
 import { REST_POSE, standardBody } from './silhouette';
 import { STICK_JOINTS, stickPoints, viewForPose } from './stick';
@@ -45,6 +45,43 @@ describe('groundPoints', () => {
     const standing = stickPoints(viewForPose(REST_POSE), BODY);
     const grounded = groundPoints(standing, standingFloor(BODY));
     expect(grounded.hipMid.y).toBeCloseTo(standing.hipMid.y, 6);
+  });
+});
+
+describe('onTheFloor', () => {
+  const floor = standingFloor(BODY) + 18;
+
+  it('grounds a pose that would float: a wide squat, a seated pose', () => {
+    for (const id of ['goddess-pose', 'warrior-ii', 'bound-angle']) {
+      const pose = stickPoints(viewForMove(id, {}), BODY);
+      expect(standsOnItsFeet(pose, BODY)).toBe(false);
+      expect(lowestPoint(onTheFloor(pose, BODY, floor))).toBeCloseTo(floor, 9);
+    }
+  });
+
+  it('leaves a pose that stands on its feet on the hips, so its arms stay on the player’s shoulders', () => {
+    const rest = stickPoints(viewForPose(REST_POSE), BODY);
+    const armsUp = stickPoints(viewForPose({ ...REST_POSE, leftShoulder: 170, rightShoulder: 170 }), BODY);
+    // One knee up: the standing leg is still straight under the hips.
+    const kneeUp = stickPoints(viewForPose({ ...REST_POSE, leftHip: 90, leftKnee: 90 }), BODY);
+    for (const pose of [rest, armsUp, kneeUp]) {
+      expect(standsOnItsFeet(pose, BODY)).toBe(true);
+      expect(onTheFloor(pose, BODY, floor)).toBe(pose);
+    }
+  });
+
+  it('leaves every pose on the hips while the floor is not known', () => {
+    const squat = stickPoints(viewForMove('goddess-pose', {}), BODY);
+    expect(onTheFloor(squat, BODY, null)).toBe(squat);
+  });
+
+  it('does not chase a player who has moved into the pose: the floor holds the figure, not their hips', () => {
+    const squat = stickPoints(viewForMove('goddess-pose', {}), BODY);
+    const standingHips = groundPoints(squat, floor).hipMid.y;
+    // The player squats, so the body the figure is built on has come down with their hips.
+    const lowered = standardBody({ center: { x: 500, y: 360 }, shoulderWidth: 100, mirrored: false });
+    const again = onTheFloor(stickPoints(viewForMove('goddess-pose', {}), lowered), lowered, floor);
+    expect(again.hipMid.y).toBeCloseTo(standingHips, 6);
   });
 });
 

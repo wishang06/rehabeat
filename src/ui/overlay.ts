@@ -10,8 +10,7 @@ import {
   DEFAULT_ORDER,
   FigureAnchor,
   FloorTracker,
-  groundPoints,
-  standingFloor,
+  onTheFloor,
   LIMBS,
   LandmarkSmoother,
   REST_VIEW,
@@ -71,7 +70,7 @@ function trimStart(points: readonly Point[], distance: number): Point[] {
 
 export class PlayOverlay {
   private readonly anchor = new FigureAnchor();
-  /** The player's floor line: the figure's lowest point stands on it, so no pose floats. */
+  /** The player's floor line: a pose that would float is stood on it. */
   private readonly floor = new FloorTracker();
   private readonly easer = new StickEaser();
   private readonly smoother = new LandmarkSmoother();
@@ -139,9 +138,8 @@ export class PlayOverlay {
     const resting = feedback.phase === 'release';
     const id = feedback.move?.id ?? feedback.nextMove.id;
     const view = resting ? REST_VIEW : viewForMove(id, targetJoints(feedback));
-    // Every pose stands on the floor: on the player's feet once they have been seen, else where the body's feet would be.
-    const floorY = this.floor.update(landmarks, surface, nowMs) ?? standingFloor(body);
-    const target = groundPoints(stickPoints(view, body), floorY);
+    // A pose that would float (bent or spread legs, hands down, seated) is put on the player's floor line.
+    const target = onTheFloor(stickPoints(view, body), body, this.floor.update(landmarks, surface, nowMs));
     const points = this.easer.update(resting ? 'rest' : id, target, body, nowMs);
     const figure = stickFigure(points, bodyScale(body), view.order ?? DEFAULT_ORDER);
 

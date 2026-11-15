@@ -2,11 +2,16 @@
  * The floor under the target figure.
  *
  * The figure stands on the player's hips (anchor.ts), which suits a standing
- * pose. A pose whose legs bend or spread, or one that goes down on the hands,
- * drawn from standing hips leaves the figure's feet hanging in the air. So
- * the figure is moved up or down until its lowest point rests on the floor:
- * the line of the player's feet, held still like the anchor, or, before the
- * feet have been seen, where the feet of the figure's body stand.
+ * pose: its feet land on the player's feet. A pose whose legs bend or
+ * spread, or one that sits or goes down on the hands, drawn from standing
+ * hips leaves the figure hanging in the air until the player has moved into
+ * it. Such a pose is moved straight up or down until its lowest point rests
+ * on the floor: the line of the player's feet, held still like the anchor.
+ *
+ * A pose that stands as the rest pose does (an arm raise, a knee raise on a
+ * straight standing leg) is left on the hips, so its arms stay exactly on
+ * the player's shoulders. So is every pose until the player's feet have been
+ * seen: with no feet in the picture there is no floor in it either.
  */
 import { LM } from '../pose/landmarks';
 import type { Landmark } from '../types';
@@ -23,6 +28,11 @@ const MIN_VISIBILITY = 0.5;
  */
 const FLOOR_RANGE = { outer: 0.04, inner: 0.006, followMs: 250 };
 const MAX_STEP_MS = 100;
+/**
+ * A pose whose lowest point is within this of the standing feet (as a share
+ * of the torso's length) already stands on the floor, and is left alone.
+ */
+const STANDS_WITHIN = 0.1;
 
 type Size = { width: number; height: number };
 
@@ -39,11 +49,30 @@ export function groundPoints(points: StickPoints, floorY: number): StickPoints {
   return out;
 }
 
-/** Where the feet of `body` are when it stands straight: the floor before the player's feet have been seen. */
+/** Where the feet of `body` are when it stands straight. */
 export function standingFloor(body: BodyFrame): number {
   const left = body.leftHip.y + body.left.thigh + body.left.shin;
   const right = body.rightHip.y + body.right.thigh + body.right.shin;
   return Math.max(left, right);
+}
+
+/** True when the pose's lowest point is where the body's standing feet are: it needs no grounding. */
+export function standsOnItsFeet(points: StickPoints, body: BodyFrame): boolean {
+  const torso = Math.hypot(
+    (body.leftShoulder.x + body.rightShoulder.x - body.leftHip.x - body.rightHip.x) / 2,
+    (body.leftShoulder.y + body.rightShoulder.y - body.leftHip.y - body.rightHip.y) / 2,
+  );
+  return Math.abs(lowestPoint(points) - standingFloor(body)) <= STANDS_WITHIN * torso;
+}
+
+/**
+ * The pose to draw: `points` (built on `body`) put on the floor at `floorY`
+ * if it would otherwise float or sink, and unchanged if it stands on its
+ * feet or the floor is not known (`floorY` null).
+ */
+export function onTheFloor(points: StickPoints, body: BodyFrame, floorY: number | null): StickPoints {
+  if (floorY === null || standsOnItsFeet(points, body)) return points;
+  return groundPoints(points, floorY);
 }
 
 /**
