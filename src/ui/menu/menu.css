@@ -760,3 +760,90 @@
     transform: none;
   }
 }
+
+/*
+ * Desktop: the menu fits the window and never scrolls. The big type and the
+ * cards scale with the window's height as well as its width, and Credits
+ * lays its catalogues side by side.
+ */
+@media (min-width: 64rem) {
+  .menu {
+    overflow: hidden;
+  }
+
+  .menu__frame {
+    --menu-pad: clamp(1rem, 3.4vh, 2.75rem);
+    --rail-step: clamp(4.75rem, 11.5vh, 6.75rem);
+    grid-template-rows: auto minmax(0, 1fr);
+    row-gap: clamp(0.75rem, 2.6vh, 1.75rem);
+    height: 100%;
+    min-height: 0;
+  }
+
+  .menu-header__lede {
+    max-width: none;
+  }
+
+  .menu-rail__tab--credits {
+    height: clamp(4.25rem, 9vh, 5.25rem);
+  }
+
+  .menu__panel {
+    gap: clamp(0.5rem, 1.7vh, 1.125rem);
+    min-height: 0;
+  }
+
+  .menu__title {
+    font-size: clamp(2.5rem, min(9.4cqw, 10.5vh), 8.25rem);
+  }
+
+  .menu .menu-card {
+    min-height: 0;
+    padding-block: clamp(1rem, 2.6vh, 1.625rem) clamp(1rem, 2.6vh, 1.75rem);
+  }
+
+  .menu-card__bpm {
+    font-size: clamp(2.75rem, min(7.4cqw, 8.5vh), 6.5rem);
+  }
+
+  .menu-card__title {
+    padding-top: clamp(0.5rem, 1.6vh, 1.25rem);
+    font-size: clamp(1.75rem, min(4.6cqw, 6vh), 4.25rem);
+  }
+
+  .menu-card__foot {
+    min-height: 0;
+    padding-top: clamp(0.5rem, 1.6vh, 1.125rem);
+  }
+
+  /* Credits: a smaller heading, the catalogues side by side, and the data credit along the bottom. */
+  .menu__panel:has(.menu-credits) .menu__title {
+    font-size: clamp(2.25rem, min(6cqw, 7vh), 4.5rem);
+  }
+
+  .menu-credits {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    align-items: start;
+    gap: clamp(0.75rem, 2vh, 1.25rem) 1.25rem;
+    max-width: none;
+  }
+
+  .menu-credits__group--data {
+    grid-column: 1 / -1;
+  }
+
+  .menu-credits__song {
+    padding: 0.625rem 0.875rem 0.75rem;
+  }
+
+  /* Each credit line starts with the song's title in quotes, so the title above it can go. */
+  .menu-credits__title {
+    display: none;
+  }
+
+  .menu-credits__line {
+    margin-top: 0;
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+}

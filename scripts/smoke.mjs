@@ -1,6 +1,7 @@
 // Browser smoke check: starts the dev server, drives the app in Chromium with
 // a fake camera, and fails on console errors. It walks the game, a refused
-// camera, and the doctor loop in the demo clinic (prescribe, play, see the session).
+// camera, the doctor loop in the demo clinic (prescribe, play, see the session),
+// and that every /play screen fits a desktop window without scrolling.
 //
 //   npm run smoke                 headless, synthetic test-pattern camera
 //   npm run smoke -- --headed     visible window (uses the real GPU; use this for FPS numbers)
@@ -15,6 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
+import { scrollProblems } from './lib/fit.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'test-results');
@@ -554,6 +556,100 @@ async function doctorLoop(url) {
   }
 }
 
+/** Desktop windows every /play screen must fit with nothing scrolling (scripts/lib/fit.mjs). */
+const DESKTOP_SIZES = [
+  [1440, 900],
+  [1280, 720],
+  [1024, 768],
+];
+
+/** Title, song select, Credits, Calibrate, Play and the results, each checked at every desktop size. */
+async function fitPath(url) {
+  const browser = await launch(['--use-fake-ui-for-media-stream']);
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const log = watchConsole(page);
+  const fits = async (screenName) => {
+    const found = [];
+    for (const [width, height] of DESKTOP_SIZES) {
+      await page.setViewportSize({ width, height });
+      await page.waitForTimeout(350);
+      for (const problem of await scrollProblems(page)) found.push(`${width}x${height}: ${problem}`);
+    }
+    check(`the ${screenName} fits 1440x900, 1280x720 and 1024x768 with nothing scrolling`, found.length === 0, found.slice(0, 4).join(' | '));
+    await page.setViewportSize({ width: 1440, height: 900 });
+  };
+
+  try {
+    await page.goto(new URL('/play', url).href, { waitUntil: 'domcontentloaded' });
+    await page.getByTestId('title-screen').waitFor({ timeout: 15_000 });
+    await page.evaluate(() => document.fonts.ready);
+    await fits('title screen');
+    await page.getByTestId('title-start').click();
+    await page.getByTestId('song-menu').waitFor({ timeout: 15_000 });
+    await fits('song menu');
+    await page.getByTestId('catalogue-tab-credits').click();
+    const poseCredit = (await page.getByTestId('pose-data-credit').textContent())?.replace(/\s+/g, ' ').trim();
+    check(
+      'Credits credits the yoga pose dataset',
+      poseCredit === 'Yoga pose landmarks from Yoga_Poses-Dataset by Manoj-2702 (https://github.com/Manoj-2702/Yoga_Poses-Dataset), MIT License',
+      poseCredit,
+    );
+    await fits('Credits view');
+    await page.getByTestId(`catalogue-tab-${defaultCatalogue}`).click();
+    await page.getByTestId(`song-card-${DEFAULT_SONG}`).click();
+    const started = await Promise.race([
+      page.getByTestId('calibrate-screen').waitFor({ timeout: 90_000 }).then(() => true),
+      page.getByTestId('start-error').waitFor({ timeout: 90_000 }).then(() => false),
+    ]);
+    if (!started) throw new CameraStalled(await page.getByTestId('start-error').textContent());
+    await fits('Calibrate screen');
+
+    // The zoom slider: the picture and its canvas move as one, from covering the stage to the whole frame.
+    const slider = page.getByTestId('zoom-slider');
+    const framing = () =>
+      page.evaluate(() => {
+        const box = (selector) => document.querySelector(selector).getBoundingClientRect();
+        const stage = box('.stage');
+        const video = box('.stage__video');
+        const canvas = box('.stage__canvas');
+        return {
+          locked: ['left', 'top', 'width', 'height'].every((key) => Math.abs(video[key] - canvas[key]) < 0.5),
+          covers: video.left <= stage.left + 1 && video.right >= stage.right - 1 && video.top <= stage.top + 1 && video.bottom >= stage.bottom - 1,
+          inside: video.left >= stage.left - 1 && video.right <= stage.right + 1 && video.top >= stage.top - 1 && video.bottom <= stage.bottom + 1,
+          aspect: video.width / video.height,
+        };
+      });
+    check('the camera zoom starts in the middle', (await slider.inputValue()) === '0.5', await slider.inputValue());
+    await slider.fill('0');
+    const close = await framing();
+    await slider.fill('1');
+    const full = await framing();
+    check(
+      'zoomed in the picture covers the stage, zoomed out it is the whole frame, and the canvas stays on the picture',
+      close.covers && full.inside && close.locked && full.locked && Math.abs(full.aspect - 4 / 3) < 0.01,
+      JSON.stringify({ close, full }),
+    );
+    const kept = await page.evaluate(() => localStorage.getItem('rehabeat.cameraZoom'));
+    check('the zoom is kept for next time', kept === '1', kept ?? 'nothing stored');
+    await slider.fill('0.5');
+
+    await page.getByTestId('calibrate-skip').click();
+    await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
+    const playFrame = await framing();
+    check('Play uses the zoom from Calibrate', playFrame.locked && !playFrame.covers && !playFrame.inside, JSON.stringify(playFrame));
+    await fits('Play screen');
+    await page.getByTestId('finish-button').click();
+    await page.getByTestId('results-screen').waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(1800);
+    await fits('results screen');
+    const barButtons = await page.locator('.app__actions button').allTextContents();
+    check('the results bar does not repeat the screen (no Leaderboard, Songs or XP meters)', !barButtons.some((text) => /Leaderboard|Songs/.test(text)) && (await page.locator('.app__bar .meters').count()) === 0, barButtons.join(', '));
+    check('no console errors while checking the fit', log.errors.length === 0, log.errors.join(' | '));
+  } finally {
+    await browser.close();
+  }
+}
+
 /** Runs a walk that uses the camera, again in a fresh browser when Chrome's fake camera stalls. */
 async function withCamera(walk) {
   const mark = checks.length;
@@ -580,6 +676,7 @@ try {
   const { measured, ignored } = await withCamera(() => happyPath(url));
   await deniedPath(url);
   await withCamera(() => doctorLoop(url));
+  await withCamera(() => fitPath(url));
 
   console.log('\nMeasured:', JSON.stringify(measured, null, 2));
   if (ignored.length > 0) console.log(`Ignored ${ignored.length} MediaPipe runtime log line(s) written via console.error, e.g. "${ignored[0]}"`);

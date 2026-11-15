@@ -7,7 +7,18 @@ interface CreditsViewProps {
   ref?: Ref<HTMLDivElement>;
 }
 
-/** Every song's credit line, catalogue by catalogue. Links open in a new tab so the menu stays put. */
+/** The dataset the yoga moves' target poses were built from, credited as its licence asks. */
+export const POSE_DATA = {
+  text: 'Yoga pose landmarks from Yoga_Poses-Dataset by Manoj-2702',
+  url: 'https://github.com/Manoj-2702/Yoga_Poses-Dataset',
+  licence: 'MIT License',
+  licenceUrl: 'https://opensource.org/license/mit',
+} as const;
+
+/**
+ * Every song's credit line, catalogue by catalogue, then the data the game
+ * uses. Links open in a new tab so the menu stays put.
+ */
 export function CreditsView({ groups, ref }: CreditsViewProps) {
   const baseId = useId();
   const stocked = groups.filter((group) => group.songs.length > 0);
@@ -43,6 +54,21 @@ export function CreditsView({ groups, ref }: CreditsViewProps) {
           </ul>
         </section>
       ))}
+      <section className="menu-credits__group menu-credits__group--data" aria-labelledby={`${baseId}-data`}>
+        <h3 className="menu-credits__catalogue" id={`${baseId}-data`}>
+          Pose data
+        </h3>
+        <p className="menu-credits__line" data-testid="pose-data-credit">
+          {POSE_DATA.text} (
+          <a href={POSE_DATA.url} target="_blank" rel="noopener noreferrer">
+            {POSE_DATA.url}
+          </a>
+          ),{' '}
+          <a href={POSE_DATA.licenceUrl} target="_blank" rel="noopener noreferrer">
+            {POSE_DATA.licence}
+          </a>
+        </p>
+      </section>
     </div>
   );
 }
