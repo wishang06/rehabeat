@@ -1,127 +1,23 @@
 import { useEffect, useRef } from 'react';
 import { ChevronsDown, MoveUp } from 'lucide-react';
-import { AnimatePresence, MotionConfig, motion, type Variants } from 'motion/react';
-import { Figure } from '@/components/Figure';
+import { MotionConfig, motion } from 'motion/react';
 import { useFeedbackFrame } from '../../engine';
 import { MOVES } from '../../moves';
-import { phasePips } from '../playProgram';
 import { GOOD_SCORE, PERFECT_SCORE } from '../../scoring';
 import type {
   ComboCounterProps,
-  FeedbackPhase,
   FormNoteProps,
   HoldRingProps,
-  MoveCardsProps,
-  PhaseCueProps,
   PlayHudProps,
-  ResultPopProps,
+  ResultLabelProps,
   RunStatsProps,
   StepBackBannerProps,
 } from './types';
 import { HudSounds } from './HudSounds';
+import { MoveLane } from './MoveLane';
 import { ScoreTube } from './ScoreTube';
 import './hud.css';
 import './rails.css';
-
-const PHASE_LABEL: Record<FeedbackPhase, string> = {
-  ready: 'READY',
-  reach: 'REACH',
-  hold: 'HOLD',
-  release: 'RELEASE',
-};
-
-const MOVE_PHASES = ['reach', 'hold', 'release'] as const;
-
-/** The lane: ride in along the slant, leave the other way. Reduced motion keeps only the fade. */
-const lane: Variants = {
-  enter: { opacity: 0, x: 70, skewX: -22 },
-  on: { opacity: 1, x: 0, skewX: 0, transition: { duration: 0.12, ease: 'easeOut' } },
-  exit: { opacity: 0, x: -70, skewX: -22, transition: { duration: 0.1, ease: 'easeIn' } },
-};
-
-/** The phase word, the beat pips of the current move, and 3-2-1 before the first one. */
-function PhaseCue({ frames, moves }: PhaseCueProps) {
-  const phase = useFeedbackFrame((frame) => frame?.phase ?? 'ready', frames);
-  const moveId = useFeedbackFrame((frame) => frame?.move?.id ?? null, frames);
-  // Whole beats until the next phase: changes once per beat, not once per frame.
-  const beatsLeft = useFeedbackFrame((frame) => (frame ? Math.ceil(frame.beatsToNextPhase) : 0), frames);
-
-  const { beats, lit } = phasePips(moves, moveId, phase, beatsLeft);
-  const counting = phase === 'ready' && beatsLeft >= 1 && beatsLeft <= 3;
-
-  return (
-    <>
-      <div className="hud-phase" data-phase={phase}>
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.p
-            key={phase}
-            className="hud-phase__word display"
-            data-testid="phase-label"
-            variants={lane}
-            initial="enter"
-            animate="on"
-            exit="exit"
-          >
-            {PHASE_LABEL[phase]}
-          </motion.p>
-        </AnimatePresence>
-        {beats && (
-          <ol className="hud-beats" aria-hidden="true">
-            {MOVE_PHASES.flatMap((name) =>
-              Array.from({ length: beats[name] }, (_, index) => ({ name, first: index === 0 })),
-            ).map((pip, index) => (
-              <li key={index} data-phase={pip.name} data-first={pip.first} data-lit={index === lit} />
-            ))}
-          </ol>
-        )}
-      </div>
-
-      <div className="hud-count" aria-hidden="true">
-        <AnimatePresence initial={false}>
-          {counting && (
-            <motion.span key={beatsLeft} className="led" variants={lane} initial="enter" animate="on" exit="exit">
-              {beatsLeft}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
-  );
-}
-
-/** The side cards: the move in play, and the one after it. */
-function MoveCards({ frames, moveNumber, moveCount, round, moves }: MoveCardsProps) {
-  const moveId = useFeedbackFrame((frame) => frame?.move?.id ?? null, frames);
-  const moveName = useFeedbackFrame((frame) => frame?.move?.name ?? null, frames);
-  const nextId = useFeedbackFrame((frame) => frame?.nextMove.id ?? null, frames);
-  const nextName = useFeedbackFrame((frame) => frame?.nextMove.name ?? null, frames);
-  // During the count-in there is no current move: the first one is "up first".
-  const now = moveName ?? nextName;
-  const nowId = moveId ?? nextId;
-  const jointsOf = (id: string | null) => moves.find((move) => move.id === id)?.joints;
-  const place = `Now · ${Math.max(1, moveNumber)} of ${moveCount}`;
-
-  return (
-    <aside className="hud-moves">
-      <div className="hud-move slab slab-edge">
-        <span className="hud-move__tag label">
-          {moveName ? (round ? `${place} · Round ${round.current} of ${round.total}` : place) : 'First up'}
-        </span>
-        <span className="hud-move__name display" data-testid="move-name">
-          {now}
-        </span>
-        <Figure joints={jointsOf(nowId)} />
-      </div>
-      {moveName && nextName && (
-        <div className="hud-move hud-move--next slab slab-edge">
-          <span className="hud-move__tag label">Next</span>
-          <span className="hud-move__name display">{nextName}</span>
-          <Figure joints={jointsOf(nextId)} glow={false} />
-        </div>
-      )}
-    </aside>
-  );
-}
 
 const MARKS = [GOOD_SCORE, PERFECT_SCORE];
 
@@ -195,44 +91,14 @@ function HoldRing({ frames }: HoldRingProps) {
   );
 }
 
-/**
- * PERFECT, GOOD or MISS, big, as the hold closes. It stays up through the
- * release that follows and leaves when the next move starts. A plain-text
- * copy stays in the page for screen readers and the smoke check.
- */
-function ResultPop({ result, frames }: ResultPopProps) {
-  const releasing = useFeedbackFrame((frame) => frame?.phase === 'release', frames);
-
+/** The last move's grade as plain text, for screen readers and the smoke check. The lane's panel shows it. */
+function ResultLabel({ result }: ResultLabelProps) {
+  if (!result) return null;
   return (
-    <>
-      <div className="hud-pop" aria-hidden="true">
-        <AnimatePresence initial={false}>
-          {result && releasing && (
-            <motion.div
-              key={result.serial}
-              className="hud-pop__body"
-              data-label={result.label}
-              variants={lane}
-              initial="enter"
-              animate="on"
-              exit="exit"
-            >
-              <span className="hud-pop__word display">{result.label}</span>
-              <span className="hud-pop__detail">
-                <span className="led">{Math.round(result.score)}</span>
-                {result.timing && <span className="label">{result.timing}</span>}
-              </span>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      {result && (
-        <p className="sr-only" role="status" data-testid="result-label" data-label={result.label}>
-          {result.label}
-          <span>{Math.round(result.score)}</span>
-        </p>
-      )}
-    </>
+    <p className="sr-only" role="status" data-testid="result-label" data-label={result.label}>
+      {result.label}
+      <span>{Math.round(result.score)}</span>
+    </p>
   );
 }
 
@@ -279,7 +145,7 @@ function RunStats({ points, accuracy, perfectStreak }: RunStatsProps) {
   );
 }
 
-/** One message at a time along the bottom: "step back" outranks a form cue. */
+/** One message at a time, on the bottom edge of the picture: "step back" outranks a form cue. */
 function StepBackBanner({ frames, bodyLost, easeOff, formNote }: StepBackBannerProps) {
   const lowVisibility = useFeedbackFrame((frame) => frame?.lowVisibility ?? false, frames);
   if (!lowVisibility && !bodyLost && easeOff) {
@@ -317,10 +183,12 @@ function FormNote({ note }: FormNoteProps) {
 }
 
 /**
- * The play HUD: DOM laid over the camera and its canvas, never drawn on them.
- * Per-frame values (the beat pulse, the match bar) arrive as custom
- * properties the Play screen writes on the root from the audio clock; the
- * rest are read from the feedback store and the run stats.
+ * The play HUD: DOM laid over the stage, never drawn on the camera's canvas.
+ * The picture is left clear: the moves, the phase and the grade are in the
+ * move lane, the numbers in the left rail. Per-frame values (the beat pulse,
+ * the match bar) arrive as custom properties the Play screen writes on the
+ * root from the audio clock; the rest are read from the feedback store and
+ * the run stats.
  */
 export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
   return (
@@ -328,17 +196,17 @@ export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
       <div className="hud" ref={ref} data-testid="play-screen">
         <RunStats points={run.points} accuracy={run.accuracy} perfectStreak={run.perfectStreak} />
         <ScoreTube points={run.points} maxPoints={run.maxPoints} result={run.result} />
-        <PhaseCue frames={frames} moves={moves} />
-        <MoveCards
+        <HoldRing frames={frames} />
+        <MoveLane
           frames={frames}
           moveNumber={run.moveNumber}
           moveCount={run.moveCount}
           round={run.round}
           moves={moves}
+          result={run.result}
         />
-        <HoldRing frames={frames} />
         <ComboCounter combo={run.combo} />
-        <ResultPop result={run.result} frames={frames} />
+        <ResultLabel result={run.result} />
         <StepBackBanner frames={frames} bodyLost={run.bodyLost} easeOff={run.easeOff} formNote={run.formNote} />
         <div className="hud-pulse" aria-hidden="true" />
         <HudSounds frames={frames} run={run} />

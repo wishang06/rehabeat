@@ -17,7 +17,6 @@ import {
   StickEaser,
   bodyScale,
   hintAnchor,
-  layoutBanner,
   layoutHint,
   layoutPlayerBody,
   stickFigure,
@@ -32,8 +31,6 @@ import type { JointName, Landmark } from '../types';
 import type { FeedbackFrame } from '../types/ui';
 import { CANVAS_COLORS, drawText, type CanvasSurface } from './canvas';
 import { figureColorStore, isLight, type FigureColorStore } from './figureColor';
-
-export const LOW_VISIBILITY_MESSAGE = 'Step back so your whole body is in frame';
 
 /** HUD panels sit in the top and bottom corners; canvas text stays in the band between. */
 const SAFE_TOP = 0.2;
@@ -74,7 +71,6 @@ export class PlayOverlay {
   private readonly floor = new FloorTracker();
   private readonly easer = new StickEaser();
   private readonly smoother = new LandmarkSmoother();
-  private lowVisibilitySince: number | null = null;
 
   constructor(private readonly colors: Pick<FigureColorStore, 'get'> = figureColorStore) {}
 
@@ -94,31 +90,13 @@ export class PlayOverlay {
     const figure = this.drawFigure(surface, feedback, landmarks, world, nowMs);
     const smooth = this.smoother.update(landmarks, nowMs);
 
-    // The banner keeps off the limbs being scored, which are the ones it is warning about.
-    const scoredLimbs: Bounds[] = [];
     if (smooth) {
       // Lost scored limbs are laid out at the detector's best guess, so the player sees which.
+      // Why they are grey ("step back") is said once, by the HUD's strip under the picture.
       const keep = new Set(LIMBS.filter(({ limb }) => feedback.limbs[limb].status === 'grey').map(({ limb }) => limb));
       const player = layoutPlayerBody(smooth, surface, { keep });
       drawPlayer(surface, player, feedback);
       if (feedback.hint) drawHint(surface, feedback.hint, smooth, player, figure);
-      for (const c of player.capsules) {
-        if (!feedback.limbs[c.part].scored) continue;
-        const r = Math.max(c.ra, c.rb);
-        scoredLimbs.push({
-          left: Math.min(c.a.x, c.b.x) - r,
-          top: Math.min(c.a.y, c.b.y) - r,
-          right: Math.max(c.a.x, c.b.x) + r,
-          bottom: Math.max(c.a.y, c.b.y) + r,
-        });
-      }
-    }
-
-    if (feedback.lowVisibility) {
-      this.lowVisibilitySince ??= nowMs;
-      drawLowVisibility(surface, Math.min(1, (nowMs - this.lowVisibilitySince) / 200), scoredLimbs);
-    } else {
-      this.lowVisibilitySince = null;
     }
   }
 
@@ -324,49 +302,5 @@ function drawHint(
   ctx.stroke();
   ctx.fillStyle = CANVAS_COLORS.chalk;
   drawText(surface, text, label.x + label.width / 2, label.y + label.height / 2 + size * 0.04);
-  ctx.restore();
-}
-
-/** The warning shown instead of scoring silently when a scored joint is out of view. */
-function drawLowVisibility(surface: CanvasSurface, appear: number, avoid: readonly Bounds[]): void {
-  const { ctx, width, height, ratio } = surface;
-  const size = fontSize(surface, 0.03, 16, 34);
-  ctx.save();
-  ctx.font = `650 ${size}px ${FONT}`;
-  const textWidth = ctx.measureText(LOW_VISIBILITY_MESSAGE).width;
-  const h = Math.round(size * 2.3);
-  const dot = size * 0.32;
-  const w = Math.min(width - 32 * ratio, Math.ceil(textWidth + h + dot * 3));
-  const banner = layoutBanner({
-    width,
-    height,
-    bannerWidth: w,
-    bannerHeight: h,
-    safeTop: height * SAFE_TOP,
-    safeBottom: height * SAFE_BOTTOM,
-    avoid,
-  });
-  const x = banner.x;
-  const y = banner.y + (1 - appear) * 8 * ratio;
-
-  ctx.globalAlpha = appear;
-  ctx.fillStyle = CANVAS_COLORS.scrim;
-  pill(ctx, x, y, w, h);
-  ctx.fill();
-  ctx.strokeStyle = CANVAS_COLORS.limb.grey;
-  ctx.lineWidth = 2 * ratio;
-  ctx.stroke();
-
-  // A grey dot ties the message to the greyed limbs. It sits at the line's
-  // start on screen, which is the far end in a mirrored canvas.
-  const dotX = surface.mirrored ? x + w - h / 2 : x + h / 2;
-  ctx.fillStyle = CANVAS_COLORS.limb.grey;
-  ctx.beginPath();
-  ctx.arc(dotX, y + h / 2, dot, 0, 2 * Math.PI);
-  ctx.fill();
-
-  ctx.fillStyle = CANVAS_COLORS.chalk;
-  const textCenter = x + w / 2 + (surface.mirrored ? -1 : 1) * (dot * 1.5);
-  drawText(surface, LOW_VISIBILITY_MESSAGE, textCenter, y + h / 2 + size * 0.04);
   ctx.restore();
 }

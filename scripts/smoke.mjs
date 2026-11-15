@@ -687,7 +687,7 @@ async function fitPath(url) {
       return {
         on: stage.dataset.rails === 'true',
         left: ['.hud-stats', '.tube', '.hud-ring'].every((selector) => inRail(selector, 'left')),
-        right: ['.hud-moves', '.hud-combo'].every((selector) => inRail(selector, 'right')),
+        right: ['.lane', '[data-testid="phase-label"]', '[data-testid="move-name"]', '.hud-combo'].every((selector) => inRail(selector, 'right')),
       };
     });
     check('on a wide window the HUD panels sit in the rails beside the picture, not over it', rails.on && rails.left && rails.right, JSON.stringify(rails));
