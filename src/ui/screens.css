@@ -222,19 +222,15 @@
   margin-top: 1.25rem;
 }
 
-.title__more {
-  font: 700 1rem/1 var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-dim);
+/* Stats and How it works, side by side under the meters. */
+.title__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.125rem;
 }
 
-.title__more a {
-  color: inherit;
-}
-
-.title__more a:hover {
-  color: var(--color-cyan);
+.title__links a.button {
+  text-decoration: none;
 }
 
 .title__figure {
