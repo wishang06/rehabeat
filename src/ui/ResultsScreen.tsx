@@ -241,7 +241,8 @@ export function ResultsScreen({
 }
 
 function saveMessage(save: SaveState, run: RunSummary, auth: AuthState): string {
-  if (run.moves === 0) return 'Finish at least one move to score.';
+  // A run with nothing scored is not saved, and the screen already says "No moves scored".
+  if (run.moves === 0) return '';
   if (!supabase) return 'Scores are not saved in this build.';
   if (!auth.user) return 'Sign in to put this run on the leaderboard.';
   switch (save) {
