@@ -224,7 +224,8 @@
   margin: calc(-1 * var(--panel-top)) calc(-1 * var(--menu-pad)) calc(-1 * var(--menu-pad))
     calc(-1 * var(--panel-left));
   padding: var(--panel-top) var(--menu-pad) var(--menu-pad) var(--panel-left);
-  overflow-y: auto;
+  /* Up and down only: anything too wide is cut at the edge, as it was, not given a sideways scrollbar. */
+  overflow: hidden auto;
   overscroll-behavior: contain;
   scroll-padding-block: 1rem;
   scrollbar-width: thin;
