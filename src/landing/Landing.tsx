@@ -6,7 +6,7 @@ import { hasPendingRun } from '../lib/scores';
 import { loadLibrary, type Library } from '../songs/library';
 import { Hero } from './Hero';
 import { HowItWorks } from './HowItWorks';
-import { Footer, Privacy, Problem, Songs } from './Sections';
+import { Privacy, Problem, Songs } from './Sections';
 import { MOTION_OK, gsap, revealOnScroll } from './motion';
 import './landing.css';
 
@@ -35,7 +35,7 @@ export function Landing() {
     }
   }, [navigate]);
 
-  // The catalogue strip and the credit show the real library. The page reads fine without it.
+  // The catalogue strip shows the real library. The page reads fine without it.
   useEffect(() => {
     let current = true;
     loadLibrary().then(
@@ -85,7 +85,6 @@ export function Landing() {
         <Privacy />
         <Songs library={library} />
       </main>
-      <Footer library={library} />
     </div>
   );
 }
