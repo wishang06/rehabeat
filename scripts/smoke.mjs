@@ -241,6 +241,13 @@ async function happyPath(url) {
     check('Play screen shown', true);
     await checkCredit(page, 'Play', DEFAULT_SONG);
 
+    // Songs, Full screen, Figure, Recalibrate and Finish run all have to fit.
+    const bar = await page.evaluate(() => {
+      const el = document.querySelector('.app__bar');
+      return { content: el.scrollWidth, width: el.clientWidth };
+    });
+    check('the top bar fits the window on the Play screen', bar.content <= bar.width, `${bar.content} px of content in ${bar.width} px`);
+
     // The Figure button steps the target figure through its colours and remembers the pick.
     const figureColor = page.getByTestId('figure-color');
     const firstColor = await figureColor.getAttribute('data-color');

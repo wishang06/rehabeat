@@ -1,3 +1,4 @@
+import { Maximize, Minimize } from 'lucide-react';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { figureColorStore, nextFigureColor } from './figureColor';
 import './stageControls.css';
@@ -8,15 +9,15 @@ export function FigureColorButton() {
   return (
     <button
       type="button"
-      className="button button--quiet figure-color"
+      className="button button--quiet stage-control"
       onClick={() => figureColorStore.set(nextFigureColor(color))}
       aria-label={`Figure colour: ${color.name}. Change colour`}
       title="Change the colour of the target figure"
       data-testid="figure-color"
       data-color={color.id}
     >
-      <span className="figure-color__swatch" style={{ background: color.value }} aria-hidden="true" />
-      Figure
+      <span className="stage-control__swatch" style={{ background: color.value }} aria-hidden="true" />
+      <span className="stage-control__label">Figure</span>
     </button>
   );
 }
@@ -59,12 +60,17 @@ export function FullscreenButton() {
   return (
     <button
       type="button"
-      className="button button--quiet"
+      className="button button--quiet stage-control"
       onClick={toggle}
       aria-pressed={on}
+      aria-label={on ? 'Exit full screen' : 'Full screen'}
+      title={on ? 'Exit full screen (F)' : 'Full screen (F)'}
       data-testid="fullscreen-button"
     >
-      {on ? 'Exit full screen' : 'Full screen'} <kbd>F</kbd>
+      {on ? <Minimize size={18} aria-hidden="true" /> : <Maximize size={18} aria-hidden="true" />}
+      <span className="stage-control__label">
+        {on ? 'Exit full screen' : 'Full screen'} <kbd>F</kbd>
+      </span>
     </button>
   );
 }
