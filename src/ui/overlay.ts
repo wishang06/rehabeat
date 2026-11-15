@@ -38,7 +38,7 @@ const SAFE_TOP = 0.2;
 const SAFE_BOTTOM = 0.27;
 
 /** The figure's line width as a fraction of the body scale (about shoulder width), and its limits in CSS pixels. */
-const LINE = { ofScale: 0.085, minPx: 5, maxPx: 16 };
+const LINE = { ofScale: 0.1, minPx: 6, maxPx: 18 };
 /** The contrasting edge on each side of a line, as a fraction of the line's width, and its floor in CSS pixels. */
 const EDGE = { ofLine: 0.22, minPx: 1.5 };
 /** A limb's edge starts this many line widths out from the body, so it doesn't cut into the joint it hangs from. */

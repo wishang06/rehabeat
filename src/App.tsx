@@ -31,6 +31,7 @@ import { ProgressMeters } from './ui/ProgressMeters';
 import { ResultsScreen } from './ui/ResultsScreen';
 import type { SentCare } from './ui/SentStrip';
 import { Stage } from './ui/Stage';
+import { FigureColorButton, FullscreenButton } from './ui/StageControls';
 import { StatsPanel } from './ui/StatsPanel';
 import { TitleScreen } from './ui/TitleScreen';
 import { SongMenu } from './ui/menu/SongMenu';
@@ -161,6 +162,8 @@ export function App() {
       // The menu handles Esc itself, and an open dialog closes on its own.
       const dialogOpen = boardRef.current?.open || statsRef.current?.open;
       if (event.key !== 'Escape' || screen === 'menu' || screen === 'title' || dialogOpen) return;
+      // In full screen, Esc leaves full screen; it takes a second press to leave the game.
+      if (document.fullscreenElement) return;
       if (screen === 'play') leaveRef.current();
       else backToMenu();
     };
@@ -301,8 +304,11 @@ export function App() {
                 Songs <kbd>Esc</kbd>
               </button>
             )}
+            {/* One button for both screens, so recalibrating does not drop out of full screen. */}
+            {(screen === 'calibrate' || screen === 'play') && <FullscreenButton />}
             {screen === 'play' && (
               <>
+                <FigureColorButton />
                 {/* A program session is recorded from its first hold, so it is calibrated before, not during. */}
                 {setup.mode === 'free' && (
                   <button type="button" className="button button--quiet" onClick={() => setScreen('calibrate')}>

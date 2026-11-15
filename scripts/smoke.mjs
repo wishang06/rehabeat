@@ -241,6 +241,26 @@ async function happyPath(url) {
     check('Play screen shown', true);
     await checkCredit(page, 'Play', DEFAULT_SONG);
 
+    // The Figure button steps the target figure through its colours and remembers the pick.
+    const figureColor = page.getByTestId('figure-color');
+    const firstColor = await figureColor.getAttribute('data-color');
+    await figureColor.click();
+    const picked = await figureColor.getAttribute('data-color');
+    const remembered = await page.evaluate(() => localStorage.getItem('rehabeat.figureColor'));
+    check('the Figure button changes the figure colour and remembers it', firstColor === 'black' && picked === 'white' && remembered === 'white', `${firstColor} then ${picked}, stored ${remembered}`);
+    // Back round to black, so later screenshots show the default.
+    for (let i = 0; i < 12 && (await figureColor.getAttribute('data-color')) !== 'black'; i++) await figureColor.click();
+
+    // Full screen, by the button and back out with F. Esc is left alone: in a real browser it leaves full screen without reaching the page.
+    const isFullscreen = () => page.evaluate(() => document.fullscreenElement !== null);
+    await page.getByTestId('fullscreen-button').click();
+    await page.waitForFunction(() => document.fullscreenElement !== null, null, { timeout: 5_000 }).catch(() => undefined);
+    const wentFull = await isFullscreen();
+    const stillPlaying = await page.getByTestId('play-screen').isVisible();
+    await page.keyboard.press('f');
+    await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 5_000 }).catch(() => undefined);
+    check('the Full screen button fills the screen and F leaves it, with the game still running', wentFull && stillPlaying && !(await isFullscreen()), `full screen ${wentFull}, playing ${stillPlaying}`);
+
     await page.keyboard.press('d');
     await page.getByTestId('debug-panel').waitFor({ timeout: 5_000 });
     check('D toggles the debug panel', true);

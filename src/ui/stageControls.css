@@ -1,0 +1,19 @@
+/* The Figure colour button: a dot of the colour the target figure is drawn in. */
+.figure-color {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.figure-color__swatch {
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  /* A ring in the text colour, so black and white both show on the bar. */
+  box-shadow: 0 0 0 1.5px currentColor;
+}
+
+/* Full screen: the camera view takes the space the page margins had. */
+:root:fullscreen {
+  --gutter: 0.25rem;
+}
