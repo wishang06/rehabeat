@@ -637,11 +637,19 @@ async function fitPath(url) {
     await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
     const playFrame = await framing();
     check('Play uses the zoom from Calibrate', playFrame.locked && !playFrame.covers && !playFrame.inside, JSON.stringify(playFrame));
+    const tube = await page.getByTestId('score-tube').evaluate((element) => ({
+      left: element.getBoundingClientRect().left - document.querySelector('.hud').getBoundingClientRect().left,
+      marks: element.querySelectorAll('.tube__mark').length,
+      fill: element.dataset.fill,
+    }));
+    check('the score tube is on the left of the Play HUD with five star marks', tube.left < 80 && tube.marks === 5 && tube.fill === '0.000', JSON.stringify(tube));
     await fits('Play screen');
     await page.getByTestId('finish-button').click();
     await page.getByTestId('results-screen').waitFor({ timeout: 10_000 });
     await page.waitForTimeout(1800);
     await fits('results screen');
+    const stars = await page.getByTestId('run-stars').getAttribute('aria-label');
+    check('the results show the same five stars as the tube', /^\d of 5 stars$/.test(stars ?? ''), stars ?? '');
     const barButtons = await page.locator('.app__actions button').allTextContents();
     check('the results bar does not repeat the screen (no Leaderboard, Songs or XP meters)', !barButtons.some((text) => /Leaderboard|Songs/.test(text)) && (await page.locator('.app__bar .meters').count()) === 0, barButtons.join(', '));
     check('no console errors while checking the fit', log.errors.length === 0, log.errors.join(' | '));

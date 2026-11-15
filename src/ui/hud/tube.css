@@ -47,10 +47,12 @@
   background: var(--color-gold);
   opacity: 0;
   filter: blur(14px);
-  will-change: opacity, transform;
+  /* Not drawn at all until SUPERSTAR, so it costs nothing before then. */
+  display: none;
 }
 
 .tube[data-super='true'] .tube__glow {
+  display: block;
   opacity: calc(0.15 + var(--pulse, 0) * 0.45);
   transform: scaleX(calc(1 + var(--pulse, 0) * 0.25));
 }
