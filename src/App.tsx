@@ -282,13 +282,6 @@ export function App() {
           <Link to="/" className="app__wordmark">
             Rehabeat
           </Link>
-          {(screen === 'menu' || screen === 'calibrate' || screen === 'play') && (
-            <ol className="app__steps" aria-label="Progress">
-              <li aria-current={screen === 'menu' ? 'step' : undefined}>Song</li>
-              <li aria-current={screen === 'calibrate' ? 'step' : undefined}>Calibrate</li>
-              <li aria-current={screen === 'play' ? 'step' : undefined}>Play</li>
-            </ol>
-          )}
           {/* The results screen has its own XP tile, so the meters stay on the menu. */}
           {screen === 'menu' && <ProgressMeters />}
           <div className="app__actions">
