@@ -29,7 +29,7 @@ const card: Variants = {
  * slides off to the side. The gap changes every frame, so it is written
  * straight to the DOM instead of going through React.
  */
-export function MoveLane({ frames, moveNumber, moveCount, round, moves }: MoveLaneProps) {
+export function MoveLane({ frames, moveNumber, round, moves }: MoveLaneProps) {
   const phase = useFeedbackFrame((frame) => frame?.phase ?? 'ready', frames);
   const frameMoveId = useFeedbackFrame((frame) => frame?.move?.id ?? null, frames);
   // Whole beats until the next phase: changes once per beat, not once per frame.
@@ -56,14 +56,16 @@ export function MoveLane({ frames, moveNumber, moveCount, round, moves }: MoveLa
   const queue = upcomingMoves(moves, shownIndex, QUEUE_LENGTH, movesLeft(moves.length, shownIndex, round));
 
   const counting = phase === 'ready' && beatsLeft >= 1 && beatsLeft <= 3;
-  const place = `Now · ${shownIndex + 1} of ${moveCount}`;
 
   return (
     <aside className="lane" data-phase={phase}>
       <div className="lane__now slab slab-edge">
-        <span className="lane__tag label">
-          {playing ? (round ? `${place} · Round ${round.current} of ${round.total}` : place) : 'First up'}
-        </span>
+        {/* A program is played in rounds; free play has no count to show. */}
+        {round && (
+          <span className="lane__tag label">
+            Round {round.current} of {round.total}
+          </span>
+        )}
 
         <div className="lane__dock">
           <AnimatePresence mode="popLayout" initial={false}>
