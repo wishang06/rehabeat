@@ -62,6 +62,7 @@ export async function createPoseTracker(options: PoseTrackerOptions): Promise<Po
   );
 
   const smoother = new AngleSmoother();
+  const flatSmoother = new AngleSmoother();
   const logError = createErrorLogger();
   const hasVideoFrameCallback = typeof video.requestVideoFrameCallback === 'function';
 
@@ -93,11 +94,13 @@ export async function createPoseTracker(options: PoseTrackerOptions): Promise<Po
         filterSeconds: frameMs / 1000,
         landmarks: normaliseLandmarks(result.landmarks[0]),
         worldLandmarks: normaliseLandmarks(result.worldLandmarks[0]),
+        aspect: video.videoWidth / video.videoHeight,
         detectMs,
         fps,
         previousVisible: lastVisible,
       },
       smoother,
+      flatSmoother,
     );
     lastVisible = sample.frame.visible;
     onSample(sample);
@@ -149,6 +152,7 @@ export async function createPoseTracker(options: PoseTrackerOptions): Promise<Po
       // The gap since the last frame is neither a frame interval nor a smoothing step.
       lastCallbackMs = null;
       smoother.reset();
+      flatSmoother.reset();
       lastVisible = [];
       pendingHandle = hasVideoFrameCallback
         ? video.requestVideoFrameCallback(onVideoFrame)

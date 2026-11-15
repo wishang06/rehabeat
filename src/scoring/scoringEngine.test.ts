@@ -3,8 +3,10 @@ import type { BeatResult, FormMetrics, Move, PoseFrame } from '../types';
 import { formNoteFor } from './formRules';
 import { Routine } from './routine';
 import {
+  HOLD_BEST_SHARE,
   MAX_FRAME_SPAN_SEC,
   ScoringEngine,
+  bestShareMean,
   type ScoringEngineOptions,
 } from './scoringEngine';
 
@@ -117,16 +119,56 @@ describe('ScoringEngine', () => {
     expect(everywhereButHold[0]).toMatchObject({ score: 0, label: 'Miss' });
   });
 
-  it('averages frame scores across the hold', () => {
-    // On target for the second half of the hold only.
+  it('scores the best three-quarters of the hold', () => {
+    expect(HOLD_BEST_SHARE).toBe(0.75);
+    // A beat late into a four-beat hold: the three beats held are the score.
+    const [beatLate] = play(engine(), 0, 4, (t) => (t >= 1.5 ? ON_TARGET : ARMS_DOWN));
+    expect(beatLate.score).toBe(100);
+    expect(beatLate.label).toBe('Perfect');
+
+    // Let go a beat early: the same.
+    const [beatEarly] = play(engine(), 0, 4, (t) => (t < 2.5 ? ON_TARGET : ARMS_DOWN));
+    expect(beatEarly.score).toBe(100);
+
+    // On target for the second half of the hold only: two of the three beats that count.
     const [late] = play(engine(), 0, 4, (t) => (t >= 2 ? ON_TARGET : ARMS_DOWN));
-    expect(late.score).toBeCloseTo(50, 5);
-    expect(late.label).toBe('Miss');
+    expect(late.score).toBeCloseTo((0.5 / HOLD_BEST_SHARE) * 100, 5);
+    expect(late.label).toBe('Good');
+
+    // On target for the last beat only.
+    const [veryLate] = play(engine(), 0, 4, (t) => (t >= 2.5 ? ON_TARGET : ARMS_DOWN));
+    expect(veryLate.score).toBeCloseTo((0.25 / HOLD_BEST_SHARE) * 100, 5);
+    expect(veryLate.label).toBe('Miss');
 
     // Held throughout but 10 degrees short on both arms: 100 - 40 * 10 / 20.
     const [short] = play(engine(), 0, 4, () => ({ leftShoulder: 80, rightShoulder: 80 }));
     expect(short.score).toBeCloseTo(80, 5);
     expect(short.label).toBe('Good');
+  });
+
+  it("scores a hold by the nearer of each joint's two readings, and records that reading", () => {
+    // The depth estimate has both arms 30 degrees short all the way through; the picture has them level.
+    const bent: PoseFrame['angles'] = { leftShoulder: 60, rightShoulder: 60 };
+    const withPicture = engine();
+    let result: BeatResult | undefined;
+    for (let i = 0; i < 4 * FPS; i++) {
+      const frame: PoseFrame = {
+        t: i / FPS,
+        angles: bent,
+        visible: ['leftShoulder', 'rightShoulder'],
+        flatAngles: { leftShoulder: 88, rightShoulder: 92 },
+      };
+      result = withPicture.push(frame, UPRIGHT)[0] ?? result;
+    }
+    expect(result?.score).toBeCloseTo(96, 6);
+    expect(result?.label).toBe('Perfect');
+    expect(withPicture.details[0].joints.leftShoulder?.meanError).toBeCloseTo(-2, 6);
+    expect(withPicture.details[0].joints.rightShoulder?.meanError).toBeCloseTo(2, 6);
+
+    // The same hold with the 3D reading alone: 100 - 40 * 30 / 20.
+    const [alone] = play(engine(), 0, 4, () => bent);
+    expect(alone.score).toBeCloseTo(40, 6);
+    expect(alone.label).toBe('Miss');
   });
 
   it('emits the result on the first frame after the hold closes, not before', () => {
@@ -198,16 +240,17 @@ describe('ScoringEngine', () => {
   });
 
   it('shifts frames by the calibration offset before scoring', () => {
-    // The camera sees everything 400 ms late: a hold that was really on the
-    // beat shows up in frames stamped 1.4 s to 3.4 s.
-    const seenLate = (t: number) => (t >= 1.4 && t < 3.4 ? ON_TARGET : ARMS_DOWN);
+    // The camera sees everything 800 ms late: a hold that was really on the
+    // beat shows up in frames stamped 1.8 s to 3.8 s.
+    const seenLate = (t: number) => (t >= 1.8 && t < 3.8 ? ON_TARGET : ARMS_DOWN);
 
+    // Uncalibrated, 60% of the hold window is on target, of the 75% that counts.
     const [uncalibrated] = play(engine(), 0, 4, seenLate);
     expect(uncalibrated.score).toBeCloseTo(80, 5);
     expect(uncalibrated.label).toBe('Good');
-    expect(Math.abs(uncalibrated.timingOffsetMs - 400)).toBeLessThan(FRAME_MS);
+    expect(Math.abs(uncalibrated.timingOffsetMs - 800)).toBeLessThan(FRAME_MS);
 
-    const [calibrated] = play(engine({ offsetMs: 400 }), 0, 4.5, seenLate);
+    const [calibrated] = play(engine({ offsetMs: 800 }), 0, 5, seenLate);
     expect(calibrated.score).toBe(100);
     expect(calibrated.label).toBe('Perfect');
     expect(Math.abs(calibrated.timingOffsetMs)).toBeLessThan(FRAME_MS);
@@ -267,12 +310,37 @@ describe('ScoringEngine', () => {
     play(target, 0.5, 2, (t) => (t >= 1.5 ? ON_TARGET : ARMS_DOWN));
     expect(target.live.phase).toBe('hold');
     expect(target.live.frameScore).toBe(100);
-    // Time-weighted: on target since 1.5 s, out of the hold time elapsed by the last frame.
+    // Time-weighted: on target since 1.5 s, out of the best share of the hold time elapsed by the last frame.
     const last = 59 / FPS;
-    expect(target.live.holdScore).toBeCloseTo(((last - 1.5) / (last - HOLD_START)) * 100, 5);
+    expect(target.live.holdScore).toBeCloseTo(((last - 1.5) / (last - HOLD_START) / HOLD_BEST_SHARE) * 100, 5);
 
     play(target, 2, 3.5, () => ON_TARGET);
     expect(target.live).toMatchObject({ phase: 'release', holdScore: null });
+  });
+});
+
+describe('bestShareMean', () => {
+  it('is 0 with nothing to average', () => {
+    expect(bestShareMean([], 0.75)).toBe(0);
+  });
+
+  it('is exactly the score when every span has it', () => {
+    const spans = Array.from({ length: 61 }, () => ({ score: 80, seconds: 1 / 30 }));
+    expect(bestShareMean(spans, 0.75)).toBe(80);
+  });
+
+  it('takes the best spans first, by time, and part of the one that straddles the share', () => {
+    const spans = [
+      { score: 20, seconds: 1 },
+      { score: 100, seconds: 1 },
+      { score: 60, seconds: 2 },
+    ];
+    // Three of the four seconds: one at 100 and two at 60.
+    expect(bestShareMean(spans, 0.75)).toBeCloseTo((100 + 2 * 60) / 3, 9);
+    // Two of the four seconds: one at 100, one of the two at 60.
+    expect(bestShareMean(spans, 0.5)).toBeCloseTo(80, 9);
+    // All of it is the plain time-weighted mean.
+    expect(bestShareMean(spans, 1)).toBeCloseTo((20 + 100 + 120) / 4, 9);
   });
 });
 
@@ -281,8 +349,9 @@ describe('ScoringEngine: the hold is judged by time, not by frame count', () => 
     const target = engine();
     const frames = [...times(0, 30, 1 / 30), ...times(1, 60, 1 / 60), ...times(2, 15, 1 / 15), 3];
     const [result] = pushAt(target, frames, (t) => (t >= 1 && t < 2 ? ON_TARGET : ARMS_DOWN));
-    // One second on target and one second off. Counting frames would give 60 / 75 = 80.
-    expect(result.score).toBeCloseTo(50, 6);
+    // One second on target and one second off: half the hold, of the share that counts.
+    // Counting frames would have 60 of 75 on target, which fills that share: 100.
+    expect(result.score).toBeCloseTo((0.5 / HOLD_BEST_SHARE) * 100, 6);
   });
 
   it('does not stretch one frame across a camera stall', () => {
@@ -292,7 +361,7 @@ describe('ScoringEngine: the hold is judged by time, not by frame count', () => 
     const [result] = pushAt(target, frames, (t) => (t < 1.5 ? ON_TARGET : ARMS_DOWN));
     // The last frame before the stall (44/30 s) stands for 0.2 s at most.
     const onTarget = 44 / 30 + MAX_FRAME_SPAN_SEC - HOLD_START;
-    expect(result.score).toBeCloseTo((onTarget / (onTarget + 0.5)) * 100, 6);
+    expect(result.score).toBeCloseTo((onTarget / (onTarget + 0.5) / HOLD_BEST_SHARE) * 100, 6);
   });
 
   it("integrates a span that crosses into the next cycle's hold", () => {
@@ -304,7 +373,7 @@ describe('ScoringEngine: the hold is judged by time, not by frame count', () => 
     // The frame at 3.95 s stands until 4.05 s, so 0.05 s of the second hold is on target;
     // the frame at 4.05 s is off and stands for 0.2 s before the stall.
     expect(results.map((r) => r.moveId)).toEqual(['side-arm-raise', 'straight-in']);
-    expect(results[1].score).toBeCloseTo((0.05 / 0.25) * 100, 6);
+    expect(results[1].score).toBeCloseTo((0.05 / 0.25 / HOLD_BEST_SHARE) * 100, 6);
   });
 
   it('counts the span toward a hold that the same frame closes', () => {

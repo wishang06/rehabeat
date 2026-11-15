@@ -18,10 +18,13 @@ export interface GradedRun {
   accuracy: number;
 }
 
-/** S needs this accuracy and no misses. */
-export const S_ACCURACY = 90;
-export const A_ACCURACY = 80;
-export const B_ACCURACY = 65;
+/**
+ * The lines sit on the move labels: an S run averaged a Perfect (85) with no
+ * misses, a B run averaged a Good (60), and A is half-way between.
+ */
+export const S_ACCURACY = 85;
+export const A_ACCURACY = 75;
+export const B_ACCURACY = 60;
 
 export const MAX_STARS = 5;
 
@@ -45,7 +48,7 @@ export interface StarredRun {
 }
 
 /**
- * S: 90 or better with no misses. A: 80 or better. B: 65 or better. C: the rest.
+ * S: 85 or better with no misses. A: 75 or better. B: 60 or better. C: the rest.
  * A run that scored no moves is a C.
  */
 export function gradeFor(run: GradedRun): Grade {

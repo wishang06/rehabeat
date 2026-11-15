@@ -73,3 +73,36 @@ export function computeJointAngles(
 
   return { angles, visible };
 }
+
+/**
+ * The same joints measured in the camera picture: the angle each one makes
+ * on screen, from the IMAGE landmarks with depth left out.
+ *
+ * The 3D angles lean on the model's depth estimate, its weakest output: on
+ * photos of held poses it read straight elbows and knees 10 to 35 degrees
+ * bent, while the picture had them within 5. The picture is in turn blind to
+ * a limb that points at the camera (a knee raised to the front), which only
+ * the 3D reading sees. So a frame carries both and scoring takes whichever
+ * is nearer the target.
+ *
+ * `landmarks` are normalised to the frame (0-1 on each axis); `aspect` is the
+ * frame's width over its height, which puts both axes on the same scale.
+ * Only `joints` are measured: the joints the 3D reading counted as visible.
+ */
+export function computeFlatAngles(
+  landmarks: Landmark[],
+  aspect: number,
+  joints: readonly JointName[],
+): Partial<Record<JointName, number>> {
+  const angles: Partial<Record<JointName, number>> = {};
+  const flat = (landmark: Landmark): Point3 => ({ x: landmark.x * aspect, y: landmark.y, z: 0 });
+  for (const joint of joints) {
+    const [aIndex, vertexIndex, cIndex] = JOINT_TRIPLETS[joint];
+    const a = landmarks[aIndex];
+    const vertex = landmarks[vertexIndex];
+    const c = landmarks[cIndex];
+    if (!a || !vertex || !c) continue;
+    angles[joint] = angleBetween(flat(a), flat(vertex), flat(c));
+  }
+  return angles;
+}
