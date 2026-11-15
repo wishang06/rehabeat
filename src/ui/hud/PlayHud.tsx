@@ -16,6 +16,7 @@ import type {
 import { HudSounds } from './HudSounds';
 import { MoveLane } from './MoveLane';
 import { PhaseTag } from './PhaseTag';
+import { BeatFrame, MoveBurst } from './Reactions';
 import { ScoreTube } from './ScoreTube';
 import './hud.css';
 import './rails.css';
@@ -110,9 +111,9 @@ function ComboCounter({ combo }: ComboCounterProps) {
         key={combo}
         className="hud-combo__n led"
         data-testid="combo"
-        initial={combo > 0 ? { y: '-14%', filter: 'brightness(3)' } : false}
-        animate={{ y: '0%', filter: 'brightness(1)' }}
-        transition={{ duration: 0.16, ease: 'easeOut' }}
+        initial={combo > 0 ? { scale: 1.9, filter: 'brightness(3)' } : false}
+        animate={{ scale: 1, filter: 'brightness(1)' }}
+        transition={{ type: 'spring', stiffness: 520, damping: 17 }}
       >
         {combo}
       </motion.span>
@@ -195,6 +196,9 @@ export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
   return (
     <MotionConfig reducedMotion="user">
       <div className="hud" ref={ref} data-testid="play-screen">
+        {/* First, so the light lies under every panel. */}
+        <BeatFrame frames={frames} />
+        <MoveBurst result={run.result} />
         <RunStats points={run.points} accuracy={run.accuracy} perfectStreak={run.perfectStreak} />
         <ScoreTube points={run.points} maxPoints={run.maxPoints} result={run.result} />
         <HoldRing frames={frames} />
@@ -208,7 +212,6 @@ export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
         <ComboCounter combo={run.combo} />
         <ResultLabel result={run.result} />
         <StepBackBanner frames={frames} bodyLost={run.bodyLost} easeOff={run.easeOff} formNote={run.formNote} />
-        <div className="hud-pulse" aria-hidden="true" />
         <HudSounds frames={frames} run={run} />
       </div>
     </MotionConfig>

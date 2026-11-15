@@ -1,0 +1,238 @@
+/*
+ * Reactions (Reactions.tsx): what the screen does on every beat and on every
+ * finished move. They are made of light on the edge of the picture, so they
+ * are large without covering the player. The one piece of text, the grade,
+ * is at the top of the picture for under a second.
+ *
+ * Both pieces are laid on the rectangle of the picture that shows
+ * (--shown-x, -y, -w, -h, set by Stage.tsx), so the light sits on the edge
+ * of what the player sees.
+ */
+.hud-frame,
+.hud-burst {
+  position: absolute;
+  left: var(--shown-x, 0px);
+  top: var(--shown-y, 0px);
+  width: var(--shown-w, 100%);
+  height: var(--shown-h, 100%);
+  pointer-events: none;
+}
+
+/* ---------- every beat: the edge of the picture */
+.hud-frame {
+  --tone: var(--color-white);
+  --edge-w: clamp(5px, 0.9cqh, 9px);
+  box-shadow:
+    inset 0 0 0 var(--edge-w) var(--tone),
+    inset 0 0 calc(var(--edge-w) * 8) color-mix(in srgb, var(--tone) 70%, transparent),
+    0 0 calc(var(--edge-w) * 4) color-mix(in srgb, var(--tone) 55%, transparent);
+  /* --pulse is 1 on the beat and falls to 0 before the next. Squared, the hit is sharp and its tail short. */
+  opacity: calc(0.06 + var(--pulse, 0) * var(--pulse, 0) * 0.74);
+}
+
+.hud-frame[data-phase='reach'] {
+  --tone: var(--color-cyan);
+}
+
+.hud-frame[data-phase='hold'] {
+  --tone: var(--color-gold);
+}
+
+/* In the pose: the edge stays lit between beats, so being on target shows at a glance. */
+.hud[data-matched='true'] .hud-frame {
+  opacity: calc(0.34 + var(--pulse, 0) * var(--pulse, 0) * 0.66);
+}
+
+/* The moment a phase starts: one harder hit, wider and brighter than a beat. */
+.hud-frame--hit,
+.hud[data-matched='true'] .hud-frame--hit {
+  --edge-w: clamp(10px, 1.9cqh, 20px);
+  opacity: 0;
+  animation: hud-frame-hit 0.5s var(--ease-out) both;
+}
+
+@keyframes hud-frame-hit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* The lit pip in the phase tag jumps with the beat. */
+.hud-tag__beats li[data-lit='true'] {
+  scale: 1 calc(1 + var(--pulse, 0) * 1.1);
+}
+
+/* ---------- every finished move: the edge flashes in the grade's colour and the grade lands */
+.hud-burst {
+  --grade: var(--color-gold);
+}
+
+.hud-burst[data-label='Good'] {
+  --grade: var(--color-cyan);
+}
+
+.hud-burst[data-label='Miss'] {
+  --grade: var(--color-pink);
+}
+
+.hud-burst__wash {
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 clamp(8px, 1.6cqh, 16px) var(--grade),
+    inset 0 0 clamp(70px, 15cqh, 170px) color-mix(in srgb, var(--grade) 72%, transparent),
+    0 0 clamp(36px, 8cqh, 96px) clamp(6px, 1.6cqh, 20px) color-mix(in srgb, var(--grade) 60%, transparent);
+  opacity: 0;
+  animation: hud-burst-wash 0.9s ease-out both;
+}
+
+/* Perfect flashes twice. */
+.hud-burst[data-label='Perfect'] .hud-burst__wash {
+  animation-name: hud-burst-wash-twice;
+  animation-duration: 1.05s;
+}
+
+/* A miss is said once, and quietly: this is a rehab game, not a punishment. */
+.hud-burst[data-label='Miss'] .hud-burst__wash {
+  animation-name: hud-burst-wash-soft;
+  animation-duration: 0.75s;
+}
+
+@keyframes hud-burst-wash {
+  0% {
+    opacity: 0;
+  }
+  9% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hud-burst-wash-twice {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hud-burst-wash-soft {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The grade: it slams in at the top of the picture, holds for a moment, then drops away upward. */
+.hud-burst__word {
+  position: absolute;
+  left: 50%;
+  /* Under the phase tag's row, so the two never overlap. */
+  top: 13%;
+  translate: -50% 0;
+  padding-inline: 0.1em;
+  font-size: clamp(40px, calc(var(--shown-w, 100cqw) * 0.105), 128px);
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--grade);
+  text-shadow:
+    0 0 0.36em color-mix(in srgb, var(--grade) 70%, transparent),
+    0 0.03em 0 rgb(2 3 8 / 0.6);
+  opacity: 0;
+  animation: hud-burst-word 0.95s var(--ease-out) both;
+}
+
+.hud-burst[data-label='Miss'] .hud-burst__word {
+  font-size: clamp(32px, calc(var(--shown-w, 100cqw) * 0.075), 92px);
+  animation-duration: 0.8s;
+}
+
+/* The position is given in every keyframe: left out of the first, the word would slide in sideways. */
+@keyframes hud-burst-word {
+  0% {
+    opacity: 0;
+    scale: 2;
+    translate: -50% 0;
+  }
+  14% {
+    opacity: 1;
+    scale: 0.96;
+    translate: -50% 0;
+  }
+  22% {
+    scale: 1;
+    translate: -50% 0;
+  }
+  64% {
+    opacity: 1;
+    scale: 1;
+    translate: -50% 0;
+  }
+  100% {
+    opacity: 0;
+    scale: 0.7;
+    translate: -50% -60%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* A steady edge in the phase's colour, and the grade fades in and out where it stands. */
+  .hud-frame,
+  .hud[data-matched='true'] .hud-frame {
+    opacity: 0.3;
+  }
+
+  .hud-frame--hit,
+  .hud[data-matched='true'] .hud-frame--hit {
+    display: none;
+  }
+
+  .hud-tag__beats li[data-lit='true'] {
+    scale: none;
+  }
+
+  .hud-burst__wash,
+  .hud-burst[data-label] .hud-burst__wash {
+    animation-name: hud-burst-wash-soft;
+    animation-duration: 0.8s;
+  }
+
+  .hud-burst__word {
+    animation-name: hud-burst-word-fade;
+  }
+}
+
+@keyframes hud-burst-word-fade {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

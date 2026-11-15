@@ -86,7 +86,9 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | Beat pips | One slanted segment per beat of the move, grouped by phase; the current one is lit in its phase colour. |
 | Match ring | A ring with marks at 60 (Good) and 85 (Perfect). White under 60, cyan from 60, gold from 85. The number is in LED digits. |
 | Grade | PERFECT gold, GOOD cyan, MISS pink, as a chip on the phase tag: the word in display type with the score in LED digits, dark on its colour. Up for the release. |
-| Combo | The count in gold LED digits, dim until it reaches 2. |
+| Combo | The count in gold LED digits, dim until it reaches 2. Each new count lands from nearly twice its size. |
+| Beat frame | The edge of the camera picture, lit on every beat in the phase's colour (white, cyan to reach, gold to hold) and fading before the next. It stays lit between beats while the player is in the pose. One wider, brighter hit the moment a phase starts. Edge only: nothing over the player. A steady edge under reduced motion. |
+| Burst | A finished move. The picture's edge flashes in the grade's colour (gold twice for Perfect, cyan once for Good, pink once and softer for Miss), the glow spilling into the rails, and the grade lands in display type at the top of the picture, under the phase tag's row, for about 0.65 s before it drops away upward. The phase tag keeps the grade and its score for the rest of the release. |
 | Move lane | The right rail. Top: a slanted panel for the move in play (name, the figure as a gold tube, the 3-2-1 count before the first move); its top edge takes the phase colour. Under it: a queue of the moves to come, one row each with a cyan figure, scrolling up with the music toward a cyan gate line. The gap under the panel is the time left in the move. A finished move slides off to the side; the next docks from below. |
 | Message strip | One slim line on the bottom edge of the picture: pink for "Step back" and "Ease off", deck with a cyan edge for a form cue. One at a time. |
 | Grade | One display letter filling a slanted panel, with five stars under it. |

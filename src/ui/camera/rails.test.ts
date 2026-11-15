@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_RAIL_PX, MIN_RAIL_PX, stageLayout } from './rails';
+import { MAX_RAIL_PX, MIN_RAIL_PX, stageLayout, shownRect } from './rails';
 
 const CAMERA = { width: 640, height: 480 };
 
@@ -39,5 +39,29 @@ describe('stageLayout', () => {
 
   it('assumes a 4:3 camera before the camera has reported its size', () => {
     expect(stageLayout({ width: 1720, height: 900 }, { width: 0, height: 0 }, true).rail).toBe(260);
+  });
+});
+
+describe('shownRect', () => {
+  it('is the camera frame itself when the frame sits inside the picture area', () => {
+    // A rail of 240 px; the frame is letterboxed 16 px in from each side and 10 px from the top.
+    const picture = { x: 240, y: 0, width: 960, height: 700 };
+    expect(shownRect(picture, { x: 16, y: 10, width: 928, height: 680 })).toEqual({ x: 256, y: 10, width: 928, height: 680 });
+  });
+
+  it('is clipped to the picture area when the frame is zoomed past it', () => {
+    const picture = { x: 240, y: 0, width: 960, height: 700 };
+    expect(shownRect(picture, { x: -40, y: -25, width: 1040, height: 750 })).toEqual({ x: 240, y: 0, width: 960, height: 700 });
+    // Wider than the area, shorter than it.
+    expect(shownRect(picture, { x: -40, y: 30, width: 1040, height: 640 })).toEqual({ x: 240, y: 30, width: 960, height: 640 });
+  });
+
+  it('is the whole stage without rails and before the camera has a size', () => {
+    const stage = { x: 0, y: 0, width: 1024, height: 600 };
+    expect(shownRect(stage, { x: 0, y: 0, width: 1024, height: 600 })).toEqual(stage);
+  });
+
+  it('is never negative', () => {
+    expect(shownRect({ x: 0, y: 0, width: 0, height: 0 }, { x: 0, y: 0, width: 0, height: 0 })).toEqual({ x: 0, y: 0, width: 0, height: 0 });
   });
 });

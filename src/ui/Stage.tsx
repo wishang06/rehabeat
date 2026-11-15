@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
-import { stageLayout } from './camera/rails';
+import { shownRect, stageLayout } from './camera/rails';
 import { DEFAULT_ZOOM, frameRect, type Size } from './camera/zoom';
 
 interface StageProps {
@@ -21,7 +21,8 @@ const NO_SIZE: Size = { width: 0, height: 0 };
  * shape, so landmark coordinates line up with the picture at every zoom. What
  * the frame does not cover is the stage colour. With `rails`, the picture
  * keeps to the middle of the stage and the HUD panels get the sides
- * (--rail, see camera/rails.ts).
+ * (--rail, see camera/rails.ts). --shown-x, -y, -w and -h are the rectangle
+ * of the picture that shows, in stage pixels.
  */
 export function Stage({ videoRef, canvasRef, live, rails = false, children }: StageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -58,6 +59,8 @@ export function Stage({ videoRef, canvasRef, live, rails = false, children }: St
 
   const layout = stageLayout(stage, video, rails);
   const frame = frameRect(layout.picture, video, DEFAULT_ZOOM);
+  // Where the picture shows, for HUD pieces that follow its edge (the beat frame and the burst).
+  const shown = shownRect(layout.picture, frame);
 
   return (
     <div
@@ -65,7 +68,15 @@ export function Stage({ videoRef, canvasRef, live, rails = false, children }: St
       ref={stageRef}
       data-live={live}
       data-rails={layout.rail > 0}
-      style={{ '--rail': `${layout.rail}px` } as CSSProperties}
+      style={
+        {
+          '--rail': `${layout.rail}px`,
+          '--shown-x': `${shown.x}px`,
+          '--shown-y': `${shown.y}px`,
+          '--shown-w': `${shown.width}px`,
+          '--shown-h': `${shown.height}px`,
+        } as CSSProperties
+      }
     >
       <div className="stage__picture" style={{ left: layout.picture.x, width: layout.picture.width }}>
         <div

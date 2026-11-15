@@ -135,6 +135,8 @@
 
 .hud-combo__n {
   display: inline-block;
+  /* It lands from large (ComboCounter): grow up and inward, never past the edge of the stage. */
+  transform-origin: 100% 100%;
   font-size: clamp(40px, 7.6cqw, 86px);
   line-height: 0.8;
   letter-spacing: -0.02em;
@@ -203,23 +205,6 @@
 .hud-note .label {
   font-size: 0.8em;
   color: var(--color-cyan);
-}
-
-/* ---------- the beat, along the bottom edge */
-.hud-pulse {
-  position: absolute;
-  inset: auto 0 0;
-  height: 6px;
-  background: var(--color-cyan);
-  box-shadow: 0 0 26px 4px var(--color-cyan);
-  opacity: calc(0.14 + var(--pulse, 0) * 0.86);
-  transform: scaleX(calc(0.4 + var(--pulse, 0) * 0.6));
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hud-pulse {
-    transform: none;
-  }
 }
 
 /* ---------- the preview page (/hud): the game's stage with the HUD on it and no camera */
