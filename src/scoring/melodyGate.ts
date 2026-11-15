@@ -1,4 +1,4 @@
-/** How long the melody rule has to say no before the melody fades out, in beats. */
+/** How long the melody rule has to say no before the melody fades back to its quiet level, in beats. */
 export const MELODY_HOLD_OFF_BEATS = 0.5;
 
 /**

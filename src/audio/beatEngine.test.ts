@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BeatEngine, STEM_GAIN } from './beatEngine';
+import { BeatEngine, MELODY_BASE_GAIN, STEM_GAIN } from './beatEngine';
 
 /*
  * Web Audio does not exist in the test environment, so the engine runs
@@ -535,7 +535,7 @@ describe('BeatEngine in stems mode', () => {
     engine.stop();
   });
 
-  it('plays the drums straight through and the melody through a gain that starts at 0', async () => {
+  it('plays the drums straight through and the melody through a gain that starts at its base level', async () => {
     const { engine, ctx } = await createEngine(STEM_FILES);
     engine.start();
 
@@ -544,7 +544,10 @@ describe('BeatEngine in stems mode', () => {
     const melodyGain = melody.outputs[0] as FakeGain;
     expect(output.outputs).toEqual([ctx.destination]);
     expect(melodyGain).not.toBe(output);
-    expect(melodyGain.gain.value).toBe(0);
+    // Quiet but audible, so there is always music; holding the pose brings it up to full.
+    expect(MELODY_BASE_GAIN).toBeGreaterThan(0);
+    expect(MELODY_BASE_GAIN).toBeLessThan(1);
+    expect(melodyGain.gain.value).toBe(MELODY_BASE_GAIN);
     expect(melodyGain.outputs).toEqual([output]);
     engine.stop();
   });
@@ -570,12 +573,12 @@ describe('BeatEngine in stems mode', () => {
 
     for (let frame = 0; frame < 30; frame += 1) engine.setMelodyActive(true);
     expect(engine.melodyActive).toBe(true);
-    expect(melodyGain.gain.calls).toEqual(['cancel@6', 'set 0@6', 'ramp 1@6.3']);
+    expect(melodyGain.gain.calls).toEqual(['cancel@6', `set ${MELODY_BASE_GAIN}@6`, 'ramp 1@6.3']);
 
     ctx.currentTime = 8;
     for (let frame = 0; frame < 30; frame += 1) engine.setMelodyActive(false);
     expect(engine.melodyActive).toBe(false);
-    expect(melodyGain.gain.calls.slice(3)).toEqual(['cancel@8', 'set 1@8', 'ramp 0@8.3']);
+    expect(melodyGain.gain.calls.slice(3)).toEqual(['cancel@8', 'set 1@8', `ramp ${MELODY_BASE_GAIN}@8.3`]);
     engine.stop();
   });
 
@@ -590,11 +593,16 @@ describe('BeatEngine in stems mode', () => {
     ctx.currentTime = 6.15;
     engine.setMelodyActive(false);
 
-    expect(melodyGain.gain.calls.slice(3)).toEqual(['cancel@6.15', 'set 0.5@6.15', 'ramp 0@6.45']);
+    // Halfway through the fade up from the base level to 1, then back down to the base level.
+    const [cancel, set, ramp] = melodyGain.gain.calls.slice(3);
+    expect(cancel).toBe('cancel@6.15');
+    expect(set).toMatch(/^set [\d.]+@6\.15$/);
+    expect(Number(set.slice(4, set.indexOf('@')))).toBeCloseTo((MELODY_BASE_GAIN + 1) / 2, 9);
+    expect(ramp).toBe(`ramp ${MELODY_BASE_GAIN}@6.45`);
     engine.stop();
   });
 
-  it('starts every run with the melody silent', async () => {
+  it('starts every run with the melody at its base level', async () => {
     const { engine, ctx } = await createEngine(STEM_FILES);
     engine.setMelodyActive(true);
     engine.start();
@@ -606,7 +614,7 @@ describe('BeatEngine in stems mode', () => {
 
     engine.start();
     const secondRunMelodyGain = ctx.sources[3].outputs[0] as FakeGain;
-    expect(secondRunMelodyGain.gain.value).toBe(0);
+    expect(secondRunMelodyGain.gain.value).toBe(MELODY_BASE_GAIN);
     expect(secondRunMelodyGain.gain.calls).toEqual([]);
     engine.setMelodyActive(true);
     expect(secondRunMelodyGain.gain.calls).toHaveLength(3);

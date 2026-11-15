@@ -19,7 +19,7 @@ export function MenuHeader({ step, error }: MenuHeaderProps) {
     <div className="menu-header">
       <h1 className="menu-header__title">Pick a song</h1>
       <p className="menu-header__lede">
-        Reach for the pose, hold it on the beat, release. The melody comes in while you hold it well.
+        Reach for the pose, hold it on the beat, release. The melody swells while you hold it well.
       </p>
       {step && (
         <p className="menu-header__status" role="status" data-testid="start-progress">

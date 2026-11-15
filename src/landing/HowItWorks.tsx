@@ -110,8 +110,8 @@ export function HowItWorks() {
 
         <Step
           number={3}
-          title="The music only plays while your form holds"
-          text="Drop the pose and the melody drops out. Find it again and it comes back."
+          title="The music swells while your form holds"
+          text="Drop the pose and the melody fades back. Find it again and it swells."
         >
           <span className="lp-meter">
             {[100, 66, 100, 82, 54].map((height, index) => (

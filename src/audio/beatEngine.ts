@@ -25,6 +25,12 @@ const SCHEDULER_LOOKAHEAD_SEC = 0.15;
 const BEATS_PER_ACCENT = 4;
 const MELODY_RAMP_SEC = 0.3;
 /**
+ * Where the melody rests while the player is not holding the pose: quiet
+ * (about -9 dB) but always there, so the game never sounds like drums alone.
+ * Holding the pose well brings it up to full.
+ */
+export const MELODY_BASE_GAIN = 0.35;
+/**
  * How much the stems are raised on their way to the speakers. The shipped
  * track peaks at about -12 dBFS, so 2.5x (+8 dB) brings the full mix to about
  * -4 dBFS. A louder track needs a smaller number: `npm run smoke` fails if the
@@ -200,7 +206,8 @@ export class BeatEngine {
   }
 
   /**
-   * "The music follows you": fades the melody stem in or out over 300 ms.
+   * "The music follows you": fades the melody stem up to full, or back down to
+   * MELODY_BASE_GAIN, over 300 ms.
    * Cheap to call every frame; a fade is only scheduled when the state
    * changes. In click mode, and while stopped, it only records the state.
    */
@@ -226,7 +233,7 @@ export class BeatEngine {
   private startStems(stems: Stems, output: GainNode, startTime: number): Run {
     output.gain.value = STEM_GAIN;
     const melodyGain = this.ctx.createGain();
-    melodyGain.gain.value = 0;
+    melodyGain.gain.value = MELODY_BASE_GAIN;
     melodyGain.connect(output);
 
     const drums = this.createLoop(stems.drums, output);
@@ -240,7 +247,7 @@ export class BeatEngine {
       level: STEM_GAIN,
       sources: [drums, melody],
       nodes: [drums, melody, melodyGain, output],
-      melody: new GainFader(melodyGain.gain, MELODY_RAMP_SEC),
+      melody: new GainFader(melodyGain.gain, MELODY_RAMP_SEC, MELODY_BASE_GAIN),
       timer: null,
     };
   }

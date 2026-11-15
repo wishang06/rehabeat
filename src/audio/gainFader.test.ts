@@ -159,4 +159,21 @@ describe('GainFader', () => {
     new GainFader(param, 1).setActive(true, 0);
     expect(param.calls).toEqual(['cancel@0', 'set 0@0', 'ramp 1@1']);
   });
+
+  it('rests at a floor instead of 0 when given one', () => {
+    const param = new FakeParam(0.35);
+    const fader = new GainFader(param, 0.3, 0.35);
+    expect(fader.valueAt(0)).toBe(0.35);
+    expect(fader.setActive(false, 1)).toBe(false);
+    expect(param.calls).toEqual([]);
+
+    fader.setActive(true, 10);
+    expect(param.calls).toEqual(['cancel@10', 'set 0.35@10', 'ramp 1@10.3']);
+    expect(param.valueAt(10.3)).toBe(1);
+
+    fader.setActive(false, 12);
+    expect(param.calls.slice(3)).toEqual(['cancel@12', 'set 1@12', 'ramp 0.35@12.3']);
+    expect(param.valueAt(12.3)).toBe(0.35);
+    expect(fader.valueAt(60)).toBe(0.35);
+  });
 });

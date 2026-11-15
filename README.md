@@ -1,6 +1,6 @@
 # Rehabeat
 
-Rehabeat turns rehab moves into a rhythm game. The player stands in front of a webcam and matches a target pose on the beat: reach for it, hold it, release it. Hold it well and the melody comes in.
+Rehabeat turns rehab moves into a rhythm game. The player stands in front of a webcam and matches a target pose on the beat: reach for it, hold it, release it. Hold it well and the melody swells to full.
 
 It runs entirely in the browser: the camera video never leaves the laptop. The landing page is at `/`, the game is at `/play`, and the doctor's page is at `/doctor` (see [Doctors and programs](#doctors-and-programs)). The design direction is written up in [`PRODUCT.md`](PRODUCT.md) and [`.interface-design/system.md`](.interface-design/system.md).
 
@@ -115,7 +115,7 @@ UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws
 ### Audio (`src/audio/`)
 
 - Each song gets its own `BeatEngine`, loading `public/songs/<id>/beatmap.json` (`{ bpm, offset, beats }`) and the song's two stems, on one `AudioContext` shared with the menu's previews. If a beatmap is missing or malformed it falls back to a generated 72 BPM grid.
-- **Stems mode**: the drums play throughout and the melody fades in over 300 ms only while you are in the pose. This is the "music follows you" mechanic (`melodyShouldPlay` and `MelodyGate`):
+- **Stems mode**: the drums play throughout. The melody plays throughout too, but quietly (`MELODY_BASE_GAIN`, 0.35x, about -9 dB), and rises to full over 300 ms only while you are in the pose. This is the "music follows you" mechanic (`melodyShouldPlay` and `MelodyGate`). Below, "plays" means at full and "goes out" means back to the quiet level:
   - in a hold, it plays while you are in the pose (`live.locked`, and the frame score at Good or better, so arms sagging just under Good lose it even though the lock holds), whatever came before;
   - in a reach, it plays as soon as you land the next pose, or while the last move was Good or better, so a good hold carries it on;
   - in a release, it carries the result of the hold that just closed;

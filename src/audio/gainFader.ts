@@ -6,8 +6,8 @@ export interface RampParam {
 }
 
 /**
- * Fades a gain between 0 (inactive) and 1 (active) with a linear ramp.
- * Expects the param to be at 0 when the fader is created.
+ * Fades a gain between a floor (inactive, 0 unless given) and 1 (active) with
+ * a linear ramp. Expects the param to be at the floor when the fader is created.
  *
  * Safe to call every frame: a ramp is only scheduled when the state changes.
  * The value a new ramp starts from is computed from the ramp this class last
@@ -18,15 +18,19 @@ export interface RampParam {
 export class GainFader {
   private readonly param: RampParam;
   private readonly rampSec: number;
+  private readonly floor: number;
   private on = false;
-  private from = 0;
-  private to = 0;
+  private from: number;
+  private to: number;
   private rampStart = 0;
   private rampEnd = 0;
 
-  constructor(param: RampParam, rampSec = 0.3) {
+  constructor(param: RampParam, rampSec = 0.3, floor = 0) {
     this.param = param;
     this.rampSec = rampSec;
+    this.floor = floor;
+    this.from = floor;
+    this.to = floor;
   }
 
   get active(): boolean {
@@ -42,15 +46,15 @@ export class GainFader {
   }
 
   /**
-   * Ramps toward 1 (active) or 0 (inactive), starting at `now` from the gain
-   * in effect at that moment. Returns true when a new ramp was scheduled.
+   * Ramps toward 1 (active) or the floor (inactive), starting at `now` from
+   * the gain in effect at that moment. Returns true when a new ramp was scheduled.
    */
   setActive(active: boolean, now: number): boolean {
     if (active === this.on) return false;
     const current = this.valueAt(now);
     this.on = active;
     this.from = current;
-    this.to = active ? 1 : 0;
+    this.to = active ? 1 : this.floor;
     this.rampStart = now;
     this.rampEnd = now + this.rampSec;
     this.param.cancelScheduledValues(now);
