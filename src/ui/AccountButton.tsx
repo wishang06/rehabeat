@@ -6,10 +6,12 @@ interface AccountButtonProps {
   auth: AuthState;
   /** Called just before leaving for Google, e.g. to keep an unsaved run. */
   onBeforeSignIn?: () => void;
+  /** Joins a doctor with their code, from the profile menu. Null or absent when the player cannot join one. */
+  onJoin?: ((code: string) => Promise<void>) | null;
 }
 
 /** Sign-in with Google, or the signed-in player's avatar, which opens the profile menu. */
-export function AccountButton({ auth, onBeforeSignIn }: AccountButtonProps) {
+export function AccountButton({ auth, onBeforeSignIn, onJoin }: AccountButtonProps) {
   const [busy, setBusy] = useState(false);
   if (!auth.ready) return null;
 
@@ -36,5 +38,5 @@ export function AccountButton({ auth, onBeforeSignIn }: AccountButtonProps) {
     );
   }
 
-  return <ProfileMenu auth={auth} />;
+  return <ProfileMenu auth={auth} onJoin={onJoin ?? null} />;
 }

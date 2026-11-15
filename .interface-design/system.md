@@ -92,7 +92,7 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | Grade | One display letter filling a slanted panel, with five stars under it. |
 | Score tube | A tall LED meter on the left of the play HUD, between the run stats and the match ring: cyan segments filling from the bottom, five star marks at the results' star thresholds that light gold with a burst. With all five it turns gold, glows on the beat and says SUPERSTAR. "+points" fly into it from the PERFECT or GOOD pop. |
 | Avatar | A neon glyph from the cabinet (the figure, a star, the dial, LED segments) on a void square, with a soft glow in its own colour. Gold, cyan and white; pink only as an accent. Sixteen, in `src/ui/avatars/`. |
-| Profile menu | The avatar in the marquee opens a deck panel with a lit cyan top edge: the player, then Rename, Change avatar (a 4 x 4 grid, the chosen one outlined in gold) and Sign out. Esc steps back, then closes. |
+| Profile menu | The avatar in the marquee opens a deck panel with a lit cyan top edge: the player, then Rename, Change avatar (a 4 x 4 grid, the chosen one outlined in gold) and Sign out. Under them, while the player has no program, the field for a doctor's code. Esc steps back, then closes. |
 | Demo row | A leaderboard row for a sample player: a tone down (deck, not deck-2), the name dimmed, and a small "Demo" tag on deck-3. |
 | Zoom slider | On the Calibrate strip: a cyan LED track filled up to a slanted gold thumb, "Close" to "Full frame". At full frame with the head or feet cut off, "Still too close? Step back" in pink. |
 

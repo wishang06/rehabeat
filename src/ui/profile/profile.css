@@ -129,6 +129,42 @@
   filter: brightness(1.1);
 }
 
+/* Joining a doctor with their code (JoinCode.tsx), under the menu's actions. */
+.join {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 1.125rem;
+  box-shadow: inset 0 2px 0 var(--color-deck-2);
+}
+
+.join__label,
+.join__error {
+  font-size: 1rem;
+  color: var(--color-dim);
+}
+
+.join__error {
+  color: var(--color-pink);
+}
+
+.join__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.join__input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  font: 600 1.125rem/1 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-white);
+  background: var(--color-void);
+  border: 0;
+}
+
 .profile__row {
   display: grid;
   grid-template-columns: 1fr 1fr;
