@@ -51,7 +51,7 @@ export function DoctorPage() {
       {store?.kind === 'demo' && (
         <p className="doc-banner" data-testid="demo-banner">
           <span>
-            <b>Demo clinic.</b> These are sample patients, saved in this browser only.
+            These are sample patients, saved in this browser only.
             {supabase && ' Sign in to treat real patients.'}
           </span>
           <button
@@ -64,7 +64,7 @@ export function DoctorPage() {
               reload();
             }}
           >
-            Reset demo clinic
+            Reset clinic
           </button>
         </p>
       )}
