@@ -146,9 +146,10 @@
   font-size: clamp(26px, calc(var(--picture) * 0.046), 50px);
 }
 
-/* A phone-width stage has the move panel close by: the tag drops its pips to stay clear of it. */
+/* A phone-width stage has the move panel close by: the tag drops its pips and the score to stay clear of it. */
 @container (max-width: 520px) {
-  .hud-tag__beats {
+  .hud-tag__beats,
+  .hud-tag__chip .led {
     display: none;
   }
 }
