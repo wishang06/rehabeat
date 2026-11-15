@@ -386,6 +386,26 @@
     0 0 0 8px var(--color-cyan);
 }
 
+/* On each beat a second gold edge kicks outward from the selected card and
+   fades. Like the lamp's ring it always runs and is only shown, so the edge
+   and the lamp stay in step. */
+.menu .menu-card::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  box-shadow:
+    0 0 0 3px var(--color-gold),
+    0 0 36px 2px rgb(255 210 63 / 0.6);
+  visibility: hidden;
+  pointer-events: none;
+  animation: menu-beat-edge var(--beat, 1s) var(--ease-out) infinite;
+}
+
+.menu .menu-card[data-selected='true']::after {
+  visibility: visible;
+}
+
 .menu-card__top {
   display: flex;
   align-items: flex-start;
@@ -473,6 +493,19 @@
   100% {
     opacity: 0;
     transform: scale(2.75);
+  }
+}
+
+/* Keeps the panel's lean while it grows. */
+@keyframes menu-beat-edge {
+  0% {
+    opacity: 1;
+    transform: skewX(-4deg) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: skewX(-4deg) scale(1.05, 1.06);
   }
 }
 
@@ -740,6 +773,11 @@
   .menu-card__lamp,
   .menu-card__lamp::after {
     animation: none;
+  }
+
+  /* The steady gold edge stays; the kick on the beat goes. */
+  .menu .menu-card::after {
+    display: none;
   }
 
   .menu .menu-card[data-previewing='true'] .menu-card__lamp::after {
