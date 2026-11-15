@@ -3,11 +3,11 @@ export const CANVAS_COLORS = {
   /** --chalk: the player's own skeleton (Calibrate screen). */
   skeletonLine: 'rgba(246, 241, 231, 0.82)',
   skeletonJoint: '#f6f1e7',
-  /** --brass: the target figure to reach for. */
-  figure: { fill: 'rgba(242, 178, 76, 0.55)', edge: '#ffd27a', glow: '#f2b24c' },
-  /** --on-target: the target figure once the player is within Good range. */
-  figureMatched: { fill: 'rgba(134, 219, 166, 0.55)', edge: '#c9f5da', glow: '#86dba6' },
-  /** The player's limbs by FeedbackFrame status. Amber leans orange so it never reads as the gold target. */
+  /** --on-target: the target figure, and the dot on a joint, once the player is in place. */
+  onTarget: '#86dba6',
+  /** The edge round anything light drawn on the camera picture. */
+  ink: 'rgba(12, 10, 9, 0.9)',
+  /** Colours by FeedbackFrame limb status. The overlay uses green and grey; the rest are for other readers. */
   limb: {
     green: '#86dba6',
     amber: '#ff9a3d',

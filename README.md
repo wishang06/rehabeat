@@ -48,7 +48,7 @@ The landing page (`/`) explains the game; **Play now** goes to `/play`, which op
 
 1. **Pick a song.** The song menu lists the songs by catalogue. Hovering or focusing a song plays 10 s of its melody once you've clicked or pressed a key on the page. Arrows move, Enter picks, Esc goes back. Picking a song the first time starts the camera and sound; stand back until your head and knees are in the picture.
 2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
-3. **Play.** The routine loops through the three moves. A gold figure shows the pose to hit, on your own body or, when its arms rest at its sides, beside you. It turns green when you are on it. Your own limbs are coloured green, amber or red by how far each is from its target, and a short hint ("left arm higher") points at the one to fix. If part of you is out of view, those limbs go grey and the screen tells you to step back. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
+3. **Play.** The routine loops through the three moves. A black stick figure, standing on your own body, shows the pose to hit. It stays still while you move into it and turns green when you are on it. The colour dot in the top bar changes its colour (it is labelled **Figure** on a wide window). Each joint the move scores gets a dot on your body: white until that limb is in place, then green. A short hint ("left arm higher") points at the limb to fix. If part of you is out of view, its dot becomes a dashed grey ring and the screen tells you to step back. The full-screen button beside it (or **F**) fills the display with the game; Esc leaves full screen. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
 Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo, the estimated calories and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, pose latency (how far behind the audible beat each pose frame arrives), the camera's size and frame rate, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
 
@@ -96,7 +96,7 @@ Every display frame, the Play screen builds a `FeedbackFrame` and publishes it t
 - hold progress and the live score;
 - whether a scored joint is out of view.
 
-UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws from it: the gold target figure (filled capsules anchored to the player's own shoulders, hips and limb lengths, or drawn beside them when its arms rest at its sides), the player's own limbs coloured by status, the hint arrow and the step-back warning. [`src/engine/README.md`](src/engine/README.md) documents the frame, the figure geometry, the placement rule and how to read the frame from a component.
+UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws from it: the target figure (a stick figure standing on the player's hips, sized to their own limbs, which holds still until they step away), a dot on each scored joint, the hint arrow and the step-back warning. [`src/engine/README.md`](src/engine/README.md) documents the frame, how the figure is placed and shaped, and how to read the frame from a component.
 
 ### Scoring (`src/scoring/`)
 
@@ -242,7 +242,7 @@ The real clinic's tables are in `supabase/migrations/20261115090000_care.sql`:
 
 Unlike `profiles` and `scores`, none of it is public. Row Level Security lets a doctor read and write only their own patients and those patients' programs, and read their sessions; a patient reads their own row and its programs and adds their own sessions. A doctor cannot attach a program to an account: only the patient can, by entering the code. An account is a patient of at most one doctor. Anyone signed in can use `/doctor`; a doctor is simply someone who has added patients.
 
-**The migration has to be applied to the Supabase project before the signed-in clinic works.** Paste the file into the project's SQL editor, or run `supabase db push`. Until then a signed-in doctor sees "The clinic is not set up yet", and the demo clinic is unaffected.
+The migration is applied to the project (`rkxqtgbcendomwvrfxjf`), recorded there as `care`. Supabase numbers applied migrations by the time they were run, so its version differs from this file's name, as it does for the two earlier migrations. For a new project, paste the file into the SQL editor or run `supabase db push`. Without it, a signed-in doctor sees "The clinic is not set up yet", and the demo clinic is unaffected.
 
 `supabase/tests/care_rls.mjs` applies the migration to a throwaway in-memory Postgres and checks the rules from every side (the doctor, the patient, another doctor, a stranger, a signed-out visitor):
 
@@ -414,21 +414,21 @@ Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) a
 - The landing page and the game screens were checked in Chromium at 1440 x 900 and at 390 px wide, with a synthetic camera. The play HUD has not yet been read from two metres by a real player on a real laptop.
 - XP, levels, the daily streak, the run log and the body weight live in `localStorage`: they do not follow a player to another browser, and clearing site data resets them. The run log starts from the first run after Stats shipped; earlier runs have no dates to chart.
 - The calorie figure is a rough estimate by time, not a measurement. It uses one rate for every move and counts the whole run up to 30 minutes, including time spent standing still.
-- The doctor loop's signed-in clinic has not been run end to end against the real Supabase project: the smoke check has no Google sign-in, so it walks the demo clinic only. The privacy rules were checked on a local Postgres (`supabase/tests/care_rls.mjs`), and the migration still has to be applied to the project.
+- The doctor loop's signed-in clinic has not been run end to end in a browser: the smoke check has no Google sign-in, so it walks the demo clinic only. The privacy rules were checked on a local Postgres (`supabase/tests/care_rls.mjs`) and again on the live project, as a doctor, a second doctor, the patient, a stranger and a signed-out visitor, inside a transaction that was rolled back.
 - The analysis thresholds, the limit margin and the sample patients' numbers are first guesses, not tuned on real patients. Nothing in the doctor loop has been reviewed by a clinician.
 - Limits are checked against webcam angle estimates. The "Ease off" prompt is guidance and can be late, early or wrong.
 - A program session that is closed mid-song (the tab, or a reload) is lost. A session whose send failed can be retried from the results screen, but not after leaving it.
 - Anyone signed in can open `/doctor` and add patients. There is no check that a doctor is one.
 - A doctor cannot remove a patient, and a patient cannot leave a doctor, from the app.
 - A join code is ten characters from a strong random source, but it does not expire and there is no limit on wrong tries. Whoever enters an unused code first becomes that patient, and that cannot be undone from the app.
-- Before the migration is applied, a signed-in player's game works as it does signed out of a clinic: no program and no join form.
 - The demo clinic is per browser. Clearing site data resets it.
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.
 - Loop points are checked against the beat grid, not by ear. The loop cuts the audio with no crossfade, so listen for a click where each song wraps.
 - Song previews and in-game audio were checked in a muted browser; levels were measured, not listened to.
-- The target figure draws arms in the image plane and legs as seen from the front. A knee raise is drawn with the thigh canted outward so it reads as a raise, which is not exactly how a straight-ahead knee raise looks on camera.
+- The target figure draws arm raises in the image plane and a knee raise with the thigh canted outward so it reads as a raise, which is not exactly how a straight-ahead knee raise looks on camera. The yoga poses are drawn from hand-written pictures (`src/engine/moveViews.ts`), each checked against its move's target angles; the move cards in the HUD still use the older front-view sketch.
+- The figure's steadiness (no shake, no drift, a glide after a real step) is checked in unit tests with simulated landmark noise, not yet on a live camera.
 - MediaPipe often guesses landmarks just outside the frame with high confidence. The step-back warning only appears once a scored joint's visibility actually drops below the cutoff (0.6, or 0.5 for a joint that was already measured), which in testing needed a good part of a limb out of view.
 - Only Chromium browsers have been tested.
 

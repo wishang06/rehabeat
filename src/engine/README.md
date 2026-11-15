@@ -100,55 +100,63 @@ Under it, `buildFeedbackFrame(routine, input, state)` is pure: it returns the fr
 
 ## The target figure
 
-`silhouette.ts` is pure geometry; it never touches a canvas. A side card can draw the same figure the overlay does:
+The figure is a stick figure in one colour: black by default, or the colour the player picks with the **Figure** button. It turns green while `onTarget`. Three files build it, none of which touches a canvas.
+
+### Where it stands (`anchor.ts`)
+
+`FigureAnchor.update(landmarks, world, size, nowMs)` returns the body to draw the figure on, once per display frame.
+
+- **Upright, on the hips.** The figure stands on the player's hip midpoint, with its shoulders one torso length above. The hips move least through a move. When the hips are out of view it hangs from the shoulders instead.
+- **It stays put.** The figure does not move until the player is more than a quarter of a shoulder width away from it for 200 ms. Then it glides over and stops again. A shaking detector, a sway, or a one-frame glitch moves nothing.
+- **It never tilts.** A side bend moves the player's shoulders, not the figure.
+- **Size.** Shoulder width and torso length are only measured while the player is upright and facing the camera, and followed the same way (12% out before it resizes). Turning side-on or folding forward does not shrink the figure.
+- **Limb lengths.** Each is the mean of the last 120 measurements of the player's own limbs against their torso, kept within 0.75 to 1.3 of standard proportions, and the same on both sides.
+- **Lost pose.** With no landmarks the figure stays where it was.
+
+### Its shape (`stick.ts`, `moveViews.ts`)
+
+A pose is a `FigureView`: the direction of each bone in the picture, in degrees from straight down, turning toward the player's left. `stickPoints(view, body)` gives every joint, and `stickFigure(points, scale, order)` the lines to draw.
 
 ```ts
-import { buildSilhouette, capsuleOutline, poseForMove, standardBody } from '../engine';
+import { stickFigure, stickPoints, standardBody, viewForMove, bodyScale } from '../engine';
 
 const body = standardBody({ center: { x: 60, y: 50 }, shoulderWidth: 36 }); // mirrored like the stage by default
-const figure = buildSilhouette(poseForMove(move), body);
-// figure.capsules: { part, a, b, ra, rb }[]: tapered capsules for the limbs and neck
-// figure.torso: Point[], wound clockwise
-// figure.head: { center, radius }
+const view = viewForMove(move.id, move.joints);
+const figure = stickFigure(stickPoints(view, body), bodyScale(body), view.order);
+// figure.trunk: Point[][]   spine and neck, shoulder line, hip line
+// figure.head:  { center, radius }
+// figure.limbs: { chain, points }[]   each from the body outward, furthest from the viewer first
 ```
 
-- **Shapes.** Every shape is wound clockwise, so filling all of them as one path paints their union once. That is how the overlay gets a single solid figure at 55% opacity with no darker seams where shapes overlap. `capsuleOutline(capsule)` gives the arcs for tracing a tapered capsule; the overlay's `traceCapsule` uses it.
-- **Widths.** They come from the body scale (about shoulder width). Upper arms are about 0.26 shoulder widths across, thighs about 0.38, and every segment narrows toward its end.
-- **Arms.** They are laid out so that, measured the way scoring measures (hip-shoulder-elbow, shoulder-elbow-wrist), they read exactly as the targets.
-- **Legs.** They hang along the body's midline. A thigh lifting toward the camera is canted outward and its knee end swells, so a knee raise reads from the front.
-- **Rest.** Joints a move doesn't score take `REST_POSE`, with the arms 16° off the sides so the hands don't merge into the hips.
+- **Moves with joint angles only** (the arm raises, the knee raise) get a front view from `viewForPose`. Arms swing in the picture, so they read exactly as the targets. A thigh lifting toward the camera is drawn short and canted outward.
+- **Poses the angles can't picture** have a view written by hand in `MOVE_VIEWS`, keyed by move id: the eight yoga poses. A hip at 60° is a raised knee, a leg out to the side, or a torso folded over a straight leg; only the view says which. Triangle and half moon lean the torso, dancer and downward dog are drawn side-on (`width`), bound angle shortens the thighs that point at the camera.
+- **A new move with an unusual shape needs a view.** `moveViews.test.ts` fails if any scored joint, as drawn, is further from its target than the move's tolerance.
+- **Depth.** `order` lists the limbs from furthest to nearest. The overlay draws a nearer limb over the ones behind it.
+- **Rest.** Joints a move doesn't score take `REST_POSE`, with the arms 16° off the sides.
 
-### Placement (`placement.ts`)
+### Motion
 
-The figure is drawn on the player's own body, anchored to their live shoulders and hips and scaled to their measured limb lengths. When the figure's arms would lie against its torso (hands at the sides, arms across the chest), it would vanish into the player. In that case it is drawn beside them instead, on the side with more room, clear of their body, and inside the canvas.
+`StickEaser` moves the joints from one pose to the next over 150 ms (`POSE_EASE_MS`). The figure shows:
 
-The test is `armTorsoOverlap`: the fraction of either arm that comes within 0.12 body scales of the torso outline. Above 0.35 means draw beside. It is judged on a standard body, so it depends only on the pose and can't flicker as the player moves. In the current routine:
-
-- The standing knee raise is drawn beside the player, since its arms rest at the sides.
-- The overhead and side arm raises are drawn on the body.
-
-### Motion (`ease.ts`)
-
-`FigureEaser` eases the figure's joint angles, and its on-body/beside offset, over 150 ms whenever the target changes. The figure shows:
-
-| Phase | Pose | Opacity |
-| --- | --- | --- |
-| Count-in | The first move's target | 0.4 |
-| Reach | The target | 0.6 rising to 1 |
-| Hold | The target | 1 |
-| Release | The rest pose, which is where the player is going back to | 1 falling to 0.45 |
+| Phase | Pose |
+| --- | --- |
+| Count-in | The first move's target |
+| Reach, hold | The target |
+| Release | The rest pose, which is where the player is going back to |
 
 ## The canvas overlay (`src/ui/overlay.ts`)
 
 `PlayOverlay.draw(surface, frame, landmarks, world, nowMs)` draws, in order:
 
-1. **The target figure.** A gold fill at 55%, a 3 px brighter edge and a soft glow. It turns green while `onTarget`.
-   - The glow and edge are fills of grown copies of the silhouette (`inflateSilhouette`). The real silhouette is then cut out with `destination-out` and filled, so overlapping parts show no seams.
-   - The cut-out erases whatever is beneath it, so the figure is always drawn first on the freshly cleared canvas.
-   - The figure avoids a scratch canvas and wide strokes on purpose. Measured per frame on an Intel Iris Xe, which MediaPipe also runs on: compositing a scratch canvas cost about 14 ms, and stroking the glow cost about 2.5 ms.
-2. **The player's body.** The same capsule style at half the figure's width, coloured by limb status. Lost scored limbs are drawn grey with a dashed edge, at the detector's best guess.
+1. **The target figure.** Solid lines about a tenth of a shoulder width thick, each with a thin contrasting edge (light round a dark colour, dark round a light one) so the figure shows on any background.
+   - The trunk and head are drawn first, as one shape.
+   - Each limb is then drawn over what is there, its edge first. Where a limb crosses the body or another limb, the edge cuts a gap, so the nearer limb reads as in front.
+   - A limb's edge starts a little way out from the joint it hangs from, so it doesn't notch the shoulder or hip.
+2. **A dot on each scored joint.** On the far end of each limb the move scores (elbow, wrist, knee, ankle), in a reach or hold. White until that limb is within tolerance, then green. A limb the camera has lost gets a dashed grey ring at the detector's best guess. The dots sit on landmarks steadied by `LandmarkSmoother` (a One Euro filter run every display frame), so they neither shake nor step at the camera's frame rate.
 3. **The hint.** A label beside the limb, with an arrow to the part it names: the elbow for "arm" hints, the knee for "knee" hints. The label stays out of the HUD corners and off the figure.
 4. **The low-visibility banner.** "Step back so your whole body is in frame", placed so it doesn't cover the scored limbs.
+
+The canvas uses three colours, each with one meaning: the figure's colour (the pose to copy), white (you), green (in place).
 
 **Mirroring.** The stage shows a selfie view: CSS flips the video and the canvas together (`.stage__video, .stage__canvas` in `index.css`). Everything is laid out in camera-image pixels and flips with the video, so it stays on the body. Text is drawn through `drawText` in `src/ui/canvas.ts`, which flips it back so it reads normally. `prepareCanvas` detects the flip from the canvas's computed style, so this stays right if the CSS changes.
 
@@ -160,8 +168,11 @@ The test is `armTorsoOverlap`: the fraction of either arm that comes within 0.12
 | --- | --- |
 | `feedback.test.ts` | Frame building: phases, limb status, hint and visibility timing |
 | `hints.test.ts` | Hint selection and wording |
-| `silhouette.test.ts` | Figure geometry: scored angles, widths, winding, legibility, inflation |
-| `placement.test.ts` | The overlap rule and the beside-the-player offset |
-| `ease.test.ts` | Easing |
-| `overlayLayout.test.ts` | Player capsules, hint callout and banner placement |
+| `anchor.test.ts` | The figure holds still through noise, sway, a lean, a turn and a glitch; glides after a real step; limb lengths |
+| `stick.test.ts` | Joint positions from a view, the lines, and easing between poses |
+| `moveViews.test.ts` | Every move's picture shows the angles the move scores |
+| `landmarkSmoother.test.ts` | Shake removed from a still joint; a moving one followed |
+| `silhouette.test.ts` | The body: standard proportions, the live body from landmarks, body scale |
+| `ease.test.ts` | The easing curve |
+| `overlayLayout.test.ts` | Player limb layout, hint callout and banner placement |
 | `feedbackStore.test.ts` | The store and the hook |
