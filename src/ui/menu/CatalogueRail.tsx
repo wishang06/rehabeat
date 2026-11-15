@@ -90,7 +90,7 @@ export function CatalogueRail({ groups, shown, selectedId, weight, tabId, panelI
             songCountLabel(group.songs.length),
           ),
         )}
-        {tab(credits, 'catalogue-tab-credits', 'Credits', null, 'Music and licences')}
+        {tab(credits, 'catalogue-tab-credits', 'Credits', null, 'Music, data, licences')}
       </div>
     </div>
   );

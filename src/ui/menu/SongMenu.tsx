@@ -263,7 +263,7 @@ export function SongMenu({
             <p className="menu__about">
               {group
                 ? group.catalogue.description
-                : 'The music in Rehabeat and the licences that let us use it. Links open in a new tab.'}
+                : 'The music and data in Rehabeat and the licences that let us use them. Links open in a new tab.'}
             </p>
           </header>
 

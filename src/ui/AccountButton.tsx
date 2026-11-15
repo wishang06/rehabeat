@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { signInWithGoogle, signOut, type AuthState } from '../lib/auth';
-import { PlayerAvatar } from './PlayerAvatar';
+import { signInWithGoogle, type AuthState } from '../lib/auth';
+import { ProfileMenu } from './profile/ProfileMenu';
 
 interface AccountButtonProps {
   auth: AuthState;
@@ -8,7 +8,7 @@ interface AccountButtonProps {
   onBeforeSignIn?: () => void;
 }
 
-/** Sign-in with Google, or the signed-in player with a sign-out button. */
+/** Sign-in with Google, or the signed-in player's avatar, which opens the profile menu. */
 export function AccountButton({ auth, onBeforeSignIn }: AccountButtonProps) {
   const [busy, setBusy] = useState(false);
   if (!auth.ready) return null;
@@ -36,14 +36,5 @@ export function AccountButton({ auth, onBeforeSignIn }: AccountButtonProps) {
     );
   }
 
-  const name = auth.profile?.displayName ?? 'Player';
-  return (
-    <span className="account" data-testid="account">
-      <PlayerAvatar seed={auth.user.id} className="critter--small" />
-      <span className="account__name">{name}</span>
-      <button type="button" className="button button--quiet" onClick={() => void signOut()}>
-        Sign out
-      </button>
-    </span>
-  );
+  return <ProfileMenu auth={auth} />;
 }
