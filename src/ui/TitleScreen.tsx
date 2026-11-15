@@ -115,12 +115,15 @@ export function TitleScreen({
           </p>
         )}
         <ProgressMeters className="title__meters" />
-        <button type="button" className="button button--quiet title__stats" onClick={onStats} data-testid="title-stats">
-          Stats
-        </button>
-        <p className="title__more">
-          <Link to="/">How it works</Link>
-        </p>
+        <div className="title__links">
+          <button type="button" className="button button--quiet title__stats" onClick={onStats} data-testid="title-stats">
+            Stats
+          </button>
+          {/* Back to the landing page, which explains the game. */}
+          <Link to="/" className="button button--quiet" data-testid="title-how">
+            How it works
+          </Link>
+        </div>
       </div>
 
       <div className="title__figure">

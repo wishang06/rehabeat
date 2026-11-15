@@ -13,8 +13,6 @@
 :root {
   --bar-height: 4rem;
   --gutter: 1rem;
-  /* The game's content column: wider screens get the void either side. */
-  --content-max: 75rem;
   /* The void as channels, for translucent scrims over the camera. */
   --scrim: 5 6 12;
   --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
@@ -100,8 +98,7 @@
   display: flex;
   align-items: center;
   gap: 1.75rem;
-  /* The bar runs edge to edge; what is on it keeps to the content column. */
-  padding: 0 max(var(--gutter-page), (100% - var(--content-max)) / 2);
+  padding: 0 var(--gutter-page);
   background: var(--color-deck);
 }
 
@@ -138,7 +135,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--gutter);
-  width: min(100%, var(--content-max) + 2 * var(--gutter));
+  /* Every screen runs the full width of the window. */
+  width: 100%;
   min-height: 0;
   padding: var(--gutter);
 }
@@ -147,7 +145,6 @@
 .app[data-screen='title'] .app__main,
 .app[data-screen='menu'] .app__main,
 .app[data-screen='results'] .app__main {
-  width: min(100%, var(--content-max));
   padding: 0;
 }
 
@@ -256,21 +253,6 @@
   top: 0;
   bottom: 0;
   overflow: hidden;
-}
-
-/*
- * Play and Calibrate use the whole window's width on a desktop, so the black
- * bars either side of the camera picture become rails for the HUD panels.
- */
-@media (min-width: 64rem) {
-  .app:is([data-screen='play'], [data-screen='calibrate']) .app__main {
-    width: 100%;
-  }
-
-  /* The bar's contents line up with the full-width stage under them. */
-  .app:is([data-screen='play'], [data-screen='calibrate']) .app__bar {
-    padding-inline: var(--gutter-page);
-  }
 }
 
 .stage__video,

@@ -41,7 +41,7 @@ Rules:
 | Text | Barlow 400 to 600 | (default) | 16 to 26 px, line-height 1.35 to 1.5. |
 | Digits | Doto 900 | `led` | Every number that counts: tempo, score, combo, XP, the countdown. Never for sentences. |
 
-Desktop screens (1024 px wide and up) fit the window: nothing on `/play` scrolls, and content keeps to a 1200 px column (`--content-max`). Big type there is sized by the window's height as well as its width.
+Desktop screens (1024 px wide and up) fit the window: nothing on `/play` scrolls, and every screen runs the full width of the window. Big type there is sized by the window's height as well as its width.
 
 Display sizes are fluid. On the landing page they follow the viewport (`--text-headline`, `--text-section`); on the play HUD they follow the stage (`cqw`), so the HUD scales with the camera picture.
 
