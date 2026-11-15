@@ -218,6 +218,16 @@ All three are plain functions over the stored programs and sessions (`src/care/a
 
 The thresholds are constants in `src/care/analysis/findings.ts` (`JOINT_REPORT_DEG` 8°, `FORM_REPORT_SHARE` 0.3, `LATE_REPORT_MS` 300, `VIEW_REPORT_SHARE` 0.2, `TREND_STEP` 0.2). They are first guesses and have not been tuned on real patients.
 
+### The Gemini summary
+
+On a patient with sessions, **Draft with Gemini** on the doctor's page asks Google's Gemini for three things: a short summary for the doctor, up to three program changes to consider, and a draft note to the patient. **Use as note** puts the drafted note in the note box; the doctor edits it and presses **Save and send** as usual. Nothing Gemini writes reaches the patient unless the doctor sends it, and the draft is not stored.
+
+- **What is sent:** the condition, the program (moves, rounds, sessions a week, weeks, limits), the week-by-week counts and status, the average score this week and last, the problem spots as the page shows them, and the number of sessions. Never the patient's name, the doctor's notes, or any session's raw data. `summaryInput` in `src/care/summary.ts` builds it.
+- **Where the call goes:** the Supabase Edge Function `care-summary` (`supabase/functions/care-summary/`), which holds the Gemini key. The browser never sees the key. The function accepts only the exact shape above, with every list and string capped and only plain text allowed, and builds the prompt itself (`draft.ts`, shared with the app and unit-tested), so it cannot be used to ask Gemini for anything else.
+- **The key:** an Edge Function secret named `GEMINI_API_KEY` (Supabase dashboard, Edge Functions, Secrets). Until it is set, the panel says "Gemini is not set up". The model is `gemini-flash-latest`; set a `GEMINI_MODEL` secret to use another.
+- **Deploying the function:** `supabase functions deploy care-summary --no-verify-jwt`. JWT checking is off because the project uses the new publishable key, which is not a JWT, and because the demo clinic is used signed out.
+- **Errors:** Gemini's own error messages (a wrong model, a bad key, a quota) go to the function's logs in the Supabase dashboard; the page only says that Gemini did not answer.
+
 ### Where it is stored
 
 The doctor's page and the game talk to one interface, `CareStore` (`src/care/types.ts`), with two homes. Which one is used follows sign-in; there is no switch.
@@ -367,6 +377,7 @@ src/
 public/songs/     The song library (index.json and one folder per song)
 supabase/migrations/  Accounts and scores; the doctor loop's private tables
 supabase/tests/care_rls.mjs  The doctor loop's privacy rules, checked on a throwaway Postgres
+supabase/functions/care-summary/  The Edge Function that drafts the Gemini summary, and its shared prompt and checks
 scripts/smoke.mjs Playwright smoke check
 scripts/fps.mjs   Play screen frame rate
 scripts/screens.mjs  Screenshots of every page
@@ -421,6 +432,8 @@ Yoga pose landmarks from Yoga_Poses-Dataset by Manoj-2702 (https://github.com/Ma
 - A doctor cannot remove a patient, and a patient cannot leave a doctor, from the app.
 - A join code is ten characters from a strong random source, but it does not expire and there is no limit on wrong tries. Whoever enters an unused code first becomes that patient, and that cannot be undone from the app.
 - The demo clinic is per browser. Clearing site data resets it.
+- The Gemini summary's function needs no sign-in, so that the demo clinic can use it. Anyone who finds its address can call it, though only with the fixed shape the page sends, and each call spends the project's Gemini quota. There is no rate limit of its own.
+- What Gemini writes has not been checked by a clinician. The prompt tells it to use only the numbers given and to make no medical claims, and the page labels every draft as Gemini's, but the doctor is the check.
 
 - The moves, tolerances and form-rule thresholds are placeholders and have not been tuned on real players.
 - So far the pose and scoring path has been exercised in the browser with a still photo of a person as the camera, not a moving person. Calibration (which needs real arm raises) has only been tested on synthetic frames.

@@ -742,3 +742,48 @@ p.doc-patient__code {
     grid-column: 1;
   }
 }
+
+/* ---------- the Gemini summary: a draft for the doctor, set apart from the measured numbers */
+.doc-ai__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.doc-ai__draft {
+  display: grid;
+  gap: 0.625rem;
+  max-width: 72ch;
+}
+
+.doc-ai__badge {
+  font-size: 0.875rem;
+  color: var(--color-cyan);
+}
+
+.doc-ai__summary {
+  font-size: 1.0625rem;
+  line-height: 1.5;
+}
+
+.doc .doc-ai__suggestions {
+  display: grid;
+  gap: 0.25rem;
+  padding-left: 1.25rem;
+  list-style: disc;
+  color: var(--color-dim);
+}
+
+.doc-ai__note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  white-space: pre-line;
+  color: var(--color-white);
+  background: var(--color-void);
+}
+
+.doc-ai__draft .doc-btn {
+  justify-self: start;
+}

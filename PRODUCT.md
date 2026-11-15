@@ -57,3 +57,5 @@ Rehabeat runs in the browser. The camera video never leaves the laptop. Progress
 A patient who has joined a doctor also sends that doctor each program session: scores, joint angles, form flags and timing. Never the picture, and never body positions. Only that patient and that doctor can read them. The results screen says what was sent, every time.
 
 The demo clinic on the doctor's page (sample patients, and "You") is kept in this browser only and is sent nowhere.
+
+When a doctor presses **Draft with Gemini**, that patient's condition, program, scores and problem spots are sent to Google's Gemini to draft a summary. Never their name, the doctor's notes or the picture. The draft is shown to the doctor only, labelled as Gemini's, and reaches the patient only if the doctor puts it in a note and sends it.

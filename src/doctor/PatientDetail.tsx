@@ -14,6 +14,7 @@ import { draftFor, isDirty } from './editor';
 import { LimitsEditor } from './LimitsEditor';
 import { ProblemSpots } from './ProblemSpots';
 import { ProgramEditor } from './ProgramEditor';
+import { SummaryPanel } from './SummaryPanel';
 import { WeekGrid } from './WeekGrid';
 
 interface PatientDetailProps {
@@ -119,6 +120,16 @@ export function PatientDetail({ file, store, today, notice, onSaved }: PatientDe
           <ProblemSpots findings={spots} hasSessions={sessions.length > 0} />
         </section>
       </div>
+
+      <SummaryPanel
+        file={file}
+        today={today}
+        onUseNote={(note) => {
+          setDraft((current) => ({ ...current, note }));
+          // The doctor edits the drafted note where it now is, then sends it as usual.
+          document.getElementById('rx-note')?.focus();
+        }}
+      />
 
       <div className="doc-two">
         <section className="doc-panel">
