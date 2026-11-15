@@ -887,4 +887,9 @@
   .app[data-screen='menu'] .app__bar .meters {
     display: none;
   }
+
+  /* The D-for-debug reminder gives way to the Play buttons (Figure, Full screen) on a narrower window. */
+  .app__hint {
+    display: none;
+  }
 }
