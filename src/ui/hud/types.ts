@@ -77,6 +77,16 @@ export interface PhaseTagProps {
   result: HudResult | null;
 }
 
+/** The edge of the picture, lit on every beat in the phase's colour. */
+export interface BeatFrameProps {
+  frames: FeedbackStore;
+}
+
+/** The flash and the large grade for a move that has just been scored. */
+export interface MoveBurstProps {
+  result: HudResult | null;
+}
+
 /** The match score as a ring, with marks at Good and Perfect. */
 export interface HoldRingProps {
   frames: FeedbackStore;

@@ -1,9 +1,10 @@
 /*
  * The play HUD with rails (Stage.tsx, camera/rails.ts): on a wide window the
  * camera picture keeps to the middle of the stage and every panel moves out
- * into the black bars either side. The picture carries the beat line, the
- * phase tag in its top-left corner (tag.css) and, when there is one, a slim
- * message on its bottom edge.
+ * into the black bars either side. The picture carries the phase tag in its
+ * top-left corner (tag.css), the light on its edge for every beat and every
+ * finished move (reactions.css) and, when there is one, a slim message on
+ * its bottom edge.
  *
  *   left rail   run stats, the score tube, the match ring
  *   right rail  the move lane (the move in play, then the queue), the combo
@@ -20,14 +21,9 @@
   --ring-size: min(var(--rail-inner) - 8px, 32cqh);
 }
 
-/* ---------- over the picture: the beat line, the phase tag (tag.css) and the message strip */
+/* ---------- over the picture: the phase tag (tag.css), the message strip, and the light on its edge (reactions.css) */
 .stage[data-rails='true'] :is(.hud-banner, .hud-note) {
   max-width: calc(var(--picture) - 2 * var(--rail-gap));
-}
-
-.stage[data-rails='true'] .hud-pulse {
-  left: var(--rail);
-  right: var(--rail);
 }
 
 /* ---------- left rail: stats, a column of label and number */

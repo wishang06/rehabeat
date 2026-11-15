@@ -32,3 +32,22 @@ export function stageLayout(stage: Size, video: Size, rails: boolean): StageLayo
   const rail = Math.round(Math.min(MAX_RAIL_PX, Math.max(MIN_RAIL_PX, leftOver)));
   return { rail, picture: { x: rail, y: 0, width: stage.width - 2 * rail, height: stage.height } };
 }
+
+/**
+ * The part of the camera picture that shows, in stage pixels: the camera
+ * frame (`frame`, placed inside `picture` by the zoom) clipped to where the
+ * picture may go. The HUD's beat frame and burst are laid on this rectangle,
+ * so they sit on the edge of what the player sees, not on the black beside it.
+ */
+export function shownRect(picture: FrameRect, frame: FrameRect): FrameRect {
+  const left = Math.max(0, frame.x);
+  const top = Math.max(0, frame.y);
+  const right = Math.min(picture.width, frame.x + frame.width);
+  const bottom = Math.min(picture.height, frame.y + frame.height);
+  return {
+    x: picture.x + left,
+    y: picture.y + top,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  };
+}
