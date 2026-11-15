@@ -687,10 +687,27 @@ async function fitPath(url) {
       return {
         on: stage.dataset.rails === 'true',
         left: ['.hud-stats', '.tube', '.hud-ring'].every((selector) => inRail(selector, 'left')),
-        right: ['.lane', '[data-testid="phase-label"]', '[data-testid="move-name"]', '.hud-combo'].every((selector) => inRail(selector, 'right')),
+        right: ['.lane', '[data-testid="move-name"]', '.hud-combo'].every((selector) => inRail(selector, 'right')),
       };
     });
     check('on a wide window the HUD panels sit in the rails beside the picture, not over it', rails.on && rails.left && rails.right, JSON.stringify(rails));
+    // The one piece of text on the picture: the phase tag, small, in its top-left corner.
+    const tag = await page.evaluate(() => {
+      const picture = document.querySelector('.stage__picture').getBoundingClientRect();
+      const box = document.querySelector('.hud-tag').getBoundingClientRect();
+      const word = document.querySelector('[data-testid="phase-label"]').getBoundingClientRect();
+      return {
+        inCorner: box.left >= picture.left && box.left - picture.left < 48 && box.top >= picture.top && box.top - picture.top < 48,
+        wordInTag: word.left >= box.left && word.right <= box.right,
+        heightShare: Number((box.height / picture.height).toFixed(3)),
+        clearOfMiddle: box.bottom < picture.top + picture.height * 0.2 && box.right < picture.left + picture.width * 0.75,
+      };
+    });
+    check(
+      'the phase word is a small tag in the top-left corner of the picture, clear of the player',
+      tag.inCorner && tag.wordInTag && tag.heightShare < 0.1 && tag.clearOfMiddle,
+      JSON.stringify(tag),
+    );
     const tube = await page.getByTestId('score-tube').evaluate((element) => ({
       left: element.getBoundingClientRect().left - document.querySelector('.hud').getBoundingClientRect().left,
       marks: element.querySelectorAll('.tube__mark').length,

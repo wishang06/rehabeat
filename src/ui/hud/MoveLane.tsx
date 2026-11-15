@@ -2,29 +2,12 @@ import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion, type Variants } from 'motion/react';
 import { Figure } from '@/components/Figure';
 import { useFeedbackFrame } from '../../engine';
-import { phasePips } from '../playProgram';
 import { laneGap, laneIndex, movesLeft, upcomingMoves } from './lane';
-import type { FeedbackPhase, MoveLaneProps } from './types';
+import type { MoveLaneProps } from './types';
 import './lane.css';
-
-const PHASE_LABEL: Record<FeedbackPhase, string> = {
-  ready: 'READY',
-  reach: 'REACH',
-  hold: 'HOLD',
-  release: 'RELEASE',
-};
-
-const MOVE_PHASES = ['reach', 'hold', 'release'] as const;
 
 /** Cards kept in the queue. The rail shows as many as fit and fades the rest out. */
 const QUEUE_LENGTH = 6;
-
-/** The phase word swaps in place. */
-const word: Variants = {
-  enter: { opacity: 0, y: 8 },
-  on: { opacity: 1, y: 0, transition: { duration: 0.12, ease: 'easeOut' } },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.1, ease: 'easeIn' } },
-};
 
 /** A move docks from the queue below, and leaves to the side once it is done. */
 const card: Variants = {
@@ -35,8 +18,10 @@ const card: Variants = {
 
 /**
  * Everything about the moves, kept in the rail beside the picture so nothing
- * covers the player: the move in play with its phase word, beat pips and
- * grade, and under it the queue of moves to come.
+ * covers the player: the move in play with its name and figure (and the
+ * 3-2-1 count before the first one), and under it the queue of moves to
+ * come. The phase word, the beat pips and the grade are in the phase tag
+ * (PhaseTag.tsx), in the corner of the picture.
  *
  * The queue scrolls up with the music. The gap between it and the panel is
  * the time left in the move in play (see laneGap), so the next card reaches
@@ -44,7 +29,7 @@ const card: Variants = {
  * slides off to the side. The gap changes every frame, so it is written
  * straight to the DOM instead of going through React.
  */
-export function MoveLane({ frames, moveNumber, moveCount, round, moves, result }: MoveLaneProps) {
+export function MoveLane({ frames, moveNumber, moveCount, round, moves }: MoveLaneProps) {
   const phase = useFeedbackFrame((frame) => frame?.phase ?? 'ready', frames);
   const frameMoveId = useFeedbackFrame((frame) => frame?.move?.id ?? null, frames);
   // Whole beats until the next phase: changes once per beat, not once per frame.
@@ -70,9 +55,7 @@ export function MoveLane({ frames, moveNumber, moveCount, round, moves, result }
   const shown = moves[shownIndex] ?? null;
   const queue = upcomingMoves(moves, shownIndex, QUEUE_LENGTH, movesLeft(moves.length, shownIndex, round));
 
-  const { beats, lit } = phasePips(moves, playing ? frameMoveId : null, phase, beatsLeft);
   const counting = phase === 'ready' && beatsLeft >= 1 && beatsLeft <= 3;
-  const graded = result !== null && phase === 'release';
   const place = `Now · ${shownIndex + 1} of ${moveCount}`;
 
   return (
@@ -81,36 +64,6 @@ export function MoveLane({ frames, moveNumber, moveCount, round, moves, result }
         <span className="lane__tag label">
           {playing ? (round ? `${place} · Round ${round.current} of ${round.total}` : place) : 'First up'}
         </span>
-
-        <div className="lane__cue">
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.p
-              key={phase}
-              className="lane__word display"
-              data-testid="phase-label"
-              variants={word}
-              initial="enter"
-              animate="on"
-              exit="exit"
-            >
-              {PHASE_LABEL[phase]}
-            </motion.p>
-          </AnimatePresence>
-          {counting && (
-            <span className="lane__count led" aria-hidden="true">
-              {beatsLeft}
-            </span>
-          )}
-        </div>
-
-        <ol className="lane__beats" aria-hidden="true">
-          {beats &&
-            MOVE_PHASES.flatMap((name) =>
-              Array.from({ length: beats[name] }, (_, beat) => ({ name, first: beat === 0 })),
-            ).map((pip, beat) => (
-              <li key={beat} data-phase={pip.name} data-first={pip.first} data-lit={beat === lit} />
-            ))}
-        </ol>
 
         <div className="lane__dock">
           <AnimatePresence mode="popLayout" initial={false}>
@@ -126,13 +79,11 @@ export function MoveLane({ frames, moveNumber, moveCount, round, moves, result }
                 {shown?.name}
               </span>
               <Figure joints={shown?.joints} />
-              {/* The grade for the hold that just closed. It leaves with the move. */}
-              {graded && (
-                <p className="lane__grade" data-label={result.label} aria-hidden="true">
-                  <span className="lane__grade-word display">{result.label}</span>
-                  <span className="led">{Math.round(result.score)}</span>
-                  {result.timing && <span className="lane__grade-timing label">{result.timing}</span>}
-                </p>
+              {/* 3, 2, 1 beside the first move's figure, on the beats before it starts. */}
+              {counting && (
+                <span className="lane__count led" aria-hidden="true">
+                  {beatsLeft}
+                </span>
               )}
             </motion.div>
           </AnimatePresence>

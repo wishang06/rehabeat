@@ -58,10 +58,7 @@ export interface PlayHudProps {
   ref?: Ref<HTMLDivElement>;
 }
 
-/**
- * The move lane: the move in play (its phase word, beat pips, count-in and
- * grade) and the queue of moves to come.
- */
+/** The move lane: the move in play (its name, figure and count-in) and the queue of moves to come. */
 export interface MoveLaneProps {
   frames: FeedbackStore;
   moveNumber: number;
@@ -69,7 +66,15 @@ export interface MoveLaneProps {
   round: HudRun['round'];
   /** The moves being played, in order: the queue and the figures are drawn from them. */
   moves: readonly Move[];
-  /** The last scored move: its grade shows on the panel through the release that follows. */
+}
+
+/** The phase word, the beat pips and the grade, as a tag in the corner of the picture. */
+export interface PhaseTagProps {
+  frames: FeedbackStore;
+  moveNumber: number;
+  /** The moves being played: the pips are the beats of the one in play. */
+  moves: readonly Move[];
+  /** The last scored move: its grade shows on the tag through the release that follows. */
   result: HudResult | null;
 }
 

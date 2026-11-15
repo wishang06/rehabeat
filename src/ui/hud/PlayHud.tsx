@@ -15,6 +15,7 @@ import type {
 } from './types';
 import { HudSounds } from './HudSounds';
 import { MoveLane } from './MoveLane';
+import { PhaseTag } from './PhaseTag';
 import { ScoreTube } from './ScoreTube';
 import './hud.css';
 import './rails.css';
@@ -91,7 +92,7 @@ function HoldRing({ frames }: HoldRingProps) {
   );
 }
 
-/** The last move's grade as plain text, for screen readers and the smoke check. The lane's panel shows it. */
+/** The last move's grade as plain text, for screen readers and the smoke check. The phase tag shows it. */
 function ResultLabel({ result }: ResultLabelProps) {
   if (!result) return null;
   return (
@@ -184,8 +185,8 @@ function FormNote({ note }: FormNoteProps) {
 
 /**
  * The play HUD: DOM laid over the stage, never drawn on the camera's canvas.
- * The picture is left clear: the moves, the phase and the grade are in the
- * move lane, the numbers in the left rail. Per-frame values (the beat pulse,
+ * The picture is left clear but for a small tag in its corner (the phase and
+ * the grade): the moves are in the move lane, the numbers in the left rail. Per-frame values (the beat pulse,
  * the match bar) arrive as custom properties the Play screen writes on the
  * root from the audio clock; the rest are read from the feedback store and
  * the run stats.
@@ -203,8 +204,8 @@ export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
           moveCount={run.moveCount}
           round={run.round}
           moves={moves}
-          result={run.result}
         />
+        <PhaseTag frames={frames} moves={moves} moveNumber={run.moveNumber} result={run.result} />
         <ComboCounter combo={run.combo} />
         <ResultLabel result={run.result} />
         <StepBackBanner frames={frames} bodyLost={run.bodyLost} easeOff={run.easeOff} formNote={run.formNote} />

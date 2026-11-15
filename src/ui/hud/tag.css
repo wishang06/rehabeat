@@ -1,0 +1,154 @@
+/*
+ * The phase tag (PhaseTag.tsx): what to do right now, in the top-left corner
+ * of the camera picture. It is the only text on the picture, and it stays in
+ * the corner: about a third of the height the phase word once had across the
+ * middle, on a see-through ground.
+ *
+ * Everything in it is sized from the tag's own font size, so one number
+ * scales the word, the pips and the grade together. With rails (rails.css)
+ * the tag sits just inside the picture's left edge. Without them the run
+ * stats hold the corner and the score tube the edge below it, so the tag
+ * sits under the stats, to the right of the tube.
+ */
+.hud-tag {
+  --tone: var(--color-white);
+  /* The score tube's width with its stars (tube.css). */
+  --tube-space: calc(clamp(18px, 2.2cqw, 30px) + clamp(30px, 3.6cqw, 46px) + 14px);
+  position: absolute;
+  top: calc(var(--edge-gap) + clamp(52px, 8.4cqw, 76px));
+  left: calc(var(--edge-gap) + var(--tube-space));
+  display: flex;
+  align-items: center;
+  gap: 0.34em;
+  padding: 0.2em 0.42em 0.22em 0.36em;
+  font-size: clamp(22px, 4.6cqw, 40px);
+  background: rgb(var(--scrim) / 0.74);
+}
+
+.hud-tag[data-phase='reach'] {
+  --tone: var(--color-cyan);
+}
+
+.hud-tag[data-phase='hold'] {
+  --tone: var(--color-gold);
+}
+
+/*
+ * The word's slot is as wide as the longest phase word (the sizer, never
+ * shown), so REACH, HOLD and RELEASE swap inside it and the pips and the
+ * grade beside it stay where they are.
+ */
+.hud-tag__slot {
+  position: relative;
+  display: grid;
+  justify-items: start;
+}
+
+.hud-tag__sizer,
+.hud-tag__word {
+  grid-area: 1 / 1;
+  margin: 0;
+  font-size: 1em;
+  line-height: 0.92;
+}
+
+.hud-tag__sizer {
+  visibility: hidden;
+}
+
+.hud-tag__word {
+  color: var(--tone);
+}
+
+/* One pip a beat: reach, hold, release. The lit one is the beat in play. */
+.hud-tag__beats {
+  display: flex;
+  gap: 0.09em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-tag__beats li {
+  --pip: var(--color-cyan);
+  width: 0.42em;
+  height: 0.24em;
+  background: rgb(238 242 255 / 0.22);
+  transform: skewX(-24deg);
+}
+
+.hud-tag__beats li[data-phase='hold'] {
+  --pip: var(--color-gold);
+}
+
+.hud-tag__beats li[data-phase='release'] {
+  --pip: var(--color-white);
+}
+
+.hud-tag__beats li[data-first='true']:not(:first-child) {
+  margin-left: 0.14em;
+}
+
+.hud-tag__beats li[data-lit='true'] {
+  background: var(--pip);
+  box-shadow: 0 0 0.3em var(--pip);
+}
+
+/* PERFECT, GOOD or MISS for the hold that just closed, with its score. */
+.hud-tag__grade {
+  --grade: var(--color-gold);
+  display: flex;
+  align-items: center;
+  gap: 0.26em;
+  min-width: 0;
+  margin: 0;
+}
+
+.hud-tag__grade[data-label='Good'] {
+  --grade: var(--color-cyan);
+}
+
+.hud-tag__grade[data-label='Miss'] {
+  --grade: var(--color-pink);
+}
+
+.hud-tag__chip {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  padding: 0.12em 0.3em 0.14em;
+  font-size: 0.64em;
+  line-height: 1;
+  color: var(--color-gold-ink);
+  background: var(--grade);
+}
+
+.hud-tag__chip .led {
+  font-size: 0.9em;
+}
+
+.hud-tag__timing {
+  font-size: 0.3em;
+  color: var(--color-dim);
+  white-space: nowrap;
+}
+
+/* Without rails there is little room beside the stats: the grade keeps its word and score only. */
+.stage:not([data-rails='true']) .hud-tag__timing {
+  display: none;
+}
+
+/* With rails the corner of the picture is free: the tag takes it, sized to the picture. */
+.stage[data-rails='true'] .hud-tag {
+  top: var(--rail-gap);
+  left: calc(var(--rail) + var(--rail-gap));
+  max-width: calc(var(--picture) - 2 * var(--rail-gap));
+  font-size: clamp(26px, calc(var(--picture) * 0.046), 50px);
+}
+
+/* A phone-width stage has the move panel close by: the tag drops its pips to stay clear of it. */
+@container (max-width: 520px) {
+  .hud-tag__beats {
+    display: none;
+  }
+}
