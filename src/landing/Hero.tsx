@@ -10,6 +10,8 @@ const PHASES = ['Reach', 'Hold', 'Release'] as const;
 /** The beat each phase starts on. */
 const PHASE_STARTS = [0, MOVE_BEATS.reach, MOVE_BEATS.reach + MOVE_BEATS.hold];
 const BEATS = MOVE_BEATS.reach + MOVE_BEATS.hold + MOVE_BEATS.release;
+/** The phase a beat belongs to, which gives it the colour it has in the game. */
+const phaseOfBeat = (beat: number) => PHASES[PHASE_STARTS.filter((start) => beat >= start).length - 1].toLowerCase();
 
 const GLOW_ON_BEAT = 'drop-shadow(0 0 26px rgba(255, 210, 63, 0.95))';
 const GLOW_AT_REST = 'drop-shadow(0 0 12px rgba(255, 210, 63, 0.5))';
@@ -84,14 +86,18 @@ export function Hero() {
         <div className="lp-beat" aria-hidden="true">
           <p className="lp-phase">
             {PHASES.map((phase) => (
-              <span key={phase} data-rest={phase === 'Hold' ? '' : undefined}>
+              <span key={phase} data-phase={phase.toLowerCase()} data-rest={phase === 'Hold' ? '' : undefined}>
                 {phase}
               </span>
             ))}
           </p>
           <ol className="lp-pips">
             {Array.from({ length: BEATS }, (_, index) => (
-              <li key={index} data-gap={index > 0 && PHASE_STARTS.includes(index) ? '' : undefined}>
+              <li
+                key={index}
+                data-phase={phaseOfBeat(index)}
+                data-gap={index > 0 && PHASE_STARTS.includes(index) ? '' : undefined}
+              >
                 <span data-rest={index === MOVE_BEATS.reach ? '' : undefined} />
               </li>
             ))}

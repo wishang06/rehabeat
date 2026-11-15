@@ -162,16 +162,27 @@
   padding-top: 32px;
 }
 
+/* The phases wear the colours they have in the game: Reach cyan, Hold gold, Release white. */
 .lp-phase {
   display: grid;
   font: italic 800 clamp(52px, 7vw, 108px) / 1 var(--font-display);
   text-transform: uppercase;
-  color: var(--color-cyan);
-  text-shadow: 0 0 30px rgb(39 224 240 / 0.5);
+  color: var(--color-white);
+  text-shadow: 0 0 30px rgb(238 242 255 / 0.4);
 }
 
 .lp-phase span {
   grid-area: 1 / 1;
+}
+
+.lp-phase span[data-phase='reach'] {
+  color: var(--color-cyan);
+  text-shadow: 0 0 30px rgb(39 224 240 / 0.5);
+}
+
+.lp-phase span[data-phase='hold'] {
+  color: var(--color-gold);
+  text-shadow: 0 0 30px rgb(255 210 63 / 0.5);
 }
 
 /* Until the loop starts, and for a visitor who asked for no motion, the word is Hold. */
@@ -197,11 +208,23 @@
   margin-left: 12px;
 }
 
+.lp-pips li {
+  --tone: var(--color-white);
+}
+
+.lp-pips li[data-phase='reach'] {
+  --tone: var(--color-cyan);
+}
+
+.lp-pips li[data-phase='hold'] {
+  --tone: var(--color-gold);
+}
+
 .lp-pips span {
   position: absolute;
   inset: 0;
-  background: var(--color-cyan);
-  box-shadow: 0 0 16px var(--color-cyan);
+  background: var(--tone);
+  box-shadow: 0 0 16px var(--tone);
   visibility: hidden;
 }
 
