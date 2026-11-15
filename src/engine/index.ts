@@ -27,6 +27,7 @@ export {
   type SilhouettePose,
 } from './silhouette';
 export { FigureAnchor } from './anchor';
+export { FloorTracker, groundPoints, lowestPoint, standingFloor } from './floor';
 export { LandmarkSmoother } from './landmarkSmoother';
 export {
   BONES,
