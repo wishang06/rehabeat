@@ -90,6 +90,7 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | Move card | Now: slanted panel, gold top edge, the figure as a gold tube. Next: smaller, cyan. |
 | Step back | Two words on a pink slab, large enough to read from two metres. |
 | Grade | One display letter filling a slanted panel, with five stars under it. |
+| Rails | On a wide window Play and Calibrate use the full width: the camera picture sits between two rails (240 to 336 px each, `src/ui/camera/rails.ts`) and the HUD panels live in them, never over the picture. Left: run stats as a label-and-number column, the score tube, the match ring. Right: the move cards, the combo. Over the picture only: phase word, beat pips, count-in, result pop, step-back banner. Rules in `src/ui/hud/rails.css`. |
 | Score tube | A tall LED meter on the left of the play HUD, between the run stats and the match ring: cyan segments filling from the bottom, five star marks at the results' star thresholds that light gold with a burst. With all five it turns gold, glows on the beat and says SUPERSTAR. "+points" fly into it from the PERFECT or GOOD pop. |
 | Avatar | A neon glyph from the cabinet (the figure, a star, the dial, LED segments) on a void square, with a soft glow in its own colour. Gold, cyan and white; pink only as an accent. Sixteen, in `src/ui/avatars/`. |
 | Profile menu | The avatar in the marquee opens a deck panel with a lit cyan top edge: the player, then Rename, Change avatar (a 4 x 4 grid, the chosen one outlined in gold) and Sign out. Esc steps back, then closes. |

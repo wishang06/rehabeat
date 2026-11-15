@@ -70,7 +70,7 @@ const mid = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y)
  * Follows a target only once it has moved away, and stops once it has caught
  * up. Between those the held value does not change at all.
  */
-class Follower {
+export class Follower {
   /** The target, low-passed. */
   private aim: number[] | null = null;
   private held: number[] | null = null;
