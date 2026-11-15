@@ -5,6 +5,10 @@ export interface LeaderboardRow {
   userId: string;
   displayName: string;
   avatarUrl: string | null;
+  /** The avatar the player chose (src/ui/avatars), or null to draw the one their id gives. */
+  avatarId: string | null;
+  /** A demo player from supabase/seed_sample_players.sql, not a real one. */
+  isSample: boolean;
   bestPoints: number;
   totalPoints: number;
   runs: number;
@@ -27,25 +31,36 @@ export async function saveScore(run: RunSummary): Promise<void> {
   if (error) throw error;
 }
 
+const BOARD_COLUMNS = 'user_id, display_name, avatar_url, avatar_id, is_sample, best_points, total_points, runs, rank';
+/** The view's columns before the avatar migration (20261116090000), so the board still loads until it is applied. */
+const OLD_BOARD_COLUMNS = 'user_id, display_name, avatar_url, best_points, total_points, runs, rank';
+
+/** One row of the leaderboard view. View columns come back nullable; they never are in practice. */
+export function toLeaderboardRow(row: Record<string, unknown>): LeaderboardRow {
+  const text = (value: unknown) => (typeof value === 'string' ? value : null);
+  return {
+    userId: text(row.user_id) ?? '',
+    displayName: text(row.display_name) ?? 'Player',
+    avatarUrl: text(row.avatar_url),
+    avatarId: text(row.avatar_id),
+    isSample: row.is_sample === true,
+    bestPoints: Number(row.best_points ?? 0),
+    totalPoints: Number(row.total_points ?? 0),
+    runs: Number(row.runs ?? 0),
+    rank: Number(row.rank ?? 0),
+  };
+}
+
 /** The top players by best run. */
 export async function fetchLeaderboard(limit = 10): Promise<LeaderboardRow[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('leaderboard')
-    .select('user_id, display_name, avatar_url, best_points, total_points, runs, rank')
-    .order('rank', { ascending: true })
-    .limit(limit);
+  const client = supabase;
+  const query = (columns: string) =>
+    client.from('leaderboard').select(columns).order('rank', { ascending: true }).limit(limit);
+  let { data, error } = await query(BOARD_COLUMNS);
+  if (error) ({ data, error } = await query(OLD_BOARD_COLUMNS));
   if (error) throw error;
-  // View columns come back nullable in the generated types; they never are in practice.
-  return (data ?? []).map((row) => ({
-    userId: row.user_id ?? '',
-    displayName: row.display_name ?? 'Player',
-    avatarUrl: row.avatar_url,
-    bestPoints: Number(row.best_points ?? 0),
-    totalPoints: Number(row.total_points ?? 0),
-    runs: row.runs ?? 0,
-    rank: row.rank ?? 0,
-  }));
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(toLeaderboardRow);
 }
 
 /** A run kept across the Google sign-in redirect, so it can be saved on return. */

@@ -624,20 +624,20 @@
   white-space: nowrap;
 }
 
-/* A player's critter (PlayerAvatar): one per player id, in cyan, pink or white light. */
-.critter {
+/* A player's avatar (src/ui/avatars): a neon glyph on the void, so it reads as a little screen on any panel. */
+.avatar {
   flex: none;
   display: block;
   width: 2.25rem;
   height: 2.25rem;
 }
 
-.critter--small {
+.avatar--small {
   width: 1.875rem;
   height: 1.875rem;
 }
 
-.board__row[data-me='true'] .critter {
+.board__row[data-me='true'] .avatar {
   outline: 2px solid var(--color-gold);
   outline-offset: 1px;
 }

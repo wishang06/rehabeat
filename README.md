@@ -145,7 +145,7 @@ Players sign in with Google through Supabase Auth (project `rkxqtgbcendomwvrfxjf
 - **Points:** a Perfect is worth 100, a Good 50, a Miss 0. Each move in an unbroken combo adds 10 more, up to +100, so a move is worth at most 200 (`src/scoring/points.ts`).
 - **Finish run** on the Play screen ends the run and shows the results with the top five.
 - **Title screen:** the top five sit beside the Start button, with sign-in under them. The header's Leaderboard button opens the full board from every other screen.
-- **Critters:** every player is drawn as a critter (bear, cat, bunny, frog, chick or monster) in cyan, pink or white, picked from their user id so it is the same everywhere (`src/ui/avatar.ts`, `PlayerAvatar.tsx`).
+- **Avatars:** sixteen neon glyphs from the cabinet (the gold figure, a star, the beat dial, LED segments and more) on the void, drawn as inline SVG in `src/ui/avatars/`. A new account is dealt a random one, and the player can change it in the profile menu; anyone without one is drawn with the one their user id picks.
 - **Sample players:** `supabase/seed_sample_players.sql` adds eight demo players and their runs for an empty board, flagged `profiles.is_sample`. It is never run automatically; the file says how to remove them.
 - **Schema:** `supabase/migrations/`. `profiles` is filled from the Google profile on sign-up, `scores` holds one row per run, and the `leaderboard` view ranks players by their best run. Row Level Security lets anyone read, and lets a signed-in player add only their own scores. Nobody can edit or delete a score from the app.
 - **Config:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). Without them the game runs with accounts switched off.

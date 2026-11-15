@@ -52,8 +52,16 @@ export type Database = {
         Relationships: [];
       };
       profiles: {
-        Row: { avatar_url: string | null; created_at: string; display_name: string; id: string; is_sample: boolean };
+        Row: {
+          avatar_id: string | null;
+          avatar_url: string | null;
+          created_at: string;
+          display_name: string;
+          id: string;
+          is_sample: boolean;
+        };
         Insert: {
+          avatar_id?: string | null;
           avatar_url?: string | null;
           created_at?: string;
           display_name: string;
@@ -61,6 +69,7 @@ export type Database = {
           is_sample?: boolean;
         };
         Update: {
+          avatar_id?: string | null;
           avatar_url?: string | null;
           created_at?: string;
           display_name?: string;
@@ -123,11 +132,13 @@ export type Database = {
     Views: {
       leaderboard: {
         Row: {
+          avatar_id: string | null;
           avatar_url: string | null;
           best_accuracy: number | null;
           best_combo: number | null;
           best_points: number | null;
           display_name: string | null;
+          is_sample: boolean | null;
           rank: number | null;
           runs: number | null;
           total_points: number | null;

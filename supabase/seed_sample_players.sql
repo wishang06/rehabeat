@@ -37,6 +37,22 @@ update public.profiles
 set is_sample = true
 where id::text like '00000000-0000-4000-a000-%';
 
+-- Their avatars, from the set in src/ui/avatars/avatars.ts (needs migration 20261116090000).
+update public.profiles as p
+set avatar_id = v.avatar_id
+from (
+  values
+    ('00000000-0000-4000-a000-000000000001'::uuid, 'crown'),
+    ('00000000-0000-4000-a000-000000000002'::uuid, 'bolt'),
+    ('00000000-0000-4000-a000-000000000003'::uuid, 'star'),
+    ('00000000-0000-4000-a000-000000000004'::uuid, 'eq'),
+    ('00000000-0000-4000-a000-000000000005'::uuid, 'flame'),
+    ('00000000-0000-4000-a000-000000000006'::uuid, 'note'),
+    ('00000000-0000-4000-a000-000000000007'::uuid, 'chevrons'),
+    ('00000000-0000-4000-a000-000000000008'::uuid, 'dial')
+) as v (id, avatar_id)
+where p.id = v.id;
+
 insert into public.scores (user_id, points, moves, perfect, good, miss, best_combo, accuracy, duration_sec, created_at)
 select
   p.id,

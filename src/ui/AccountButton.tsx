@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { signInWithGoogle, signOut, type AuthState } from '../lib/auth';
-import { PlayerAvatar } from './PlayerAvatar';
+import { Avatar } from './avatars/Avatar';
 
 interface AccountButtonProps {
   auth: AuthState;
@@ -39,7 +39,7 @@ export function AccountButton({ auth, onBeforeSignIn }: AccountButtonProps) {
   const name = auth.profile?.displayName ?? 'Player';
   return (
     <span className="account" data-testid="account">
-      <PlayerAvatar seed={auth.user.id} className="critter--small" />
+      <Avatar id={auth.profile?.avatarId} seed={auth.user.id} className="avatar--small" />
       <span className="account__name">{name}</span>
       <button type="button" className="button button--quiet" onClick={() => void signOut()}>
         Sign out
