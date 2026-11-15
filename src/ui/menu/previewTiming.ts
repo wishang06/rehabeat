@@ -1,9 +1,14 @@
-import type { RampParam } from '../../audio';
-
 /*
  * Timing for the song previews in the menu: where in the song a preview
  * starts, and the gain envelope it plays under. Pure functions only.
  */
+
+/** The slice of AudioParam the envelope drives, kept narrow so tests can pass a fake. */
+export interface RampParam {
+  cancelScheduledValues(cancelTime: number): unknown;
+  setValueAtTime(value: number, startTime: number): unknown;
+  linearRampToValueAtTime(value: number, endTime: number): unknown;
+}
 
 /** How long a preview lasts, fades included. */
 export const PREVIEW_SEC = 10;

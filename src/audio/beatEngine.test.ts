@@ -436,22 +436,6 @@ describe('BeatEngine in click mode', () => {
     engine.stop();
   });
 
-  it('only records the melody state', async () => {
-    const { engine, ctx } = await createEngine();
-    engine.start();
-    const gainsBefore = ctx.gains.map((gain) => gain.gain.calls.length);
-
-    expect(engine.melodyActive).toBe(false);
-    engine.setMelodyActive(true);
-    expect(engine.melodyActive).toBe(true);
-    engine.setMelodyActive(false);
-    expect(engine.melodyActive).toBe(false);
-
-    expect(ctx.gains.map((gain) => gain.gain.calls.length)).toEqual(gainsBefore);
-    expect(ctx.sources).toHaveLength(0);
-    engine.stop();
-  });
-
   it('plays a one-off click at the requested time whether or not it is running', async () => {
     const { engine, ctx } = await createEngine();
     ctx.currentTime = 2;
@@ -527,25 +511,26 @@ describe('BeatEngine in stems mode', () => {
 
     const [drums, melody] = ctx.sources;
     const output = drums.outputs[0] as FakeGain;
-    const melodyGain = melody.outputs[0] as FakeGain;
     // The melody reaches the same output as the drums, so one gain lifts both.
-    expect(melodyGain.outputs).toEqual([output]);
+    expect(melody.outputs[0]).toBe(output);
     expect(output.gain.value).toBe(2.5);
     expect(STEM_GAIN).toBe(2.5);
     engine.stop();
   });
 
-  it('plays the drums straight through and the melody through a gain that starts at 0', async () => {
+  it('plays the whole song from the start: both stems straight through, at full volume', async () => {
     const { engine, ctx } = await createEngine(STEM_FILES);
     engine.start();
 
     const [drums, melody] = ctx.sources;
     const output = drums.outputs[0] as FakeGain;
-    const melodyGain = melody.outputs[0] as FakeGain;
     expect(output.outputs).toEqual([ctx.destination]);
-    expect(melodyGain).not.toBe(output);
-    expect(melodyGain.gain.value).toBe(0);
-    expect(melodyGain.outputs).toEqual([output]);
+    // Nothing sits between a stem and the output, so the music never depends on how the player is doing.
+    expect(drums.outputs).toHaveLength(1);
+    expect(melody.outputs).toHaveLength(1);
+    expect(melody.outputs[0]).toBe(output);
+    expect(ctx.gains).toHaveLength(1);
+    expect(output.gain.calls).toEqual([]);
     engine.stop();
   });
 
@@ -558,58 +543,16 @@ describe('BeatEngine in stems mode', () => {
     engine.stop();
   });
 
-  it('fades the melody only when the state changes', async () => {
+  it('plays the melody in full again on every later run', async () => {
     const { engine, ctx } = await createEngine(STEM_FILES);
-    ctx.currentTime = 5;
     engine.start();
-    const melodyGain = ctx.sources[1].outputs[0] as FakeGain;
-
-    ctx.currentTime = 6;
-    for (let frame = 0; frame < 30; frame += 1) engine.setMelodyActive(false);
-    expect(melodyGain.gain.calls).toEqual([]);
-
-    for (let frame = 0; frame < 30; frame += 1) engine.setMelodyActive(true);
-    expect(engine.melodyActive).toBe(true);
-    expect(melodyGain.gain.calls).toEqual(['cancel@6', 'set 0@6', 'ramp 1@6.3']);
-
-    ctx.currentTime = 8;
-    for (let frame = 0; frame < 30; frame += 1) engine.setMelodyActive(false);
-    expect(engine.melodyActive).toBe(false);
-    expect(melodyGain.gain.calls.slice(3)).toEqual(['cancel@8', 'set 1@8', 'ramp 0@8.3']);
     engine.stop();
-  });
-
-  it('reverses a melody fade from where it had got to', async () => {
-    const { engine, ctx } = await createEngine(STEM_FILES);
-    ctx.currentTime = 5;
-    engine.start();
-    const melodyGain = ctx.sources[1].outputs[0] as FakeGain;
-
-    ctx.currentTime = 6;
-    engine.setMelodyActive(true);
-    ctx.currentTime = 6.15;
-    engine.setMelodyActive(false);
-
-    expect(melodyGain.gain.calls.slice(3)).toEqual(['cancel@6.15', 'set 0.5@6.15', 'ramp 0@6.45']);
-    engine.stop();
-  });
-
-  it('starts every run with the melody silent', async () => {
-    const { engine, ctx } = await createEngine(STEM_FILES);
-    engine.setMelodyActive(true);
-    engine.start();
-    expect(engine.melodyActive).toBe(false);
-
-    engine.setMelodyActive(true);
-    engine.stop();
-    expect(engine.melodyActive).toBe(false);
 
     engine.start();
-    const secondRunMelodyGain = ctx.sources[3].outputs[0] as FakeGain;
-    expect(secondRunMelodyGain.gain.value).toBe(0);
-    expect(secondRunMelodyGain.gain.calls).toEqual([]);
-    engine.setMelodyActive(true);
-    expect(secondRunMelodyGain.gain.calls).toHaveLength(3);
+    const [drums, melody] = ctx.sources.slice(2);
+    const output = drums.outputs[0] as FakeGain;
+    expect(melody.outputs[0]).toBe(output);
+    expect(output.gain.value).toBe(STEM_GAIN);
     engine.stop();
   });
 
@@ -619,7 +562,6 @@ describe('BeatEngine in stems mode', () => {
     engine.start();
     const [drums, melody] = ctx.sources;
     const output = drums.outputs[0] as FakeGain;
-    const melodyGain = melody.outputs[0] as FakeGain;
 
     ctx.currentTime = 9;
     engine.stop();
@@ -633,7 +575,6 @@ describe('BeatEngine in stems mode', () => {
     drums.onended?.();
     expect(drums.outputs).toEqual([]);
     expect(melody.outputs).toEqual([]);
-    expect(melodyGain.outputs).toEqual([]);
     expect(output.outputs).toEqual([]);
   });
 

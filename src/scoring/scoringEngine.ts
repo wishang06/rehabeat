@@ -1,6 +1,6 @@
 import type { BeatResult, FormMetrics, JointName, PoseFrame } from '../types';
 import { FormMonitor, formNoteFor } from './formRules';
-import { GOOD_SCORE, labelFor, scoreFrame } from './frameScore';
+import { labelFor, scoreFrame } from './frameScore';
 import type { HoldDetail, JointHold } from './holdDetail';
 import { LimitWatcher, type JointLimits } from './limits';
 import { PoseLock } from './poseLock';
@@ -336,42 +336,5 @@ export class ScoringEngine {
     this.last = result;
     this.statsState = applyResult(this.statsState, result);
     return result;
-  }
-}
-
-/**
- * The "music follows you" rule: whether the melody should play, given what
- * the scoring engine sees now. Feed it through a MelodyGate so it only drops
- * out after half a beat.
- *
- * "In the pose" is the lock and the Good line together: the lock keeps a
- * sweep through the pose from counting, and the Good line keeps a pose that
- * has sagged under Good (which the lock tolerates down to 50) from playing
- * the melody through a hold that is judged a Miss.
- *
- * - hold: while the player is in the pose, whatever came before
- * - reach: once the player has landed the pose, or while the last move's
- *   result was Good or better, so a good hold carries through to the next one
- * - release: carries the result of the hold that just closed
- * - before the routine starts, or while the camera sends no frames
- *   (`cameraFresh` false): never, since `live` stops changing without frames
- */
-export function melodyShouldPlay(
-  live: LiveState,
-  lastResult: BeatResult | null,
-  cameraFresh: boolean,
-): boolean {
-  if (!cameraFresh) return false;
-  const carried = (lastResult?.score ?? 0) >= GOOD_SCORE;
-  const inPose = live.locked && live.frameScore >= GOOD_SCORE;
-  switch (live.phase) {
-    case 'hold':
-      return inPose;
-    case 'reach':
-      return inPose || carried;
-    case 'release':
-      return carried;
-    default:
-      return false;
   }
 }

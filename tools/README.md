@@ -156,7 +156,7 @@ Vite serves `public/` at the site root, so for a song with id `<id>` the game fe
 `/songs/<id>/beatmap.json`, `/songs/<id>/drums.mp3` and `/songs/<id>/melody.mp3`.
 
 - It reads `bpm`, `offset` and `beats`. The song menu also uses `downbeats` to start previews on a bar.
-- The drums always play and the melody fades in while the player holds the pose well.
+- Both stems play at full volume for the whole song.
 - The stems loop at the end of the last full beat, not at the end of the file, so the grid stays even.
 
 ## Check the grid by ear

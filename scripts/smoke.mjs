@@ -331,14 +331,12 @@ async function happyPath(url) {
     }
 
     if (expectHit) {
-      // The clip should land at least one hold; with stems, that brings the melody in.
+      // The clip should land at least one hold.
       const hit = await page
         .waitForFunction(() => /^(Good|Perfect)/.test(document.querySelector('[data-testid="result-label"]')?.textContent ?? ''), null, { timeout: 45_000 })
         .then(() => true, () => false);
       measured.hit = hit ? (await result.textContent())?.trim() : 'none';
       check('the camera clip lands a Good or Perfect hold', hit, measured.hit);
-      measured.melody = await page.getByTestId('debug-melody').textContent();
-      check('melody stem is in after a Good hold', measured.melody === 'in', measured.melody ?? '');
     }
     await page.screenshot({ path: path.join(outDir, '4-play-debug.png') });
 
