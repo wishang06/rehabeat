@@ -1,6 +1,6 @@
 # Rehabeat
 
-Rehabeat turns rehab moves into a rhythm game. The player stands in front of a webcam and matches a target pose on the beat: reach for it, hold it, release it. Hold it well and the melody comes in.
+Rehabeat turns rehab moves into a rhythm game. The player stands in front of a webcam and matches a target pose on the beat: reach for it, hold it, release it. The song plays straight through: miss a move and you catch the next one.
 
 It runs entirely in the browser: the camera video never leaves the laptop. The landing page is at `/`, the game is at `/play`, and the doctor's page is at `/doctor` (see [Doctors and programs](#doctors-and-programs)). The design direction is written up in [`PRODUCT.md`](PRODUCT.md) and [`.interface-design/system.md`](.interface-design/system.md).
 
@@ -115,14 +115,7 @@ UI components read the frame with `useFeedbackFrame()`. The canvas overlay draws
 ### Audio (`src/audio/`)
 
 - Each song gets its own `BeatEngine`, loading `public/songs/<id>/beatmap.json` (`{ bpm, offset, beats }`) and the song's two stems, on one `AudioContext` shared with the menu's previews. If a beatmap is missing or malformed it falls back to a generated 72 BPM grid.
-- **Stems mode**: the drums play throughout and the melody fades in over 300 ms only while you are in the pose. This is the "music follows you" mechanic (`melodyShouldPlay` and `MelodyGate`):
-  - in a hold, it plays while you are in the pose (`live.locked`, and the frame score at Good or better, so arms sagging just under Good lose it even though the lock holds), whatever came before;
-  - in a reach, it plays as soon as you land the next pose, or while the last move was Good or better, so a good hold carries it on;
-  - in a release, it carries the result of the hold that just closed;
-  - it comes in at once but only goes out after the rule has said no for half a beat, so landing a fraction late, letting go a fraction early or a wobble doesn't cut the tune; and a camera that stops sending frames can't keep it playing.
-  - letting go a beat or so early in a hold that still scores Good drops the melody, and it comes back as the release starts, because the Good result carries it. That is on purpose: the drop tells you that you let go, and the carry keeps a good hold rewarded.
-
-  In a simulation at 72 BPM it comes in within 0.25 s of a player who lands a beat late (the old rule, which followed the hold's running mean, took 1.2 s) and goes out within 0.8 s of one who lets go half-way (the old rule played on for 1.1 s). `src/scoring/rhythmSim.test.ts` runs a seeded player through the whole path from smoothing to the melody.
+- **Stems mode**: the drums and the melody both play at full volume from the first beat to the end of the run, whatever the player does. The song never waits: a move you miss is scored as a Miss, and the next move comes round on the beat as in any rhythm game. `src/scoring/rhythmSim.test.ts` runs a seeded player through smoothing and scoring, including sitting a move out and landing the next one.
   - Both stems are raised 2.5x (`STEM_GAIN` in `beatEngine.ts`). `npm run songs` levels every song's stems so drums plus melody peak at -12 dBFS, so the mix peaks at about -4 dBFS whatever the song. `npm run smoke` fails if any song would clip.
   - The stems loop where the last full beat in `beatmap.json` ends, not at the end of the file. A song is rarely a whole number of beats long; looping the whole file made Past Sadness's beat at the seam 59 ms too long and left the grid off for every pass after.
 - **Click mode** (when a song has no stems): a synthesized click on every beat, accented every fourth.

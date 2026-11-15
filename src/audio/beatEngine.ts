@@ -4,7 +4,6 @@ import { generateBeatmap, loadBeatmap, type BeatmapSource, type LoadedBeatmap } 
 import { BeatScheduler } from './beatScheduler';
 import { scheduleClick } from './clickTrack';
 import { MasterClock } from './clock';
-import { GainFader } from './gainFader';
 import { beatAlignedLoopLength } from './loopPoint';
 import { loadStems, type Stems } from './stems';
 
@@ -23,7 +22,6 @@ const DEFAULT_START_DELAY_SEC = 0.25;
 const SCHEDULER_INTERVAL_MS = 25;
 const SCHEDULER_LOOKAHEAD_SEC = 0.15;
 const BEATS_PER_ACCENT = 4;
-const MELODY_RAMP_SEC = 0.3;
 /**
  * How much the stems are raised on their way to the speakers. The shipped
  * track peaks at about -12 dBFS, so 2.5x (+8 dB) brings the full mix to about
@@ -44,15 +42,15 @@ interface Run {
   sources: AudioBufferSourceNode[];
   /** Every node to disconnect once the run is silent. */
   nodes: AudioNode[];
-  melody: GainFader | null;
   timer: ReturnType<typeof setInterval> | null;
 }
 
 /**
  * Plays the backing track and owns the timeline everything else is scored
  * against. In 'stems' mode it loops the drum and melody stems over a whole
- * number of beats; in 'click' mode (no stems found) it synthesizes a click on
- * every beat.
+ * number of beats, both at full volume from start to stop: the song plays on
+ * whatever the player does, and a missed move is just a missed move. In
+ * 'click' mode (no stems found) it synthesizes a click on every beat.
  *
  * Before start() and after stop() the track is parked at time 0: see
  * trackTime, beatPosition and clockTimeOfBeat.
@@ -79,7 +77,6 @@ export class BeatEngine {
   private readonly loopDuration: number;
   private readonly ownsContext: boolean;
   private run: Run | null = null;
-  private melodyOn = false;
   private disposed = false;
 
   private constructor(
@@ -120,11 +117,6 @@ export class BeatEngine {
     return this.run ? this.run.startTime : null;
   }
 
-  /** The last state given to setMelodyActive. Always false right after start() and stop(). */
-  get melodyActive(): boolean {
-    return this.melodyOn;
-  }
-
   /** Resumes the AudioContext. Browsers only allow this from a user gesture. */
   async resume(): Promise<void> {
     if (this.ctx.state === 'running' || this.ctx.state === 'closed') return;
@@ -132,13 +124,12 @@ export class BeatEngine {
   }
 
   /**
-   * Starts the track so that track time 0 plays `delaySec` from now, with the
-   * melody silent. Calling it while already running restarts from the top.
+   * Starts the track so that track time 0 plays `delaySec` from now. Calling
+   * it while already running restarts from the top.
    */
   start(delaySec = DEFAULT_START_DELAY_SEC): void {
     if (this.disposed) return;
     this.stop();
-    this.melodyOn = false;
     const startTime = this.ctx.currentTime + Math.max(0, delaySec);
     const output = this.ctx.createGain();
     output.connect(this.ctx.destination);
@@ -152,7 +143,6 @@ export class BeatEngine {
     const run = this.run;
     if (!run) return;
     this.run = null;
-    this.melodyOn = false;
     if (run.timer !== null) clearInterval(run.timer);
 
     const release = () => {
@@ -199,16 +189,6 @@ export class BeatEngine {
     return origin + this.grid.timeOfBeat(beatIndex);
   }
 
-  /**
-   * "The music follows you": fades the melody stem in or out over 300 ms.
-   * Cheap to call every frame; a fade is only scheduled when the state
-   * changes. In click mode, and while stopped, it only records the state.
-   */
-  setMelodyActive(active: boolean): void {
-    this.melodyOn = active;
-    this.run?.melody?.setActive(active, this.ctx.currentTime);
-  }
-
   /** One-off click at a master-clock time. Works whether or not the engine is running. */
   playClick(when: number, accent = false): void {
     if (this.disposed) return;
@@ -225,12 +205,8 @@ export class BeatEngine {
 
   private startStems(stems: Stems, output: GainNode, startTime: number): Run {
     output.gain.value = STEM_GAIN;
-    const melodyGain = this.ctx.createGain();
-    melodyGain.gain.value = 0;
-    melodyGain.connect(output);
-
     const drums = this.createLoop(stems.drums, output);
-    const melody = this.createLoop(stems.melody, melodyGain);
+    const melody = this.createLoop(stems.melody, output);
     drums.start(startTime);
     melody.start(startTime);
 
@@ -239,8 +215,7 @@ export class BeatEngine {
       output,
       level: STEM_GAIN,
       sources: [drums, melody],
-      nodes: [drums, melody, melodyGain, output],
-      melody: new GainFader(melodyGain.gain, MELODY_RAMP_SEC),
+      nodes: [drums, melody, output],
       timer: null,
     };
   }
@@ -269,7 +244,6 @@ export class BeatEngine {
       level: 1,
       sources: [],
       nodes: [output],
-      melody: null,
       timer: setInterval(scheduleDueBeats, SCHEDULER_INTERVAL_MS),
     };
   }

@@ -5,8 +5,6 @@ import { Routine } from './routine';
 import {
   MAX_FRAME_SPAN_SEC,
   ScoringEngine,
-  melodyShouldPlay,
-  type LiveState,
   type ScoringEngineOptions,
 } from './scoringEngine';
 
@@ -411,55 +409,6 @@ describe('form guidance in the engine', () => {
     const results = play(target, 0, 8, () => ON_TARGET, (t) => (t < 4 ? leaning : UPRIGHT));
     expect(results[0].formNote).toBeDefined();
     expect(results[1].formNote).toBeUndefined();
-  });
-});
-
-describe('melodyShouldPlay', () => {
-  const cycle = new Routine([sideRaise]).cycle(0);
-  const live = (phase: LiveState['phase'], locked: boolean, frameScore = locked ? 90 : 0): LiveState => ({
-    cycle: phase === null ? null : cycle,
-    phase,
-    frameScore,
-    holdScore: null,
-    formNote: null,
-    overLimit: [],
-    locked,
-  });
-  const result = (score: number): BeatResult => ({ moveId: 'm', score, label: 'Good', timingOffsetMs: 0 });
-
-  it('plays during a hold only while the player is in the pose', () => {
-    expect(melodyShouldPlay(live('hold', true), null, true)).toBe(true);
-    expect(melodyShouldPlay(live('hold', true), result(0), true)).toBe(true);
-    expect(melodyShouldPlay(live('hold', false), result(100), true)).toBe(false);
-  });
-
-  it('plays during a reach when the player has landed the pose or a good hold is carrying it', () => {
-    expect(melodyShouldPlay(live('reach', true), result(0), true)).toBe(true);
-    expect(melodyShouldPlay(live('reach', false), result(72), true)).toBe(true);
-    expect(melodyShouldPlay(live('reach', false), result(40), true)).toBe(false);
-    expect(melodyShouldPlay(live('reach', false), null, true)).toBe(false);
-  });
-
-  it('stops when the pose sags under Good, even while the lock still holds', () => {
-    // The lock only lets go under 50; the melody follows the Good line the judgement uses.
-    expect(melodyShouldPlay(live('hold', true, 55), result(100), true)).toBe(false);
-    expect(melodyShouldPlay(live('reach', true, 55), null, true)).toBe(false);
-    expect(melodyShouldPlay(live('reach', true, 55), result(72), true)).toBe(true);
-  });
-
-  it('carries the result through the release', () => {
-    expect(melodyShouldPlay(live('release', false), result(60), true)).toBe(true);
-    expect(melodyShouldPlay(live('release', true), result(59.9), true)).toBe(false);
-  });
-
-  it('never plays on a camera that has stopped sending frames', () => {
-    expect(melodyShouldPlay(live('hold', true), result(100), false)).toBe(false);
-    expect(melodyShouldPlay(live('reach', false), result(100), false)).toBe(false);
-    expect(melodyShouldPlay(live('release', false), result(100), false)).toBe(false);
-  });
-
-  it('is off before the routine starts', () => {
-    expect(melodyShouldPlay(live(null, true), result(100), true)).toBe(false);
   });
 });
 
