@@ -1,0 +1,210 @@
+/*
+ * The score tube (ScoreTube.tsx): a tall LED meter on the left edge of the
+ * play HUD, between the run stats and the match ring. Cyan while it fills;
+ * gold, glowing on the beat, once all five stars are lit. Only transform and
+ * opacity move, and --pulse comes from the HUD root, written once per frame
+ * from the audio clock.
+ */
+.tube {
+  --tube-width: clamp(18px, 2.2cqw, 30px);
+  --tone: var(--color-cyan);
+  position: absolute;
+  top: clamp(84px, 17cqh, 150px);
+  bottom: calc(clamp(14px, 3cqh, 30px) + clamp(130px, 25cqw, 280px) + clamp(18px, 4cqh, 40px));
+  left: calc(var(--edge-gap) + 4px);
+  width: calc(var(--tube-width) + clamp(30px, 3.6cqw, 46px));
+  pointer-events: none;
+}
+
+.tube[data-super='true'] {
+  --tone: var(--color-gold);
+}
+
+.tube__track {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--tube-width);
+  overflow: hidden;
+  background: rgb(var(--scrim) / 0.72);
+  box-shadow: inset 0 0 0 2px var(--color-deck-3);
+}
+
+/* The fill, cut into LED segments by the void lines over it. */
+.tube__fill {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(to top, transparent 0 9px, rgb(var(--scrim) / 0.85) 9px 12px),
+    var(--tone);
+  transform-origin: bottom;
+  will-change: transform;
+}
+
+/* SUPERSTAR: a glow in the tube's colour, breathing with the beat. */
+.tube__glow {
+  position: absolute;
+  inset: -6px;
+  background: var(--color-gold);
+  opacity: 0;
+  filter: blur(14px);
+  will-change: opacity, transform;
+}
+
+.tube[data-super='true'] .tube__glow {
+  opacity: calc(0.15 + var(--pulse, 0) * 0.45);
+  transform: scaleX(calc(1 + var(--pulse, 0) * 0.25));
+}
+
+.tube[data-super='true'] .tube__track {
+  box-shadow:
+    inset 0 0 0 2px var(--color-gold),
+    0 0 24px rgb(255 210 63 / 0.55);
+}
+
+.tube__super {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  font-size: clamp(15px, 2cqw, 24px);
+  white-space: nowrap;
+  color: var(--color-gold);
+  text-shadow: 0 0 18px rgb(255 210 63 / 0.8);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.tube[data-super='true'] .tube__super {
+  opacity: 1;
+  transform: translateY(0) scale(calc(1 + var(--pulse, 0) * 0.08));
+}
+
+/* Star marks: a tick across the tube and a star beside it, at each threshold. */
+.tube__marks {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tube__mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+}
+
+.tube__tick {
+  position: absolute;
+  left: 0;
+  width: var(--tube-width);
+  height: 2px;
+  margin-top: -1px;
+  background: rgb(238 242 255 / 0.5);
+}
+
+.tube__star {
+  position: absolute;
+  left: calc(var(--tube-width) + 6px);
+  width: clamp(20px, 2.6cqw, 34px);
+  aspect-ratio: 1;
+  translate: 0 -50%;
+  color: var(--color-deck-3);
+  transition: color 160ms var(--ease-out);
+}
+
+.tube__star svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tube__mark[data-lit='true'] .tube__tick {
+  background: var(--color-gold);
+}
+
+.tube__mark[data-lit='true'] .tube__star {
+  color: var(--color-gold);
+  filter: drop-shadow(0 0 8px var(--color-gold));
+  animation: tube-star-pop 380ms var(--ease-out);
+}
+
+/* The burst: a ring of light thrown off as the star lights. */
+.tube__burst {
+  position: absolute;
+  inset: -40%;
+  border: 3px solid var(--color-gold);
+  opacity: 0;
+  transform: scale(0.4) rotate(45deg);
+}
+
+.tube__mark[data-lit='true'] .tube__burst {
+  animation: tube-burst 520ms var(--ease-out);
+}
+
+@keyframes tube-star-pop {
+  0% {
+    transform: scale(0.6) rotate(-20deg);
+  }
+  55% {
+    transform: scale(1.45) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes tube-burst {
+  0% {
+    opacity: 1;
+    transform: scale(0.4) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6) rotate(45deg);
+  }
+}
+
+/* "+points" flying from the move's label into the tube. */
+.tube-flyers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tube-flyer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  translate: -50% -50%;
+  font-size: clamp(22px, 3.4cqw, 40px);
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--color-gold);
+  text-shadow: 0 0 16px rgb(255 210 63 / 0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tube__mark[data-lit='true'] .tube__star,
+  .tube__mark[data-lit='true'] .tube__burst {
+    animation: none;
+  }
+
+  .tube[data-super='true'] .tube__glow {
+    opacity: 0.35;
+    transform: none;
+  }
+
+  .tube[data-super='true'] .tube__super {
+    transform: none;
+  }
+
+  .tube__super,
+  .tube__star {
+    transition: none;
+  }
+}

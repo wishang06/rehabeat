@@ -27,6 +27,8 @@ export interface HudResult {
 /** The run so far: what has been scored, as opposed to what the player is doing this frame. */
 export interface HudRun {
   points: number;
+  /** The most the run can score: the score tube is full here. 0 hides the tube. */
+  maxPoints: number;
   /** Moves in a row that were not a Miss. */
   combo: number;
   /** Perfects in a row. */
