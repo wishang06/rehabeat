@@ -138,14 +138,15 @@
   padding-block: clamp(20px, 2.6vw, 38px) 40px;
 }
 
-.lp-hero__copy [data-slot='button'] {
-  margin: 30px 0 0 10px;
+.lp-lede {
+  max-width: 29ch;
+  font-size: clamp(20px, 1.8vw, 26px);
+  font-weight: 500;
+  line-height: 1.35;
 }
 
-.lp-note {
-  margin-top: 20px;
-  font-size: 16px;
-  color: var(--color-faint);
+.lp-hero__copy [data-slot='button'] {
+  margin: 30px 0 0 10px;
 }
 
 .lp-beat {
@@ -285,6 +286,13 @@
   font-size: clamp(26px, 3vw, 46px);
 }
 
+.lp-step p {
+  grid-column: 1 / -1;
+  margin-top: 10px;
+  max-width: 32ch;
+  color: var(--color-dim);
+}
+
 .lp-laptop {
   position: relative;
   flex: none;
@@ -373,6 +381,12 @@
   margin-top: 14px;
   font-size: 15px;
   color: var(--color-faint);
+}
+
+.lp-why__us {
+  margin-top: 26px;
+  max-width: 44ch;
+  color: var(--color-dim);
 }
 
 /* ---------- privacy */
