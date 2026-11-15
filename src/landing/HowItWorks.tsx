@@ -6,8 +6,8 @@ import { BEAT, MOTION_OK, MOVE_BEATS, MOVE_LENGTH, gsap, moveArms, playWhileVisi
 const HOLD_START = MOVE_BEATS.reach * BEAT;
 const HOLD_END = (MOVE_BEATS.reach + MOVE_BEATS.hold) * BEAT;
 
-/** One step of the instruction card: an LED number, a small moving picture, a heading and a sentence. */
-function Step({ number, title, text, children }: { number: number; title: string; text: string; children: ReactNode }) {
+/** One step of the instruction card: an LED number, a small moving picture and a heading. */
+function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
   return (
     <li className="lp-step slab" data-reveal={60 + number * 20}>
       <span className="lp-step__n led" aria-hidden="true">
@@ -17,7 +17,6 @@ function Step({ number, title, text, children }: { number: number; title: string
         {children}
       </div>
       <h3 className="display">{title}</h3>
-      <p>{text}</p>
     </li>
   );
 }
@@ -89,30 +88,18 @@ export function HowItWorks() {
     <section id="how" ref={root} className="lp-how">
       <h2 className="display">How it works</h2>
       <ol className="lp-steps">
-        <Step
-          number={1}
-          title="Stand back"
-          text="About two metres from your laptop, so the camera can see all of you."
-        >
+        <Step number={1} title="Stand back">
           <span className="lp-laptop" />
           <span className="lp-dist led">2M</span>
           <Figure />
         </Step>
 
-        <Step
-          number={2}
-          title="Match the gold figure on the beat"
-          text="Reach, hold, release. Every move lands on the music."
-        >
+        <Step number={2} title="Match the gold figure on the beat">
           <Figure pose="side" className="lp-you" />
           <Figure pose="side" className="lp-target" />
         </Step>
 
-        <Step
-          number={3}
-          title="The music only plays while your form holds"
-          text="Drop the pose and the melody drops out. Find it again and it comes back."
-        >
+        <Step number={3} title="The music only plays while your form holds">
           <span className="lp-meter">
             {[100, 66, 100, 82, 54].map((height, index) => (
               <i key={index} style={{ height: `${height}%` }} />

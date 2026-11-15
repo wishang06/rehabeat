@@ -136,10 +136,6 @@ export function CalibrateScreen({ session, canvasRef, saved, onDone }: Calibrate
             <p className="panel__figure" data-testid="measured-offset">
               {formatOffset(measured.offsetMs)}
             </p>
-            <p className="panel__text">
-              The gap between each click and your arm arriving on camera. Scoring shifts your hold
-              window by this much.
-            </p>
           </>
         )}
 

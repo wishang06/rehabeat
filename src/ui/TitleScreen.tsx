@@ -145,9 +145,6 @@ export function TitleScreen({
                 limit={program ? BOARD_ROWS_UNDER_CARD : BOARD_ROWS}
               />
               <div className="title__board-foot">
-                {auth.ready && !auth.user && (
-                  <p className="title__board-text">Sign in to save your points and get on the board.</p>
-                )}
                 <AccountButton auth={auth} />
                 {onJoin && <JoinCode onJoin={onJoin} />}
               </div>

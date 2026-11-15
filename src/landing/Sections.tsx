@@ -20,10 +20,6 @@ export function Problem() {
             Source: PubMed 27097761
           </a>
         </p>
-        <p className="lp-why__us">
-          Rehabeat puts the routine on a beat. The next session is a song you pick, not a sheet of paper you have to
-          find.
-        </p>
       </div>
     </section>
   );

@@ -222,13 +222,6 @@
   letter-spacing: 0.005em;
 }
 
-.menu__about {
-  max-width: 40rem;
-  font-size: clamp(1rem, 1.7cqw, 1.25rem);
-  line-height: 1.45;
-  color: var(--color-dim);
-}
-
 .menu__status {
   display: flex;
   flex-wrap: wrap;
@@ -712,11 +705,6 @@
   .menu-rail__tab--credits {
     min-height: 4rem;
     margin: 0;
-  }
-
-  /* With no count beside it, Credits keeps to its name. */
-  .menu-rail__tab--credits .menu-rail__meta {
-    display: none;
   }
 
   .menu .menu-card {
