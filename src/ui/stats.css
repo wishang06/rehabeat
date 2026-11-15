@@ -181,9 +181,3 @@
   line-height: 1.5;
   color: var(--color-pink);
 }
-
-.stats__note {
-  font-size: 0.9375rem;
-  line-height: 1.45;
-  color: var(--color-dim);
-}

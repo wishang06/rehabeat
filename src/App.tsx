@@ -25,7 +25,6 @@ import { CalibrateScreen } from './ui/CalibrateScreen';
 import { DebugPanel } from './ui/DebugPanel';
 import { Leaderboard } from './ui/Leaderboard';
 import { MenuHeader } from './ui/MenuHeader';
-import { MusicCredit } from './ui/MusicCredit';
 import { PlayScreen, type PlayDebug, type PlayRun } from './ui/PlayScreen';
 import { ProgressMeters } from './ui/ProgressMeters';
 import { ResultsScreen } from './ui/ResultsScreen';
@@ -273,12 +272,9 @@ export function App() {
     setScreen('play');
   };
 
-  const creditSong = library?.songs[screen === 'menu' ? selectedId : (song?.id ?? selectedId)];
-  const showCredit = screen === 'menu' || screen === 'play';
-
   return (
     <MotionConfig reducedMotion="user">
-      <div className="app" data-screen={screen} data-credit="true">
+      <div className="app" data-screen={screen}>
         <header className="app__bar">
           <Link to="/" className="app__wordmark">
             Rehabeat
@@ -454,7 +450,6 @@ export function App() {
                   Close
                 </button>
               </header>
-              <p className="panel__text">Best run per player. Sign in and finish a run to get on it.</p>
               <BoardWhenOpen dialogRef={boardRef} userId={auth.user?.id ?? null} />
             </div>
           </dialog>
@@ -480,9 +475,6 @@ export function App() {
             {statsOpen && <StatsPanel />}
           </div>
         </dialog>
-
-        {/* The strip keeps its height on every screen so the camera view never jumps. */}
-        <footer className="app__footer">{showCredit && creditSong && <MusicCredit song={creditSong} />}</footer>
       </div>
     </MotionConfig>
   );
