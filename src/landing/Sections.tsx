@@ -2,19 +2,9 @@ import { VideoOff } from 'lucide-react';
 import { Link } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { groupByCatalogue, type Library } from '../songs/library';
-import { CATALOGUES, creditParts, type SongMeta } from '../songs/model';
+import { CATALOGUES, type SongMeta } from '../songs/model';
 
 export const SOURCE_URL = 'https://pubmed.ncbi.nlm.nih.gov/27097761/';
-export const GITHUB_URL = 'https://github.com/wishang06/rehabeat';
-/** The people who built it, by GitHub handle. */
-const TEAM = ['wishang06', 'LegoDori'];
-
-/**
- * The attribution CC BY 4.0 asks for, word for word as the game shows it.
- * Used until the song library has loaded; after that the line comes from the song itself.
- */
-const PAST_SADNESS_CREDIT =
-  '"Past Sadness" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.';
 
 /** The one statistic on the page, with its source. */
 export function Problem() {
@@ -90,61 +80,5 @@ export function Songs({ library }: { library: Library | null }) {
         ))}
       </div>
     </section>
-  );
-}
-
-/** The team, the code, and the music credit. */
-export function Footer({ library }: { library: Library | null }) {
-  const song = library?.songs['past-sadness'];
-
-  return (
-    <footer className="lp-foot">
-      <div className="lp-foot__cols">
-        <div>
-          <h2 className="display">Team</h2>
-          <p>Built in a weekend at HackPrinceton by</p>
-          <ul>
-            {TEAM.map((handle) => (
-              <li key={handle}>
-                <a href={`https://github.com/${handle}`} target="_blank" rel="noopener noreferrer">
-                  @{handle}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h2 className="display">Code</h2>
-          <p>
-            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-              github.com/wishang06/rehabeat
-            </a>
-          </p>
-        </div>
-        <div>
-          <h2 className="display">Music</h2>
-          <p data-testid="landing-credit">
-            <span className="lp-credit__tag">Music</span>
-            {song
-              ? creditParts(song).map((part, index) =>
-                  part.href ? (
-                    <a key={index} href={part.href} target="_blank" rel="noopener noreferrer">
-                      {part.text}
-                    </a>
-                  ) : (
-                    <span key={index}>{part.text}</span>
-                  ),
-                )
-              : PAST_SADNESS_CREDIT}
-          </p>
-          <p>
-            Every song and its licence is listed in <Link to="/play">Credits</Link>.
-          </p>
-        </div>
-      </div>
-      <p className="lp-foot__wordmark" aria-hidden="true">
-        Rehabeat
-      </p>
-    </footer>
   );
 }

@@ -114,7 +114,7 @@ The patient-facing pieces of the doctor loop (the program card on the title scre
 
 | Route | Screen | Notes |
 | --- | --- | --- |
-| `/` | Landing | The cabinet in attract mode: marquee, hero loop, the instruction card ("How it works"), the statistic, privacy, the song lanes, credits |
+| `/` | Landing | The cabinet in attract mode: marquee, hero loop, the instruction card ("How it works"), the statistic, privacy, the song lanes |
 | `/play` | Title | Name, Start, level and daily streak |
 | `/play` | Song select | The markup and behaviour of `src/ui/menu`; only its CSS changed |
 | `/play` | Calibrate | A slanted strip along the bottom of the camera picture |

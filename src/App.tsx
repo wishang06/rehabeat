@@ -25,12 +25,12 @@ import { CalibrateScreen } from './ui/CalibrateScreen';
 import { DebugPanel } from './ui/DebugPanel';
 import { Leaderboard } from './ui/Leaderboard';
 import { MenuHeader } from './ui/MenuHeader';
-import { MusicCredit } from './ui/MusicCredit';
 import { PlayScreen, type PlayDebug, type PlayRun } from './ui/PlayScreen';
 import { ProgressMeters } from './ui/ProgressMeters';
 import { ResultsScreen } from './ui/ResultsScreen';
 import type { SentCare } from './ui/SentStrip';
 import { Stage } from './ui/Stage';
+import { FigureColorButton, FullscreenButton } from './ui/StageControls';
 import { StatsPanel } from './ui/StatsPanel';
 import { TitleScreen } from './ui/TitleScreen';
 import { SongMenu } from './ui/menu/SongMenu';
@@ -161,6 +161,8 @@ export function App() {
       // The menu handles Esc itself, and an open dialog closes on its own.
       const dialogOpen = boardRef.current?.open || statsRef.current?.open;
       if (event.key !== 'Escape' || screen === 'menu' || screen === 'title' || dialogOpen) return;
+      // In full screen, Esc leaves full screen; it takes a second press to leave the game.
+      if (document.fullscreenElement) return;
       if (screen === 'play') leaveRef.current();
       else backToMenu();
     };
@@ -273,12 +275,9 @@ export function App() {
     setScreen('play');
   };
 
-  const creditSong = library?.songs[screen === 'menu' ? selectedId : (song?.id ?? selectedId)];
-  const showCredit = screen === 'menu' || screen === 'play';
-
   return (
     <MotionConfig reducedMotion="user">
-      <div className="app" data-screen={screen} data-credit="true">
+      <div className="app" data-screen={screen}>
         <header className="app__bar">
           <Link to="/" className="app__wordmark">
             Rehabeat
@@ -303,8 +302,11 @@ export function App() {
                 Songs <kbd>Esc</kbd>
               </button>
             )}
+            {/* One button for both screens, so recalibrating does not drop out of full screen. */}
+            {(screen === 'calibrate' || screen === 'play') && <FullscreenButton />}
             {screen === 'play' && (
               <>
+                <FigureColorButton />
                 {/* A program session is recorded from its first hold, so it is calibrated before, not during. */}
                 {setup.mode === 'free' && (
                   <button type="button" className="button button--quiet" onClick={() => setScreen('calibrate')}>
@@ -460,7 +462,6 @@ export function App() {
                   Close
                 </button>
               </header>
-              <p className="panel__text">Best run per player. Sign in and finish a run to get on it.</p>
               <BoardWhenOpen dialogRef={boardRef} userId={auth.user?.id ?? null} />
             </div>
           </dialog>
@@ -486,9 +487,6 @@ export function App() {
             {statsOpen && <StatsPanel />}
           </div>
         </dialog>
-
-        {/* The strip keeps its height on every screen so the camera view never jumps. */}
-        <footer className="app__footer">{showCredit && creditSong && <MusicCredit song={creditSong} />}</footer>
       </div>
     </MotionConfig>
   );

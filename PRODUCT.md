@@ -2,7 +2,7 @@
 
 ## What it is
 
-Rehabeat is an arcade rhythm game for home stretching and rehab exercises. You stand about two metres from a laptop, a gold target figure shows the pose, and you match it on the beat. The melody only plays while your form holds.
+Rehabeat is an arcade rhythm game for home stretching and rehab exercises. You stand about two metres from a laptop, a target figure shows the pose, and you match it on the beat. The melody only plays while your form holds.
 
 It should feel like the menus of a rhythm game, not like a health app.
 
@@ -26,7 +26,7 @@ The game and the doctor's page are for two different rooms, so they are set diff
 ## What every screen has to do
 
 1. **Be readable from two metres.** The current instruction is the largest thing on the screen. Nothing the player needs mid-move is smaller than about 40 px.
-2. **Keep the gold figure as the hero.** Gold is the figure, the primary action, the selected thing and a Perfect. Nothing else is gold.
+2. **Keep the gold figure as the hero.** Gold is the figure, the primary action, the selected thing and a Perfect. Nothing else is gold. The one exception is the target figure drawn over the camera on the Play screen: it is black, or the colour the player picks, because gold over a moving picture was hard to read.
 3. **Stay out of the way of the camera.** The play HUD is DOM laid over the canvas, never drawn on it, and never covers the middle of the picture for longer than a pop.
 4. **Move on the beat.** Anything that pulses in play reads the audio clock.
 

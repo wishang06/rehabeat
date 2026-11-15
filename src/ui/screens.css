@@ -6,9 +6,10 @@
 
 /* ---------- XP bar and daily streak */
 .meters {
+  --meters-gap: clamp(1rem, 2.6vw, 2.5rem);
   display: flex;
   align-items: center;
-  gap: clamp(1rem, 2.6vw, 2.5rem);
+  gap: var(--meters-gap);
 }
 
 .xp {
@@ -46,7 +47,8 @@
   white-space: nowrap;
 }
 
-.streak {
+.streak,
+.streak__head {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -83,34 +85,69 @@
   box-shadow: 0 0 12px var(--color-gold);
 }
 
-/* In the marquee the meters are smaller and give way first when space runs out. */
+/*
+ * In the marquee the meters are smaller and give way first when space runs
+ * out, however many buttons the bar holds. They sit on one line as tall as
+ * the bar; whatever does not fit wraps to a second line, which is below the
+ * bar and clipped. So nothing is ever cut in half. In order, the bar loses
+ * the week's lamps, the streak, the XP count, the XP track and the level.
+ */
+.app__bar :is(.meters, .xp) {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-content: flex-start;
+  row-gap: 0;
+  min-width: 0;
+  height: var(--bar-height);
+  overflow: hidden;
+}
+
 .app__bar .meters {
   margin-left: auto;
+  /* Room inside the clip for the glow of the last lamp. */
+  padding-right: 0.875rem;
+  margin-right: -0.875rem;
 }
 
 .app__bar .meters + .app__actions {
   margin-left: 0;
 }
 
+/* The streak and the week's lamps take their own places on the line, so the lamps can go first. */
+.app__bar .streak {
+  display: contents;
+}
+
+/* The lamps keep their usual distance from the streak, not the wider one between the meters. */
+.app__bar .streak__week {
+  margin-left: calc(0.875rem - var(--meters-gap));
+}
+
+/* An empty first item holds the line at the height of the bar, and lets even the level wrap away. */
+.app__bar .xp::before {
+  content: '';
+  height: var(--bar-height);
+  margin-right: -0.875rem;
+}
+
+.app__bar .xp__track {
+  flex: none;
+}
+
 .app__bar .xp__count {
   font-size: 1rem;
 }
 
+/* On a laptop the XP count gives its room to the streak: the track already shows how far along the level is. */
+@media (max-width: 96rem) {
+  .app__bar .xp__count {
+    display: none;
+  }
+}
+
 .app__bar .streak__count {
   font-size: 1.625rem;
-}
-
-@media (max-width: 72rem) {
-  .app__bar .xp__count,
-  .app__bar .streak__week {
-    display: none;
-  }
-}
-
-@media (max-width: 52rem) {
-  .app__bar .meters {
-    display: none;
-  }
 }
 
 /* ---------- title */
