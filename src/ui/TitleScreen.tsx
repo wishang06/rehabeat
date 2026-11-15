@@ -6,7 +6,6 @@ import type { ProgramView } from '../care';
 import type { AuthState } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { AccountButton } from './AccountButton';
-import { JoinCode } from './JoinCode';
 import { Leaderboard } from './Leaderboard';
 import { ProgramCard } from './ProgramCard';
 import { ProgressMeters } from './ProgressMeters';
@@ -26,8 +25,6 @@ interface TitleScreenProps {
   /** The program could not be read. The game still plays, without any limits a doctor set. */
   programFailed: boolean;
   onRetryProgram: () => void;
-  /** Joins a doctor with their code. Null unless the player is signed in to the real clinic and has no program. */
-  onJoin: ((code: string) => Promise<void>) | null;
   /** Open the Stats panel. */
   onStats: () => void;
   /** The player's account. With accounts on, the leaderboard and sign-in sit beside the start button. */
@@ -56,7 +53,6 @@ export function TitleScreen({
   loading,
   programFailed,
   onRetryProgram,
-  onJoin,
 }: TitleScreenProps) {
   const session = program?.playable ?? false;
   // A patient's limits are in their program, so nothing starts until it is known whether there is one.
@@ -144,11 +140,12 @@ export function TitleScreen({
                 refreshKey={auth.user?.id}
                 limit={program ? BOARD_ROWS_UNDER_CARD : BOARD_ROWS}
               />
-              <div className="title__board-foot">
-                {/* Signed in, the profile menu is in the marquee. */}
-                {auth.ready && !auth.user && <AccountButton auth={auth} />}
-                {onJoin && <JoinCode onJoin={onJoin} />}
-              </div>
+              {/* Signed in, the profile menu is in the marquee. */}
+              {auth.ready && !auth.user && (
+                <div className="title__board-foot">
+                  <AccountButton auth={auth} />
+                </div>
+              )}
             </section>
           )}
         </div>

@@ -220,6 +220,68 @@
   color: var(--color-white);
 }
 
+/*
+ * The join code sits under the patient's button, as the last line of the
+ * same card: it takes the button's ground, and the button gives up its
+ * bottom padding to it.
+ */
+.doc-patient--coded {
+  padding-bottom: 0.25rem;
+}
+
+p.doc-patient__code {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem 0.75rem;
+  background: var(--color-deck);
+}
+
+.doc-patient:hover + .doc-patient__code,
+.doc-patient[aria-current='true'] + .doc-patient__code {
+  background: var(--color-deck-2);
+}
+
+.doc-copy {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--color-cyan);
+  background: var(--color-deck-3);
+  border: 0;
+  cursor: pointer;
+}
+
+.doc-copy svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.doc-copy:hover {
+  color: var(--color-white);
+}
+
+.doc-copy[data-state='copied'] {
+  color: var(--color-gold);
+}
+
+.doc-copy[data-state='failed'] {
+  color: var(--color-pink);
+}
+
+/* Read out, not shown. */
+.doc-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .doc-pill {
   padding: 0.25rem 0.5rem;
   font: 700 0.75rem/1 var(--font-display);

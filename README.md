@@ -235,7 +235,7 @@ The real clinic's tables are in `supabase/migrations/20261115090000_care.sql`:
 - `care_prescriptions`: program versions, insert-only;
 - `care_sessions`: sessions, insert-only, written by the patient.
 
-Unlike `profiles` and `scores`, none of it is public. Row Level Security lets a doctor read and write only their own patients and those patients' programs, and read their sessions; a patient reads their own row and its programs and adds their own sessions. A doctor cannot attach a program to an account: only the patient can, by entering the code. An account is a patient of at most one doctor. Anyone signed in can use `/doctor`; a doctor is simply someone who has added patients.
+Unlike `profiles` and `scores`, none of it is public. Row Level Security lets a doctor read and write only their own patients and those patients' programs, and read their sessions; a patient reads their own row and its programs and adds their own sessions. A doctor cannot attach a program to an account: only the patient can, by entering the code in their profile menu (the avatar in the top bar). An account is a patient of at most one doctor. Anyone signed in can use `/doctor`; a doctor is simply someone who has added patients.
 
 The migration is applied to the project (`rkxqtgbcendomwvrfxjf`), recorded there as `care`. Supabase numbers applied migrations by the time they were run, so its version differs from this file's name, as it does for the two earlier migrations. For a new project, paste the file into the SQL editor or run `supabase db push`. Without it, a signed-in doctor sees "The clinic is not set up yet", and the demo clinic is unaffected.
 
