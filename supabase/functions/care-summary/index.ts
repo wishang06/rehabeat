@@ -27,13 +27,32 @@ const GEMINI_TIMEOUT_MS = 25_000;
 const reply = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
+const KEY_NAMES = ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GEMINI_KEY'];
+
+/**
+ * A key as saved, cleaned of what tends to come along when it is copied out
+ * of a .env file: surrounding spaces, the "NAME=" in front, and quotes.
+ */
+function cleanKey(saved: string): string {
+  let key = saved.trim();
+  const assignment = /^(?:export\s+)?([A-Z_]+)\s*=\s*/.exec(key);
+  if (assignment && KEY_NAMES.includes(assignment[1])) key = key.slice(assignment[0].length).trim();
+  const quoted = /^(['"`])(.*)\1$/s.exec(key);
+  return (quoted ? quoted[2] : key).trim();
+}
+
 /** The first secret that holds a key, so a key saved under a common other name still works. */
-function geminiKey(): string | null {
-  for (const name of ['GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GEMINI_KEY']) {
-    const value = Deno.env.get(name)?.trim();
-    if (value) return value;
+function geminiKey(): { name: string; key: string } | null {
+  for (const name of KEY_NAMES) {
+    const key = cleanKey(Deno.env.get(name) ?? '');
+    if (key) return { name, key };
   }
   return null;
+}
+
+/** What a rejected key looks like, without the key: enough to tell a wrong value from a wrong key. */
+function keyShape({ name, key }: { name: string; key: string }): string {
+  return `${name}: ${key.length} characters, starts "${key.slice(0, 4)}", ${/\s/.test(key) ? 'has' : 'no'} spaces inside`;
 }
 
 Deno.serve(async (req) => {
@@ -51,8 +70,8 @@ Deno.serve(async (req) => {
   const input = parseSummaryInput(typeof body === 'object' && body !== null ? (body as { input?: unknown }).input : null);
   if (!input) return reply(400, { error: 'input' });
 
-  const key = geminiKey();
-  if (!key) {
+  const found = geminiKey();
+  if (!found) {
     console.error('care-summary: no Gemini key in the Edge Function secrets (looked for GEMINI_API_KEY)');
     return reply(503, { error: 'setup' });
   }
@@ -63,7 +82,7 @@ Deno.serve(async (req) => {
   try {
     response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': found.key },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: user }] }],
@@ -83,7 +102,9 @@ Deno.serve(async (req) => {
 
   if (!response.ok) {
     // Gemini's own message (a wrong model name, a bad key, a quota) goes to the logs, not to the page.
-    console.error('care-summary: Gemini answered', response.status, (await response.text()).slice(0, 600));
+    const detail = (await response.text()).slice(0, 600);
+    console.error('care-summary: Gemini answered', response.status, detail);
+    if (detail.includes('API_KEY_INVALID')) console.error('care-summary: the key Gemini refused is', keyShape(found));
     return reply(502, { error: 'gemini' });
   }
 
