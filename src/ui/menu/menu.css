@@ -33,12 +33,13 @@
   --rod-x: 2.5rem;
   display: grid;
   grid-template-columns: clamp(15rem, 27cqw, 21.5rem) minmax(0, 1fr);
+  /* The frame is exactly as tall as the menu, so the menu itself has nothing to scroll: the panel does. */
+  grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
     'header header'
     'rail panel';
-  align-content: start;
   gap: clamp(1rem, 2.4cqw, 1.75rem) clamp(1.5rem, 3.4cqw, 3rem);
-  min-height: 100%;
+  height: 100%;
   padding: var(--menu-pad);
 }
 
@@ -47,12 +48,14 @@
   min-width: 0;
 }
 
-/* Rail: the tempo rod */
+/*
+ * Rail: the tempo rod. It stays where it is while the panel beside it
+ * scrolls. Only in a window too short to hold it does it overflow the frame,
+ * and then the menu scrolls to reach the rest of it.
+ */
 
 .menu-rail {
   grid-area: rail;
-  position: sticky;
-  top: var(--menu-pad);
   align-self: start;
   min-width: 0;
 }
@@ -201,14 +204,38 @@
   transition: transform 240ms var(--ease-out);
 }
 
-/* Panel: the catalogue's songs, or the credits */
+/*
+ * Panel: the catalogue's songs, or the credits. This is the part of the menu
+ * that scrolls. Its box reaches past its grid cell to the right and bottom
+ * edges of the menu and a little into the gaps on the other two sides, so the
+ * scrollbar sits at the window's edge and the glow of a selected card is not
+ * cut off. Songs scrolling up fade out under the header.
+ */
 
 .menu__panel {
+  --panel-top: 1rem;
+  --panel-left: 1.25rem;
   grid-area: panel;
   display: flex;
   flex-direction: column;
   gap: 1.125rem;
   min-width: 0;
+  min-height: 0;
+  margin: calc(-1 * var(--panel-top)) calc(-1 * var(--menu-pad)) calc(-1 * var(--menu-pad))
+    calc(-1 * var(--panel-left));
+  padding: var(--panel-top) var(--menu-pad) var(--menu-pad) var(--panel-left);
+  /* Up and down only: anything too wide is cut at the edge, as it was, not given a sideways scrollbar. */
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-deck-3) transparent;
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--panel-top));
+}
+
+/* The children keep their height: the panel scrolls instead of squeezing them. */
+.menu__panel > * {
+  flex: none;
 }
 
 .menu__lede {
@@ -220,13 +247,6 @@
   font: italic 800 clamp(3rem, 9.4cqw, 8.25rem) / 0.9 var(--font-display);
   text-transform: uppercase;
   letter-spacing: 0.005em;
-}
-
-.menu__about {
-  max-width: 40rem;
-  font-size: clamp(1rem, 1.7cqw, 1.25rem);
-  line-height: 1.45;
-  color: var(--color-dim);
 }
 
 .menu__status {
@@ -704,19 +724,26 @@
   color: var(--color-dim);
 }
 
-/* Narrow: the rail becomes a tab strip above the cards */
+/* Narrow: the rail becomes a tab strip above the cards, and the whole menu scrolls as one page */
 @container song-menu (max-width: 46rem) {
   .menu__frame {
     --menu-rail: top;
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
     grid-template-areas:
       'header'
       'rail'
       'panel';
+    align-content: start;
+    height: auto;
+    min-height: 100%;
   }
 
-  .menu-rail {
-    position: static;
+  .menu__panel {
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    mask-image: none;
   }
 
   /* A small grid rather than a scrolling strip, so every catalogue is in sight. */
@@ -745,11 +772,6 @@
   .menu-rail__tab--credits {
     min-height: 4rem;
     margin: 0;
-  }
-
-  /* With no count beside it, Credits keeps to its name. */
-  .menu-rail__tab--credits .menu-rail__meta {
-    display: none;
   }
 
   .menu .menu-card {
@@ -818,10 +840,6 @@
     min-height: 0;
   }
 
-  .menu-header__lede {
-    max-width: none;
-  }
-
   .menu-rail__tab--credits {
     height: clamp(4.25rem, 9vh, 5.25rem);
   }
@@ -881,11 +899,6 @@
   /* Credits: a smaller heading, the catalogues side by side, and the data credit along the bottom. */
   .menu__panel:has(.menu-credits) .menu__title {
     font-size: clamp(2.25rem, min(6cqw, 7vh), 4.5rem);
-  }
-
-  /* The Credits tab already says what this is. */
-  .menu__panel:has(.menu-credits) .menu__about {
-    display: none;
   }
 
   /* One column per catalogue (CreditsView sets --catalogues), however many songs each has. */

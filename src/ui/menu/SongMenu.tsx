@@ -260,11 +260,6 @@ export function SongMenu({
         <section className="menu__panel" id={panelId} role="tabpanel" aria-labelledby={tabId(shown)}>
           <header className="menu__lede">
             <h2 className="menu__title">{group ? group.catalogue.name : 'Credits'}</h2>
-            <p className="menu__about">
-              {group
-                ? group.catalogue.description
-                : 'The music and data in Rehabeat and the licences that let us use them. Links open in a new tab.'}
-            </p>
           </header>
 
           {group && (

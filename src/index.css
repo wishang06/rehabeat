@@ -620,12 +620,6 @@
   color: var(--color-cyan);
 }
 
-.menu-header__lede {
-  max-width: 56ch;
-  color: var(--color-dim);
-  line-height: 1.45;
-}
-
 /* Start-up progress, as a blinking cabinet message. */
 .menu-header__status {
   font: 900 1.125rem/1.2 var(--font-led);

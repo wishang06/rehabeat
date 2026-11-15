@@ -13,14 +13,11 @@ interface MenuHeaderProps {
   error: string | null;
 }
 
-/** Sits above the song menu: what to do, start-up progress, and any start-up error. */
+/** Sits above the song menu: its name, start-up progress, and any start-up error. */
 export function MenuHeader({ step, error }: MenuHeaderProps) {
   return (
     <div className="menu-header">
       <h1 className="menu-header__title">Pick a song</h1>
-      <p className="menu-header__lede">
-        Reach for the pose, hold it on the beat, release. The melody comes in while you hold it well.
-      </p>
       {step && (
         <p className="menu-header__status" role="status" data-testid="start-progress">
           {STEP_LABEL[step]}
