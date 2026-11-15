@@ -4,6 +4,7 @@ import { drawSkeleton } from '../pose';
 import { ShrugBaselineCollector, saveCalibration, type Calibration } from '../scoring';
 import type { Session } from '../session';
 import { BeatDial } from './BeatDial';
+import { ZoomControl } from './camera/ZoomControl';
 import { CANVAS_COLORS, prepareCanvas } from './canvas';
 import { useAnimationFrame } from './useAnimationFrame';
 
@@ -155,6 +156,8 @@ export function CalibrateScreen({ session, canvasRef, saved, onDone }: Calibrate
           </p>
         )}
       </div>
+
+      <ZoomControl session={session} />
 
       {status !== 'running' && (
         <div className="panel__actions">

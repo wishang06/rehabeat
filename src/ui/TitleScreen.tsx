@@ -145,7 +145,8 @@ export function TitleScreen({
                 limit={program ? BOARD_ROWS_UNDER_CARD : BOARD_ROWS}
               />
               <div className="title__board-foot">
-                <AccountButton auth={auth} />
+                {/* Signed in, the profile menu is in the marquee. */}
+                {auth.ready && !auth.user && <AccountButton auth={auth} />}
                 {onJoin && <JoinCode onJoin={onJoin} />}
               </div>
             </section>

@@ -27,10 +27,11 @@ The first start downloads the pose model (about 6 MB) from Google's model storag
 | `npm run test:songs` | Adds a generated click track end to end with Demucs (needs the Python setup) |
 | `node scripts/fps.mjs --headed` | Frame rate of the Play screen, for before and after a UI change |
 | `node scripts/screens.mjs` | Screenshots of every page into `docs/screenshots/` |
+| `node scripts/polish-shots.mjs` | Every `/play` screen at 1440x900 and 1280x720, signed in against a stand-in Supabase, with the profile menu and the camera zoom at both ends, into `docs/screenshots/polish-2/`. Fails if a screen scrolls |
 
 ### Smoke check
 
-`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It opens every catalogue in the song menu and the Credits view, picks Past Sadness, walks Calibrate and Play, opens the debug panel and runs a calibration pass. On the results it checks the calorie tile, opens Stats, logs a run and checks the chart and the weight field. It then goes back to the menu with Esc and picks a song from another catalogue with the keyboard alone, and checks that a refused camera shows a recoverable message. Along the way it checks that the Credits view links every song's source and licence, that no song's stems clip at the engine's gain, and that the loop seam is exactly one beat. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Options go after `--`: Last, it walks the doctor loop in the demo clinic: on `/doctor` it gives You a one-move, one-round program; on `/play` it finds the program card, plays the session until it ends by itself and reads the "Sent to" strip; back on `/doctor` it finds the session; then it resets the demo clinic. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Options go after `--`:
+`npm run smoke` starts its own dev server, drives Chrome (or Edge) with a synthetic camera, and fails on any console error. It opens every catalogue in the song menu and the Credits view, picks Past Sadness, walks Calibrate and Play, opens the debug panel and runs a calibration pass. On the results it checks the calorie tile, opens Stats, logs a run and checks the chart and the weight field. It then goes back to the menu with Esc and picks a song from another catalogue with the keyboard alone, and checks that a refused camera shows a recoverable message. Along the way it checks that the Credits view links every song's source and licence, that no song's stems clip at the engine's gain, and that the loop seam is exactly one beat. Screenshots of each catalogue go to `test-results/menu-<catalogue>.png`. Next, it walks the doctor loop in the demo clinic: on `/doctor` it gives You a one-move, one-round program; on `/play` it finds the program card, plays the session until it ends by itself and reads the "Sent to" strip; back on `/doctor` it finds the session; then it resets the demo clinic. Finally it checks that the title, the song menu, Credits, Calibrate, Play and the results fit 1440x900, 1280x720 and 1024x768 with nothing scrolling or spilling out (`scripts/lib/fit.mjs`), and that the camera zoom moves the picture and its canvas together. Options go after `--`:
 
 | Option | Effect |
 | --- | --- |
@@ -47,7 +48,7 @@ Chrome's synthetic camera sometimes opens and then delivers no frames. The check
 The landing page (`/`) explains the game; **Play now** goes to `/play`, which opens on the title screen with your level, XP and daily streak. **Start** (or Enter) opens the song menu, and **Stats** opens your history.
 
 1. **Pick a song.** The song menu lists the songs by catalogue. Hovering or focusing a song plays 10 s of its melody once you've clicked or pressed a key on the page. Arrows move, Enter picks, Esc goes back. Picking a song the first time starts the camera and sound; stand back until your head and knees are in the picture.
-2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value.
+2. **Calibrate.** Four clicks play; raise one arm so it arrives on each click. The measured offset is shown and saved. You can skip this and use the saved value. The **Camera zoom** slider here zooms the picture out from filling the stage to the camera's whole frame, letterboxed; it starts in the middle, is kept in this browser and is used on Play too. If your head or feet are still cut off at the whole frame, it tells you to step back. Nothing zooms by itself.
 3. **Play.** The routine loops through the three moves. A black stick figure, standing on your own body, shows the pose to hit. It stays still while you move into it and turns green when you are on it. The colour dot in the top bar changes its colour (it is labelled **Figure** on a wide window). Each joint the move scores gets a dot on your body: white until that limb is in place, then green. A short hint ("left arm higher") points at the limb to fix. If part of you is out of view, its dot becomes a dashed grey ring and the screen tells you to step back. The full-screen button beside it (or **F**) fills the display with the game; Esc leaves full screen. The dial counts the beats left in the current phase (REACH, HOLD, RELEASE) and pulses on the beat. Each hold is judged Perfect, Good or Miss.
 
 Esc (or **Songs** in the top bar) returns to the menu; after the first calibration, picking another song goes straight to Play. **Finish run** ends the run and shows the results: a grade from S to C, up to three stars, the points, the Perfect / Good / Miss split, the best combo, the estimated calories and the XP earned. **Play again** restarts the song and **Change song** goes back to the menu. Press **D** for the debug panel: FPS, detection time, pose latency (how far behind the audible beat each pose frame arrives), the camera's size and frame rate, calibration offset, song, audio mode, the current hint, and each joint's live angle, target, error and visibility.
@@ -144,10 +145,11 @@ Players sign in with Google through Supabase Auth (project `rkxqtgbcendomwvrfxjf
 
 - **Points:** a Perfect is worth 100, a Good 50, a Miss 0. Each move in an unbroken combo adds 10 more, up to +100, so a move is worth at most 200 (`src/scoring/points.ts`).
 - **Finish run** on the Play screen ends the run and shows the results with the top five.
-- **Title screen:** the top five sit beside the Start button, with sign-in under them. The header's Leaderboard button opens the full board from every other screen.
-- **Critters:** every player is drawn as a critter (bear, cat, bunny, frog, chick or monster) in cyan, pink or white, picked from their user id so it is the same everywhere (`src/ui/avatar.ts`, `PlayerAvatar.tsx`).
-- **Sample players:** `supabase/seed_sample_players.sql` adds eight demo players and their runs for an empty board, flagged `profiles.is_sample`. It is never run automatically; the file says how to remove them.
-- **Schema:** `supabase/migrations/`. `profiles` is filled from the Google profile on sign-up, `scores` holds one row per run, and the `leaderboard` view ranks players by their best run. Row Level Security lets anyone read, and lets a signed-in player add only their own scores. Nobody can edit or delete a score from the app.
+- **Title screen:** the top five sit beside the Start button, with sign-in under them. The header's Leaderboard button opens the full board from the song menu and Calibrate; the results screen shows the board itself.
+- **Profile menu:** signed in, your avatar sits in the top bar. It opens a menu with your name and avatar, **Rename** (trimmed, 1 to 20 characters, saved to your profile), **Change avatar** (a picker of the sixteen) and **Sign out**.
+- **Avatars:** sixteen neon glyphs from the cabinet (the gold figure, a star, the beat dial, LED segments and more) on the void, drawn as inline SVG in `src/ui/avatars/`. A new account is dealt a random one, and the player can change it in the profile menu; anyone without one is drawn with the one their user id picks.
+- **Sample players:** `supabase/seed_sample_players.sql` adds eight demo players and their runs for an empty board, flagged `profiles.is_sample`. Every board shows them with a **Demo** tag and a tone down from real players. It is never run automatically; the file says how to remove them.
+- **Schema:** `supabase/migrations/`. `profiles` is filled from the Google profile on sign-up, `scores` holds one row per run, and the `leaderboard` view ranks players by their best run. Row Level Security lets anyone read, and lets a signed-in player add only their own scores and change only their own display name and avatar (`profiles.avatar_id`, from `20261116090000_profile_avatars.sql`; until that migration is applied the game reads the board and profiles without it). Nobody can edit or delete a score from the app.
 - **Config:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`). Without them the game runs with accounts switched off.
 
 ## Doctors and programs
@@ -408,6 +410,10 @@ Served locally through [Fontsource](https://fontsource.org), all under the SIL O
 ### Music
 
 Every song's credit and licence is in [`public/CREDITS.md`](public/CREDITS.md) and in the game's Credits view. The default song is "Past Sadness" by Kevin MacLeod (incompetech.com), CC BY 4.0, separated into drum and melody stems by the Rehabeat team.
+
+### Data
+
+Yoga pose landmarks from Yoga_Poses-Dataset by Manoj-2702 (https://github.com/Manoj-2702/Yoga_Poses-Dataset), MIT License. Also in the game's Credits view.
 
 ## Current limits
 

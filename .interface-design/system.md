@@ -41,6 +41,8 @@ Rules:
 | Text | Barlow 400 to 600 | (default) | 16 to 26 px, line-height 1.35 to 1.5. |
 | Digits | Doto 900 | `led` | Every number that counts: tempo, score, combo, XP, the countdown. Never for sentences. |
 
+Desktop screens (1024 px wide and up) fit the window: nothing on `/play` scrolls, and content keeps to a 1200 px column (`--content-max`). Big type there is sized by the window's height as well as its width.
+
 Display sizes are fluid. On the landing page they follow the viewport (`--text-headline`, `--text-section`); on the play HUD they follow the stage (`cqw`), so the HUD scales with the camera picture.
 
 The headline stays on two lines at laptop width.
@@ -88,6 +90,10 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | Move card | Now: slanted panel, gold top edge, the figure as a gold tube. Next: smaller, cyan. |
 | Step back | Two words on a pink slab, large enough to read from two metres. |
 | Grade | One display letter filling a slanted panel, with three stars under it. |
+| Avatar | A neon glyph from the cabinet (the figure, a star, the dial, LED segments) on a void square, with a soft glow in its own colour. Gold, cyan and white; pink only as an accent. Sixteen, in `src/ui/avatars/`. |
+| Profile menu | The avatar in the marquee opens a deck panel with a lit cyan top edge: the player, then Rename, Change avatar (a 4 x 4 grid, the chosen one outlined in gold) and Sign out. Esc steps back, then closes. |
+| Demo row | A leaderboard row for a sample player: a tone down (deck, not deck-2), the name dimmed, and a small "Demo" tag on deck-3. |
+| Zoom slider | On the Calibrate strip: a cyan LED track filled up to a slanted gold thumb, "Close" to "Full frame". At full frame with the head or feet cut off, "Still too close? Step back" in pink. |
 
 ## Desk look
 

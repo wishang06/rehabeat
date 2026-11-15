@@ -13,6 +13,8 @@
 :root {
   --bar-height: 4rem;
   --gutter: 1rem;
+  /* The game's content column: wider screens get the void either side. */
+  --content-max: 75rem;
   /* The void as channels, for translucent scrims over the camera. */
   --scrim: 5 6 12;
   --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
@@ -98,7 +100,8 @@
   display: flex;
   align-items: center;
   gap: 1.75rem;
-  padding: 0 var(--gutter-page);
+  /* The bar runs edge to edge; what is on it keeps to the content column. */
+  padding: 0 max(var(--gutter-page), (100% - var(--content-max)) / 2);
   background: var(--color-deck);
 }
 
@@ -159,10 +162,12 @@
 
 .app__main {
   position: relative;
+  justify-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--gutter);
+  width: min(100%, var(--content-max) + 2 * var(--gutter));
   min-height: 0;
   padding: var(--gutter);
 }
@@ -171,6 +176,7 @@
 .app[data-screen='title'] .app__main,
 .app[data-screen='menu'] .app__main,
 .app[data-screen='results'] .app__main {
+  width: min(100%, var(--content-max));
   padding: 0;
 }
 
@@ -246,15 +252,18 @@
 
 /* Stage: mirrored camera, mirrored canvas, unmirrored overlay */
 
+/*
+ * The stage fills the space under the marquee, up to the content width. The
+ * camera picture sits in .stage__frame, which Stage.tsx places by the camera
+ * zoom: covering the stage at the closest, letterboxed on the stage colour at
+ * full frame.
+ */
 .stage {
   --inset: clamp(0.75rem, 3cqw, 2rem);
   position: relative;
-  flex: 0 1 auto;
-  width: min(
-    100%,
-    calc((100dvh - var(--bar-height) - 2 * var(--gutter)) * var(--aspect))
-  );
-  aspect-ratio: var(--aspect);
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
   overflow: hidden;
   background: var(--color-cam);
   container-type: size;
@@ -263,10 +272,11 @@
 .app[data-screen='title'] .stage,
 .app[data-screen='menu'] .stage,
 .app[data-screen='results'] .stage {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: auto;
   background: var(--color-void);
+}
+
+.stage__frame {
+  position: absolute;
 }
 
 .stage__video,
@@ -278,8 +288,9 @@
   transform: scaleX(-1);
 }
 
+/* The frame already has the camera's shape, so the video fills it exactly. */
 .stage__video {
-  object-fit: cover;
+  object-fit: fill;
 }
 
 /* The menus are opaque screens of their own: the picture and whatever was last drawn on it stay out of sight. */
@@ -456,6 +467,88 @@
   gap: 1rem;
 }
 
+/* Camera zoom (camera/ZoomControl.tsx): a slider from the closest view out to the full frame. */
+.zoom {
+  display: grid;
+  gap: 0.5rem;
+  flex: 0 1 20rem;
+  min-width: 15rem;
+}
+
+.zoom__label {
+  font: 700 0.9375rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-cyan);
+}
+
+.zoom__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.zoom__end {
+  font: 700 0.8125rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--color-dim);
+}
+
+/* An LED track, cyan up to the thumb, with the thumb as a slanted gold block. */
+.zoom__slider {
+  flex: 1 1 auto;
+  min-width: 6rem;
+  height: 2.75rem;
+  margin: 0;
+  background: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.zoom__slider::-webkit-slider-runnable-track {
+  height: 10px;
+  background: linear-gradient(to right, var(--color-cyan) var(--fill), var(--color-deck-3) var(--fill));
+}
+
+.zoom__slider::-moz-range-track {
+  height: 10px;
+  background: linear-gradient(to right, var(--color-cyan) var(--fill), var(--color-deck-3) var(--fill));
+}
+
+.zoom__slider::-webkit-slider-thumb {
+  width: 18px;
+  height: 30px;
+  margin-top: -10px;
+  background: var(--color-gold);
+  border: 0;
+  border-radius: 0;
+  clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%);
+  appearance: none;
+}
+
+.zoom__slider::-moz-range-thumb {
+  width: 18px;
+  height: 30px;
+  background: var(--color-gold);
+  border: 0;
+  border-radius: 0;
+  clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%);
+}
+
+.zoom__slider:focus-visible {
+  outline-offset: 2px;
+}
+
+/* At full frame with the head or feet still out of the picture: the one way left is back. */
+.zoom__hint {
+  font: italic 800 1.125rem/1.1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-pink);
+}
+
 /* Debug panel: sits beside the stage so it never covers the HUD; overlays it on narrow screens */
 
 .debug {
@@ -557,37 +650,20 @@
   text-align: center;
 }
 
-/* Accounts */
-
-.account {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  font-size: 0.9375rem;
-  font-weight: 500;
-}
-
-.account__name {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* A player's critter (PlayerAvatar): one per player id, in cyan, pink or white light. */
-.critter {
+/* A player's avatar (src/ui/avatars): a neon glyph on the void, so it reads as a little screen on any panel. */
+.avatar {
   flex: none;
   display: block;
   width: 2.25rem;
   height: 2.25rem;
 }
 
-.critter--small {
+.avatar--small {
   width: 1.875rem;
   height: 1.875rem;
 }
 
-.board__row[data-me='true'] .critter {
+.board__row[data-me='true'] .avatar {
   outline: 2px solid var(--color-gold);
   outline-offset: 1px;
 }
@@ -624,11 +700,46 @@
   color: var(--color-gold);
 }
 
+.board__who {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .board__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+}
+
+/* Demo players: a tone down from real ones, and tagged. */
+.board__row[data-sample='true'] {
+  background: var(--color-deck);
+}
+
+.board__row[data-sample='true'] .board__name {
+  color: var(--color-dim);
+  font-weight: 500;
+}
+
+.board__row[data-sample='true'] .avatar {
+  opacity: 0.6;
+}
+
+.board__row[data-sample='true'] .board__points {
+  color: rgb(255 210 63 / 0.6);
+}
+
+.board__tag {
+  flex: none;
+  padding: 0.25rem 0.4rem 0.2rem;
+  font: 700 0.75rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-dim);
+  background: var(--color-deck-3);
 }
 
 .board__runs {
@@ -692,15 +803,6 @@
     0 0 30px rgb(255 210 63 / 0.25) !important;
 }
 
-/* Before the camera is live there is no picture to match, so on small screens the stage fills the space. */
-@media (max-width: 48rem), (max-height: 40rem) {
-  .stage[data-live='false'] {
-    width: 100%;
-    height: 100%;
-    aspect-ratio: auto;
-  }
-}
-
 @media (max-width: 40rem) {
   .app__steps,
   .app__hint {
@@ -717,10 +819,6 @@
 
   .board__row {
     grid-template-columns: 1.5rem auto minmax(0, 1fr) auto;
-  }
-
-  .account__name {
-    display: none;
   }
 }
 

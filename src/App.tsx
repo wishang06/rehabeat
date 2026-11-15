@@ -289,9 +289,11 @@ export function App() {
               <li aria-current={screen === 'play' ? 'step' : undefined}>Play</li>
             </ol>
           )}
-          {(screen === 'menu' || screen === 'results') && <ProgressMeters />}
+          {/* The results screen has its own XP tile, so the meters stay on the menu. */}
+          {screen === 'menu' && <ProgressMeters />}
           <div className="app__actions">
-            {screen !== 'menu' && screen !== 'title' && (
+            {/* The results screen has Change song on it; Esc still goes back from there too. */}
+            {(screen === 'calibrate' || screen === 'play') && (
               <button
                 type="button"
                 className="button button--quiet"
@@ -327,14 +329,18 @@ export function App() {
                 Stats
               </button>
             )}
-            {/* The title screen has the board and sign-in on it already. */}
-            {supabase && screen !== 'play' && screen !== 'title' && (
-              <>
-                <button type="button" className="button button--quiet" onClick={() => boardRef.current?.showModal()}>
-                  Leaderboard
-                </button>
-                <AccountButton auth={auth} />
-              </>
+            {/* The title and results screens show the board already. */}
+            {supabase && (screen === 'menu' || screen === 'calibrate') && (
+              <button type="button" className="button button--quiet" onClick={() => boardRef.current?.showModal()}>
+                Leaderboard
+              </button>
+            )}
+            {/*
+              Signed in, the profile menu is in the bar on every screen but Play. Signed out, the title
+              and results screens have their own sign-in (the results one keeps the run).
+            */}
+            {supabase && screen !== 'play' && (auth.user || (screen !== 'title' && screen !== 'results')) && (
+              <AccountButton auth={auth} />
             )}
             {session && (
               <span className="app__hint">
