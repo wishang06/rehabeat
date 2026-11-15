@@ -1,0 +1,227 @@
+/*
+ * The profile menu (ProfileMenu.tsx): the player's avatar in the marquee and
+ * the panel it opens. The panel is a deck panel with a lit cyan top edge,
+ * like the dialogs; the chosen avatar is outlined in gold, as the selected
+ * thing always is.
+ */
+.profile {
+  position: relative;
+  display: flex;
+}
+
+.profile__trigger {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.profile__trigger .avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  outline: 2px solid var(--color-deck-3);
+  outline-offset: 1px;
+  transition: outline-color 150ms var(--ease-out);
+}
+
+.profile__trigger:hover .avatar,
+.profile__trigger[aria-expanded='true'] .avatar {
+  outline-color: var(--color-cyan);
+}
+
+.profile__panel {
+  position: absolute;
+  top: calc(100% + 0.875rem);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 1.125rem;
+  width: 21rem;
+  padding: 1.25rem 1.25rem 1.375rem;
+  background: var(--color-deck);
+  box-shadow:
+    0 -5px 0 var(--color-cyan),
+    0 0 60px rgb(39 224 240 / 0.22),
+    0 24px 60px rgb(var(--scrim) / 0.7);
+}
+
+.profile__who {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
+}
+
+.avatar--large {
+  width: 3.75rem;
+  height: 3.75rem;
+}
+
+.profile__id {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.profile__label {
+  font: 700 0.875rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-cyan);
+}
+
+.profile__name {
+  overflow: hidden;
+  font: italic 800 1.75rem/1 var(--font-display);
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile__actions,
+.profile__form,
+.profile__picker {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.profile__item {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  font: 700 1.0625rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: left;
+  color: var(--color-white);
+  background: var(--color-deck-2);
+  border: 0;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out);
+}
+
+.profile__item:hover {
+  background: var(--color-deck-3);
+}
+
+.profile__item:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.profile__item--quiet {
+  color: var(--color-dim);
+}
+
+.profile__item--primary {
+  justify-content: center;
+  color: var(--color-gold-ink);
+  background: var(--color-gold);
+}
+
+.profile__item--primary:hover {
+  background: var(--color-gold);
+  filter: brightness(1.1);
+}
+
+.profile__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.profile__row .profile__item {
+  justify-content: center;
+}
+
+.profile__input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  font: 600 1.125rem/1 var(--font-sans);
+  color: var(--color-white);
+  background: var(--color-void);
+  border: 0;
+}
+
+.profile__input[aria-invalid='true'] {
+  box-shadow: inset 0 -3px 0 var(--color-pink);
+}
+
+.profile__help {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 1.4em;
+  font-size: 0.9375rem;
+  color: var(--color-dim);
+}
+
+.profile__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-faint);
+}
+
+.profile__count[data-over='true'],
+.profile__error {
+  color: var(--color-pink);
+}
+
+.profile__error {
+  font-size: 0.9375rem;
+}
+
+.profile__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.625rem;
+  margin-bottom: 0.375rem;
+}
+
+.profile__pick {
+  aspect-ratio: 1;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.profile__pick .avatar {
+  width: 100%;
+  height: 100%;
+  outline: 2px solid var(--color-deck-3);
+  transition: outline-color 150ms var(--ease-out);
+}
+
+.profile__pick:hover .avatar {
+  outline-color: var(--color-cyan);
+}
+
+.profile__pick[aria-pressed='true'] .avatar {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 22px rgb(255 210 63 / 0.45);
+}
+
+.profile__pick:disabled {
+  cursor: progress;
+}
+
+.profile__pick[data-saving='true'] .avatar {
+  outline-color: var(--color-gold);
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile__trigger .avatar,
+  .profile__item,
+  .profile__pick .avatar {
+    transition: none;
+  }
+}

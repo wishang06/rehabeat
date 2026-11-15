@@ -607,23 +607,6 @@
   text-align: center;
 }
 
-/* Accounts */
-
-.account {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  font-size: 0.9375rem;
-  font-weight: 500;
-}
-
-.account__name {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* A player's avatar (src/ui/avatars): a neon glyph on the void, so it reads as a little screen on any panel. */
 .avatar {
   flex: none;
@@ -674,11 +657,46 @@
   color: var(--color-gold);
 }
 
+.board__who {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
 .board__name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
+}
+
+/* Demo players: a tone down from real ones, and tagged. */
+.board__row[data-sample='true'] {
+  background: var(--color-deck);
+}
+
+.board__row[data-sample='true'] .board__name {
+  color: var(--color-dim);
+  font-weight: 500;
+}
+
+.board__row[data-sample='true'] .avatar {
+  opacity: 0.6;
+}
+
+.board__row[data-sample='true'] .board__points {
+  color: rgb(255 210 63 / 0.6);
+}
+
+.board__tag {
+  flex: none;
+  padding: 0.25rem 0.4rem 0.2rem;
+  font: 700 0.75rem/1 var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-dim);
+  background: var(--color-deck-3);
 }
 
 .board__runs {
@@ -767,10 +785,6 @@
 
   .board__row {
     grid-template-columns: 1.5rem auto minmax(0, 1fr) auto;
-  }
-
-  .account__name {
-    display: none;
   }
 }
 

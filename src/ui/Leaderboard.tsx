@@ -36,10 +36,18 @@ export function Leaderboard({ userId, refreshKey, limit = 10 }: LeaderboardProps
   return (
     <ol className="board" data-testid="leaderboard">
       {rows.map((row) => (
-        <li key={row.userId} className="board__row" data-me={row.userId === userId}>
+        <li key={row.userId} className="board__row" data-me={row.userId === userId} data-sample={row.isSample}>
           <span className="board__rank">{row.rank}</span>
           <Avatar id={row.avatarId} seed={row.userId} />
-          <span className="board__name">{row.displayName}</span>
+          <span className="board__who">
+            <span className="board__name">{row.displayName}</span>
+            {/* Demo players from the seed, so nobody mistakes them for real scores. */}
+            {row.isSample && (
+              <span className="board__tag" data-testid="demo-tag">
+                Demo
+              </span>
+            )}
+          </span>
           <span className="board__runs">
             {row.runs} {row.runs === 1 ? 'run' : 'runs'}
           </span>
