@@ -70,26 +70,26 @@ function framesDelivered(page) {
 }
 
 /**
- * A song's credit must be on screen wherever it plays: its credit line from
- * meta.json, with links to the source and to the licence.
+ * The Credits view is where the game credits its music, so every song must be
+ * there: its credit line from meta.json, with links to the source and to the
+ * licence. Returns the ids of the songs that are not.
  */
-async function checkCredit(page, screenName, songId) {
-  const found = await page.evaluate(async (id) => {
+async function songsNotCredited(page, ids) {
+  return page.evaluate(async (wanted) => {
     const { LICENCES } = await import('/src/songs/model.ts');
-    const meta = await (await fetch(`/songs/${id}/meta.json`)).json();
-    const element = document.querySelector('[data-testid="music-credit"]');
-    const box = element?.getBoundingClientRect();
-    const hrefs = [...(element?.querySelectorAll('a') ?? [])].map((link) => link.href);
-    return {
-      visible: Boolean(box && box.width > 0 && box.height > 0 && box.bottom <= window.innerHeight + 1),
-      text: element?.textContent ?? '',
-      showsCreditLine: Boolean(element?.textContent?.includes(meta.creditLine)),
-      linksSource: hrefs.includes(new URL(meta.sourceUrl).href),
-      linksLicence: hrefs.includes(LICENCES[meta.licence].url),
-    };
-  }, songId).catch((error) => ({ visible: false, text: String(error).slice(0, 120) }));
-  const passed = Boolean(found.visible && found.showsCreditLine && found.linksSource && found.linksLicence);
-  check(`${songId} credit on the ${screenName} screen, linking the source and the licence`, passed, found.text.trim());
+    const view = document.querySelector('[data-testid="credits-view"]');
+    const hrefs = [...(view?.querySelectorAll('a') ?? [])].map((link) => link.href);
+    const missing = [];
+    for (const id of wanted) {
+      const meta = await (await fetch(`/songs/${id}/meta.json`)).json();
+      const credited =
+        view?.textContent?.includes(meta.creditLine) &&
+        hrefs.includes(new URL(meta.sourceUrl).href) &&
+        hrefs.includes(LICENCES[meta.licence].url);
+      if (!credited) missing.push(id);
+    }
+    return missing;
+  }, ids).catch((error) => [String(error).slice(0, 120)]);
 }
 
 /**
@@ -181,8 +181,6 @@ async function happyPath(url) {
     check('app loads', (await page.title()) === 'Rehabeat');
     const headline = (await page.getByRole('heading', { level: 1 }).textContent())?.replace(/\s+/g, ' ').trim();
     check('landing page shows its headline', headline === 'Your home stretching routine, as a rhythm game', headline);
-    const landingCredit = ((await page.getByTestId('landing-credit').textContent()) ?? '').replace(/^Music\s*/, '');
-    check('landing page carries the Past Sadness credit', landingCredit === readJson(DEFAULT_SONG, 'meta.json').creditLine, landingCredit);
     await page.screenshot({ path: path.join(outDir, '0-landing.png') });
     await page.getByTestId('landing-play').click();
     await page.getByTestId('title-screen').waitFor({ timeout: 15_000 });
@@ -192,7 +190,6 @@ async function happyPath(url) {
     await page.keyboard.press('Enter');
     await page.getByTestId('song-menu').waitFor({ timeout: 15_000 });
     check('Enter on the title screen opens the song menu', true);
-    await checkCredit(page, 'start', DEFAULT_SONG);
 
     // Every catalogue, open in turn. An empty one must say so rather than vanish.
     for (const catalogue of library.catalogues) {
@@ -204,11 +201,9 @@ async function happyPath(url) {
       await page.screenshot({ path: path.join(outDir, `menu-${catalogue.id}.png`) });
     }
     await page.getByTestId('catalogue-tab-credits').click();
-    const credited = await page.getByTestId('credits-view').evaluate(
-      (view, ids) => ids.filter((id) => !view.textContent.includes(id)),
-      songIds.map((id) => readJson(id, 'meta.json').creditLine),
-    );
-    check('Credits view lists every song\'s credit line', credited.length === 0, credited.join(' | '));
+    await page.getByTestId('credits-view').waitFor({ timeout: 5_000 });
+    const uncredited = await songsNotCredited(page, songIds);
+    check('Credits view lists every song\'s credit line, linking the source and the licence', uncredited.length === 0, uncredited.join(' | '));
     await page.screenshot({ path: path.join(outDir, 'menu-credits.png') });
     await page.getByTestId(`catalogue-tab-${defaultCatalogue}`).click();
     await page.screenshot({ path: path.join(outDir, '1-menu.png') });
@@ -241,7 +236,33 @@ async function happyPath(url) {
     await page.getByTestId('calibrate-skip').click();
     await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
     check('Play screen shown', true);
-    await checkCredit(page, 'Play', DEFAULT_SONG);
+
+    // Songs, Full screen, Figure, Recalibrate and Finish run all have to fit.
+    const bar = await page.evaluate(() => {
+      const el = document.querySelector('.app__bar');
+      return { content: el.scrollWidth, width: el.clientWidth };
+    });
+    check('the top bar fits the window on the Play screen', bar.content <= bar.width, `${bar.content} px of content in ${bar.width} px`);
+
+    // The Figure button steps the target figure through its colours and remembers the pick.
+    const figureColor = page.getByTestId('figure-color');
+    const firstColor = await figureColor.getAttribute('data-color');
+    await figureColor.click();
+    const picked = await figureColor.getAttribute('data-color');
+    const remembered = await page.evaluate(() => localStorage.getItem('rehabeat.figureColor'));
+    check('the Figure button changes the figure colour and remembers it', firstColor === 'black' && picked === 'white' && remembered === 'white', `${firstColor} then ${picked}, stored ${remembered}`);
+    // Back round to black, so later screenshots show the default.
+    for (let i = 0; i < 12 && (await figureColor.getAttribute('data-color')) !== 'black'; i++) await figureColor.click();
+
+    // Full screen, by the button and back out with F. Esc is left alone: in a real browser it leaves full screen without reaching the page.
+    const isFullscreen = () => page.evaluate(() => document.fullscreenElement !== null);
+    await page.getByTestId('fullscreen-button').click();
+    await page.waitForFunction(() => document.fullscreenElement !== null, null, { timeout: 5_000 }).catch(() => undefined);
+    const wentFull = await isFullscreen();
+    const stillPlaying = await page.getByTestId('play-screen').isVisible();
+    await page.keyboard.press('f');
+    await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 5_000 }).catch(() => undefined);
+    check('the Full screen button fills the screen and F leaves it, with the game still running', wentFull && stillPlaying && !(await isFullscreen()), `full screen ${wentFull}, playing ${stillPlaying}`);
 
     await page.keyboard.press('d');
     await page.getByTestId('debug-panel').waitFor({ timeout: 5_000 });
@@ -354,7 +375,6 @@ async function happyPath(url) {
       measured.otherSong = { catalogue: otherCatalogue.id, song: playing };
       check(`keyboard pick of "${target}" from ${otherCatalogue.name} reaches the Play screen`, playing === target, `playing ${playing || 'nothing'}`);
       if (reached) {
-        await checkCredit(page, 'Play', target);
         measured.otherSong.audio = await page.getByTestId('debug-audio').textContent();
         await page.screenshot({ path: path.join(outDir, '6-play-other-catalogue.png') });
       }

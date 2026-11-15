@@ -1,0 +1,27 @@
+/* The Figure colour and Full screen buttons in the top bar. */
+.stage-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+/* A dot of the colour the target figure is drawn in. */
+.stage-control__swatch {
+  width: 0.85em;
+  height: 0.85em;
+  border-radius: 50%;
+  /* A ring in the text colour, so black and white both show on the bar. */
+  box-shadow: 0 0 0 1.5px currentColor;
+}
+
+/* Below a wide window the bar has no room for the words: the icon and the dot stand alone. */
+@media (max-width: 1599px) {
+  .stage-control__label {
+    display: none;
+  }
+}
+
+/* Full screen: the camera view takes the space the page margins had. */
+:root:fullscreen {
+  --gutter: 0.25rem;
+}

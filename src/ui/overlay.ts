@@ -1,96 +1,48 @@
 /**
  * The Play screen's canvas overlay, drawn once per display frame from a
- * FeedbackFrame: the gold target figure, the player's own body coloured limb
- * by limb, a hint callout, and the low-visibility warning.
+ * FeedbackFrame: the target figure (a stick figure in one colour), a dot on
+ * each joint the move scores, a hint callout, and the low-visibility warning.
  *
  * Geometry is laid out in camera-image pixels; the stage mirrors the canvas
  * with the video (selfie view), and text is flipped back by drawText.
  */
 import {
-  FigureEaser,
+  DEFAULT_ORDER,
+  FigureAnchor,
   LIMBS,
-  REST_POSE,
-  bodyFromLandmarks,
-  buildSilhouette,
-  capsuleOutline,
-  figureOffset,
-  inflateSilhouette,
+  LandmarkSmoother,
+  REST_VIEW,
+  StickEaser,
+  bodyScale,
   hintAnchor,
   layoutBanner,
   layoutHint,
   layoutPlayerBody,
-  needsOffset,
-  poseForMove,
-  silhouetteBounds,
-  steadyBody,
-  translateSilhouette,
+  stickFigure,
+  stickPoints,
+  viewForMove,
   type Bounds,
-  type Capsule,
   type PlayerBodyLayout,
-  type Side,
-  type Silhouette,
-  type SilhouettePose,
+  type Point,
+  type StickFigure,
 } from '../engine';
 import type { JointName, Landmark } from '../types';
-import type { FeedbackFrame, LimbStatus } from '../types/ui';
+import type { FeedbackFrame } from '../types/ui';
 import { CANVAS_COLORS, drawText, type CanvasSurface } from './canvas';
+import { figureColorStore, isLight, type FigureColorStore } from './figureColor';
 
 export const LOW_VISIBILITY_MESSAGE = 'Step back so your whole body is in frame';
-
-/** Figure opacity through each phase: a preview in the count-in, solid in the hold, fading as you release. */
-function figureAlpha(feedback: FeedbackFrame): number {
-  switch (feedback.phase) {
-    case 'ready':
-      return 0.4;
-    case 'reach':
-      return 0.6 + 0.4 * feedback.phaseProgress;
-    case 'hold':
-      return 1;
-    case 'release':
-      return 1 - 0.55 * feedback.phaseProgress;
-  }
-}
 
 /** HUD panels sit in the top and bottom corners; canvas text stays in the band between. */
 const SAFE_TOP = 0.2;
 const SAFE_BOTTOM = 0.27;
 
-/** Glow bands round the figure, as [reach in body scales, opacity]: wide and faint, then tighter. */
-const GLOW: readonly (readonly [number, number])[] = [
-  [0.15, 0.1],
-  [0.08, 0.16],
-];
-/** The figure's brighter edge, in CSS pixels. */
-const EDGE_PX = 3;
-/** When a shoulder or hip is too unsure to anchor the figure, try again down to this. */
-const FALLBACK_ANCHOR_VISIBILITY = 0.1;
-
-function traceCapsule(path: Path2D, c: Capsule): void {
-  const outline = capsuleOutline(c);
-  if (outline.kind === 'circle') {
-    path.moveTo(outline.center.x + outline.radius, outline.center.y);
-    path.arc(outline.center.x, outline.center.y, outline.radius, 0, 2 * Math.PI);
-    return;
-  }
-  const { a, b, ra, rb } = outline;
-  path.moveTo(a.x + ra * Math.cos(outline.aStart), a.y + ra * Math.sin(outline.aStart));
-  path.arc(a.x, a.y, ra, outline.aStart, outline.aEnd);
-  path.arc(b.x, b.y, rb, outline.bStart, outline.bEnd);
-  path.closePath();
-}
-
-/** Every shape of the figure in one path. All are wound clockwise, so one fill paints their union once. */
-function silhouettePath(s: Silhouette): Path2D {
-  const path = new Path2D();
-  for (const c of s.capsules) traceCapsule(path, c);
-  path.moveTo(s.torso[0].x, s.torso[0].y);
-  for (const p of s.torso.slice(1)) path.lineTo(p.x, p.y);
-  path.closePath();
-  const { center, radius } = s.head;
-  path.moveTo(center.x + radius, center.y);
-  path.arc(center.x, center.y, radius, 0, 2 * Math.PI);
-  return path;
-}
+/** The figure's line width as a fraction of the body scale (about shoulder width), and its limits in CSS pixels. */
+const LINE = { ofScale: 0.1, minPx: 6, maxPx: 18 };
+/** The contrasting edge on each side of a line, as a fraction of the line's width, and its floor in CSS pixels. */
+const EDGE = { ofLine: 0.22, minPx: 1.5 };
+/** A limb's edge starts this many line widths out from the body, so it doesn't cut into the joint it hangs from. */
+const EDGE_STARTS_AT = 0.75;
 
 function targetJoints(feedback: FeedbackFrame): Partial<Record<JointName, number>> {
   const joints: Partial<Record<JointName, number>> = {};
@@ -101,17 +53,26 @@ function targetJoints(feedback: FeedbackFrame): Partial<Record<JointName, number
   return joints;
 }
 
-function poseKey(pose: SilhouettePose): string {
-  return Object.values(pose).join(',');
+function polyline(path: Path2D, points: readonly Point[]): void {
+  points.forEach((p, i) => (i === 0 ? path.moveTo(p.x, p.y) : path.lineTo(p.x, p.y)));
+}
+
+/** `points` without its first `distance`, measured along the line. */
+function trimStart(points: readonly Point[], distance: number): Point[] {
+  const [a, b] = points;
+  const length = Math.hypot(b.x - a.x, b.y - a.y);
+  // Never more than half the first bone: a foreshortened one can be shorter than the trim.
+  const t = length > 0 ? Math.min(0.5, distance / length) : 0;
+  return [{ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, ...points.slice(1)];
 }
 
 export class PlayOverlay {
-  private readonly easer = new FigureEaser();
-  private side: Side | null = null;
-  private offsetCache = { key: '', value: false };
+  private readonly anchor = new FigureAnchor();
+  private readonly easer = new StickEaser();
+  private readonly smoother = new LandmarkSmoother();
   private lowVisibilitySince: number | null = null;
-  /** Where the figure was drawn this frame, so the hint label can keep off it. */
-  private figureBounds: Bounds | null = null;
+
+  constructor(private readonly colors: Pick<FigureColorStore, 'get'> = figureColorStore) {}
 
   /**
    * Draws everything for one frame. `landmarks` and `world` are the latest
@@ -124,15 +85,19 @@ export class PlayOverlay {
     world: Landmark[] | null,
     nowMs: number,
   ): void {
+    // The figure goes first, under everything else. It stands on its own steadied anchor, so it
+    // takes the raw landmarks; the dots and the hint sit on the player, so they take smoothed ones.
+    const figure = this.drawFigure(surface, feedback, landmarks, world, nowMs);
+    const smooth = this.smoother.update(landmarks, nowMs);
+
     // The banner keeps off the limbs being scored, which are the ones it is warning about.
     const scoredLimbs: Bounds[] = [];
-    if (landmarks) {
-      // Lost scored limbs are drawn at the detector's best guess, greyed, so the player sees which.
+    if (smooth) {
+      // Lost scored limbs are laid out at the detector's best guess, so the player sees which.
       const keep = new Set(LIMBS.filter(({ limb }) => feedback.limbs[limb].status === 'grey').map(({ limb }) => limb));
-      const player = layoutPlayerBody(landmarks, surface, { keep });
-      this.drawFigure(surface, feedback, landmarks, world, player, nowMs);
+      const player = layoutPlayerBody(smooth, surface, { keep });
       drawPlayer(surface, player, feedback);
-      if (feedback.hint) drawHint(surface, feedback.hint, landmarks, player, this.figureBounds);
+      if (feedback.hint) drawHint(surface, feedback.hint, smooth, player, figure);
       for (const c of player.capsules) {
         if (!feedback.limbs[c.part].scored) continue;
         const r = Math.max(c.ra, c.rb);
@@ -153,148 +118,130 @@ export class PlayOverlay {
     }
   }
 
-  private needsOffset(pose: SilhouettePose): boolean {
-    const key = poseKey(pose);
-    if (key !== this.offsetCache.key) this.offsetCache = { key, value: needsOffset(pose) };
-    return this.offsetCache.value;
-  }
-
+  /** Draws the target figure and returns the box it covers, so the hint label can keep off it. */
   private drawFigure(
     surface: CanvasSurface,
     feedback: FeedbackFrame,
-    landmarks: Landmark[],
+    landmarks: Landmark[] | null,
     world: Landmark[] | null,
-    player: PlayerBodyLayout,
     nowMs: number,
-  ): void {
-    const target = poseForMove({ joints: targetJoints(feedback) });
-    // Where the figure sits follows the move's target pose, so it stays put through the release.
-    const offset = this.needsOffset(target) ? 1 : 0;
-    // In the release the figure shows where to go back to: rest.
-    const shown = feedback.phase === 'release' ? REST_POSE : target;
-    const eased = this.easer.update({ pose: shown, offset }, nowMs);
+  ): Bounds | null {
+    // The figure stays where it is when the pose drops out: that is when the player needs it most.
+    const body = this.anchor.update(landmarks, world, surface, nowMs);
+    if (!body) return null;
 
-    this.figureBounds = null;
-    // Keep showing the target when part of the player is out of view: that's when they need it
-    // most. Guessed anchors can collapse the body, so that fallback is steadied first.
-    const unsure = bodyFromLandmarks(landmarks, surface, world, FALLBACK_ANCHOR_VISIBILITY);
-    const body = bodyFromLandmarks(landmarks, surface, world) ?? (unsure && steadyBody(unsure));
-    if (!body) return;
-    let silhouette = buildSilhouette(eased.pose, body);
-    if (eased.offset > 0 && player.bounds) {
-      const { dx, side } = figureOffset({
-        figure: silhouetteBounds(silhouette),
-        player: player.bounds,
-        canvasWidth: surface.width,
-        gap: 0.2 * player.scale,
-        previousSide: this.side,
-      });
-      this.side = side;
-      silhouette = translateSilhouette(silhouette, dx * eased.offset, 0);
-    } else if (eased.offset === 0) {
-      this.side = null;
-    }
+    // In the release the figure shows where to go back to: rest. In the count-in, the first move.
+    const resting = feedback.phase === 'release';
+    const id = feedback.move?.id ?? feedback.nextMove.id;
+    const view = resting ? REST_VIEW : viewForMove(id, targetJoints(feedback));
+    const points = this.easer.update(resting ? 'rest' : id, stickPoints(view, body), body, nowMs);
+    const figure = stickFigure(points, bodyScale(body), view.order ?? DEFAULT_ORDER);
 
-    const colors = feedback.onTarget ? CANVAS_COLORS.figureMatched : CANVAS_COLORS.figure;
-    this.figureBounds = silhouetteBounds(silhouette);
-    this.drawSilhouette(surface, silhouette, colors, figureAlpha(feedback), player.scale);
-  }
-
-  /**
-   * Draws the figure as one solid shape: the glow and edge are stroked, the
-   * inside is cut out so no seam between overlapping parts shows, and the
-   * translucent fill goes in. The cut-out erases whatever is under the
-   * figure, so it must be the first thing drawn on a freshly cleared canvas.
-   *
-   * Building the figure on a scratch canvas and compositing it in would look
-   * the same, but copying that canvas every frame measured ~15 ms of GPU time
-   * on an integrated GPU, which the pose model shares.
-   */
-  private drawSilhouette(
-    surface: CanvasSurface,
-    s: Silhouette,
-    colors: (typeof CANVAS_COLORS)['figure'],
-    alpha: number,
-    scale: number,
-  ): void {
-    if (alpha <= 0) return;
-    const { ctx, ratio } = surface;
-    const path = silhouettePath(s);
-    ctx.save();
-    // Glow and edge are fills of grown copies of the figure; the cut-out below
-    // leaves only the bands outside it. Wide strokes of this many arcs cost
-    // several times more to raster.
-    ctx.fillStyle = colors.glow;
-    for (const [reach, opacity] of GLOW) {
-      ctx.globalAlpha = opacity * alpha;
-      ctx.fill(silhouettePath(inflateSilhouette(s, reach * scale)));
-    }
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = colors.edge;
-    ctx.fill(silhouettePath(inflateSilhouette(s, EDGE_PX * ratio)));
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fill(path);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = colors.fill;
-    ctx.fill(path);
-    ctx.restore();
+    const color = feedback.onTarget ? CANVAS_COLORS.onTarget : this.colors.get().value;
+    return drawStick(surface, figure, color);
   }
 }
 
-/** The player's own limbs in the figure's capsule style, coloured by status, over a faint torso outline. */
-function drawPlayer(surface: CanvasSurface, layout: PlayerBodyLayout, feedback: FeedbackFrame): void {
+/**
+ * Draws the figure as solid lines in `color`, each with a thin contrasting
+ * edge so it shows against any background. The trunk and head go down first
+ * as one shape. Each limb then goes over what is already there, edge first:
+ * where a limb crosses the body or another limb, its edge cuts a clean gap,
+ * so the nearer one reads as in front instead of the two merging.
+ */
+function drawStick(surface: CanvasSurface, figure: StickFigure, color: string): Bounds {
   const { ctx, ratio } = surface;
+  const width = Math.min(LINE.maxPx * ratio, Math.max(LINE.minPx * ratio, LINE.ofScale * figure.scale));
+  const edge = Math.max(EDGE.minPx * ratio, EDGE.ofLine * width);
+  const edgeColor = isLight(color) ? CANVAS_COLORS.ink : CANVAS_COLORS.chalk;
+
+  const bounds: Bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  const include = (p: Point, r: number) => {
+    bounds.left = Math.min(bounds.left, p.x - r);
+    bounds.top = Math.min(bounds.top, p.y - r);
+    bounds.right = Math.max(bounds.right, p.x + r);
+    bounds.bottom = Math.max(bounds.bottom, p.y + r);
+  };
+
   ctx.save();
   ctx.lineJoin = 'round';
+
+  const trunk = new Path2D();
+  for (const line of figure.trunk) {
+    polyline(trunk, line);
+    for (const p of line) include(p, width);
+  }
+  const { center, radius } = figure.head;
+  trunk.moveTo(center.x + radius, center.y);
+  trunk.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+  include(center, radius + width);
   ctx.lineCap = 'round';
+  ctx.strokeStyle = edgeColor;
+  ctx.lineWidth = width + 2 * edge;
+  ctx.stroke(trunk);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.stroke(trunk);
 
-  if (layout.torso) {
-    ctx.strokeStyle = CANVAS_COLORS.chalk;
-    ctx.globalAlpha = 0.5;
-    ctx.lineWidth = 2 * ratio;
+  for (const limb of figure.limbs) {
+    for (const p of limb.points) include(p, width);
+    const end = limb.points[limb.points.length - 1];
+
+    const outline = new Path2D();
+    polyline(outline, trimStart(limb.points, EDGE_STARTS_AT * width));
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = edgeColor;
+    ctx.lineWidth = width + 2 * edge;
+    ctx.stroke(outline);
+    // The butt cap leaves the far end square; round it off like the line it edges.
+    ctx.fillStyle = edgeColor;
     ctx.beginPath();
-    layout.torso.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-    ctx.closePath();
-    ctx.stroke();
-  }
+    ctx.arc(end.x, end.y, width / 2 + edge, 0, 2 * Math.PI);
+    ctx.fill();
 
-  // One path per colour keeps this to a few draw calls; the pose model shares the GPU.
-  const groups = new Map<LimbStatus, { path: Path2D; glow: Path2D }>();
-  for (const c of layout.capsules) {
-    const status = feedback.limbs[c.part].status;
-    let group = groups.get(status);
-    if (!group) groups.set(status, (group = { path: new Path2D(), glow: new Path2D() }));
-    traceCapsule(group.path, c);
-    const reach = 0.06 * layout.scale;
-    traceCapsule(group.glow, { ...c, ra: c.ra + reach, rb: c.rb + reach });
-  }
-
-  for (const status of STATUS_ORDER) {
-    const group = groups.get(status);
-    if (!group) continue;
-    const color = CANVAS_COLORS.limb[status];
-    ctx.fillStyle = color;
+    const line = new Path2D();
+    polyline(line, limb.points);
+    ctx.lineCap = 'round';
     ctx.strokeStyle = color;
-    // Soft glow on limbs that need attention.
-    if (status === 'amber' || status === 'red') {
-      ctx.globalAlpha = 0.22;
-      ctx.fill(group.glow);
+    ctx.lineWidth = width;
+    ctx.stroke(line);
+  }
+  ctx.restore();
+  return bounds;
+}
+
+/**
+ * A dot on the far end of each limb the move scores (elbow, wrist, knee,
+ * ankle), while the player is meant to be in the pose. White until that limb
+ * is in place, then green. A limb the camera has lost gets a dashed grey ring
+ * at the detector's best guess. Nothing is drawn along the limbs: the player
+ * can see their own body.
+ */
+function drawPlayer(surface: CanvasSurface, layout: PlayerBodyLayout, feedback: FeedbackFrame): void {
+  const { ctx, ratio } = surface;
+  const radius = Math.max(5 * ratio, 0.065 * layout.scale);
+  ctx.save();
+  for (const c of layout.capsules) {
+    const { scored, status } = feedback.limbs[c.part];
+    if (!scored || status === 'idle') continue;
+    ctx.beginPath();
+    ctx.arc(c.b.x, c.b.y, radius, 0, 2 * Math.PI);
+    if (status === 'grey') {
+      ctx.strokeStyle = CANVAS_COLORS.limb.grey;
+      ctx.lineWidth = 2.5 * ratio;
+      ctx.setLineDash([4 * ratio, 4 * ratio]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      continue;
     }
-    ctx.globalAlpha = status === 'idle' ? 0.35 : status === 'grey' ? 0.45 : 0.6;
-    ctx.fill(group.path);
-    ctx.globalAlpha = status === 'idle' ? 0.7 : 0.95;
-    ctx.lineWidth = 2.5 * ratio;
-    // A dashed edge marks a limb the camera can't see well enough to score.
-    ctx.setLineDash(status === 'grey' ? [6 * ratio, 5 * ratio] : []);
-    ctx.stroke(group.path);
+    ctx.fillStyle = status === 'green' ? CANVAS_COLORS.onTarget : CANVAS_COLORS.chalk;
+    ctx.fill();
+    ctx.strokeStyle = CANVAS_COLORS.ink;
+    ctx.lineWidth = 2 * ratio;
+    ctx.stroke();
   }
   ctx.restore();
 }
-
-/** Calmest first, so the limbs that need fixing are drawn on top. */
-const STATUS_ORDER: readonly LimbStatus[] = ['idle', 'grey', 'green', 'amber', 'red'];
 
 const fontSize = (surface: CanvasSurface, fraction: number, minPx: number, maxPx: number) =>
   Math.round(Math.min(maxPx * surface.ratio, Math.max(minPx * surface.ratio, surface.width * fraction)));
@@ -306,7 +253,7 @@ function pill(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h:
   ctx.roundRect(x, y, w, h, h / 2);
 }
 
-/** A label beside the limb with an arrow to the part it names, ringed in the limb's status colour. */
+/** A label beside the limb, with an arrow to the part it names and a ring round that part. */
 function drawHint(
   surface: CanvasSurface,
   hint: NonNullable<FeedbackFrame['hint']>,
@@ -317,7 +264,7 @@ function drawHint(
   const anchor = hintAnchor(hint.joint, landmarks, surface);
   if (!anchor || !player.bounds) return;
   const { ctx, width, height, ratio } = surface;
-  const color = CANVAS_COLORS.limb[hint.status];
+  const color = CANVAS_COLORS.chalk;
   const text = hint.text.charAt(0).toUpperCase() + hint.text.slice(1);
 
   const size = fontSize(surface, 0.026, 15, 30);

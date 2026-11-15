@@ -223,8 +223,6 @@ function saveMessage(save: SaveState, run: RunSummary, auth: AuthState): string 
   switch (save) {
     case 'saving':
       return 'Saving your run…';
-    case 'saved':
-      return 'Saved to the leaderboard.';
     case 'failed':
       return "Couldn't save this run. Check your connection.";
     default:
