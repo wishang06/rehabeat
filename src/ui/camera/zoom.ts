@@ -1,9 +1,9 @@
 /**
  * Camera zoom: how much of the camera picture the stage shows. At 0 the
  * picture covers the stage, cropped to its shape (the closest view); at 1 it
- * is the camera's full frame, letterboxed on the stage colour. The player
- * sets it with the slider on the Calibrate screen; it is never changed
- * automatically.
+ * is the camera's full frame, letterboxed on the stage colour. The stage
+ * always uses DEFAULT_ZOOM, halfway between the two: there is no control for
+ * it and it never changes by itself.
  *
  * The rectangle from frameRect is given to the element that holds both the
  * video and the overlay canvas (see Stage.tsx), so the picture, the gold
@@ -24,7 +24,6 @@ export interface FrameRect {
 }
 
 export const DEFAULT_ZOOM = 0.5;
-export const ZOOM_KEY = 'rehabeat.cameraZoom';
 
 function clampZoom(zoom: number): number {
   if (!Number.isFinite(zoom)) return DEFAULT_ZOOM;
@@ -33,8 +32,8 @@ function clampZoom(zoom: number): number {
 
 /**
  * The camera picture's rectangle on the stage at `zoom`. The scale runs
- * geometrically from cover to contain, so each step of the slider looks like
- * the same amount of zoom; the picture stays centred and keeps its shape.
+ * geometrically from cover to contain, so equal steps of zoom look like equal
+ * amounts; the picture stays centred and keeps its shape.
  */
 export function frameRect(stage: Size, video: Size, zoom: number): FrameRect {
   if (stage.width <= 0 || stage.height <= 0 || video.width <= 0 || video.height <= 0) {
@@ -58,32 +57,4 @@ export function frameRect(stage: Size, video: Size, zoom: number): FrameRect {
 export function mapLandmark(rect: FrameRect, point: { x: number; y: number }, mirrored: boolean): { x: number; y: number } {
   const across = mirrored ? 1 - point.x : point.x;
   return { x: rect.x + across * rect.width, y: rect.y + point.y * rect.height };
-}
-
-function defaultStorage(): Storage | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** The zoom saved on this browser, or the default. Never throws. */
-export function loadZoom(storage: Storage | null = defaultStorage()): number {
-  try {
-    const raw = storage?.getItem(ZOOM_KEY);
-    if (raw === null || raw === undefined || raw.trim() === '') return DEFAULT_ZOOM;
-    return clampZoom(Number(raw));
-  } catch {
-    return DEFAULT_ZOOM;
-  }
-}
-
-/** Saves the zoom on this browser. Blocked storage just means it is not remembered. */
-export function saveZoom(zoom: number, storage: Storage | null = defaultStorage()): void {
-  try {
-    storage?.setItem(ZOOM_KEY, String(clampZoom(zoom)));
-  } catch {
-    // Not remembered; the slider still works for this visit.
-  }
 }

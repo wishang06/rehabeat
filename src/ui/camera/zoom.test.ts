@@ -1,32 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_ZOOM, ZOOM_KEY, frameRect, loadZoom, mapLandmark, saveZoom } from './zoom';
+import { DEFAULT_ZOOM, frameRect, mapLandmark } from './zoom';
 
 /** A 16:9 stage and a 4:3 camera: cover crops top and bottom, contain letterboxes left and right. */
 const STAGE = { width: 1600, height: 900 };
 const CAMERA = { width: 640, height: 480 };
-
-function memoryStorage(initial: Record<string, string> = {}): Storage {
-  const data = new Map(Object.entries(initial));
-  return {
-    get length() {
-      return data.size;
-    },
-    clear: () => data.clear(),
-    getItem: (key) => data.get(key) ?? null,
-    key: (index) => [...data.keys()][index] ?? null,
-    removeItem: (key) => void data.delete(key),
-    setItem: (key, value) => void data.set(key, String(value)),
-  };
-}
-
-const blocked = {
-  getItem: () => {
-    throw new Error('SecurityError');
-  },
-  setItem: () => {
-    throw new Error('SecurityError');
-  },
-} as unknown as Storage;
 
 describe('frameRect', () => {
   it('at the closest zoom covers the stage, cropping the top and bottom of the camera picture', () => {
@@ -117,32 +94,5 @@ describe('mapLandmark', () => {
     expect(xs[1].x).toBeLessThan(xs[2].x);
     expect(xs[0].y).toBeLessThan(xs[1].y);
     expect(xs[1].y).toBeLessThan(xs[2].y);
-  });
-});
-
-describe('loadZoom and saveZoom', () => {
-  it('starts in the middle', () => {
-    expect(DEFAULT_ZOOM).toBe(0.5);
-    expect(loadZoom(memoryStorage())).toBe(0.5);
-  });
-
-  it('remembers a zoom', () => {
-    const storage = memoryStorage();
-    saveZoom(0.8, storage);
-    expect(storage.getItem(ZOOM_KEY)).toBe('0.8');
-    expect(loadZoom(storage)).toBe(0.8);
-  });
-
-  it('reads junk as the default and clamps a number out of range', () => {
-    expect(loadZoom(memoryStorage({ [ZOOM_KEY]: 'abc' }))).toBe(0.5);
-    expect(loadZoom(memoryStorage({ [ZOOM_KEY]: '' }))).toBe(0.5);
-    expect(loadZoom(memoryStorage({ [ZOOM_KEY]: '7' }))).toBe(1);
-    expect(loadZoom(memoryStorage({ [ZOOM_KEY]: '-1' }))).toBe(0);
-  });
-
-  it('copes with storage that is blocked or missing', () => {
-    expect(loadZoom(blocked)).toBe(0.5);
-    expect(() => saveZoom(0.3, blocked)).not.toThrow();
-    expect(loadZoom(null)).toBe(0.5);
   });
 });

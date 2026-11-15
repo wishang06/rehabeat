@@ -3,10 +3,11 @@
  * in container units of the stage, so the HUD scales with the window.
  *
  * The picture is kept clear for the player and the target figure. Nothing
- * is written across it: the phase word, the count, the grade and the moves
- * are in the move lane (lane.css), the numbers are in the left rail
- * (rails.css), and the one message that can appear over the picture is a
- * slim strip on its bottom edge.
+ * is written across it: the phase word and the grade are a small tag in its
+ * top-left corner (tag.css), the moves and the count are in the move lane
+ * (lane.css), the numbers are in the left rail (rails.css), and the one
+ * message that can appear over the picture is a slim strip on its bottom
+ * edge.
  *
  * The Play screen writes three custom properties on .hud once per frame,
  * from the audio clock: --pulse (1 on the beat, falling to 0), --progress

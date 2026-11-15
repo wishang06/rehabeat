@@ -1,6 +1,7 @@
 /*
- * The move lane (MoveLane.tsx): the move in play, and the queue of moves to
- * come scrolling up toward it. It lives in the right rail (rails.css places
+ * The move lane (MoveLane.tsx): the move in play (name and figure), and the
+ * queue of moves to come scrolling up toward it. The phase word, the beats
+ * and the grade are in the phase tag (tag.css). It lives in the right rail (rails.css places
  * it); on a narrow window with no rails it is a small panel in the top
  * right corner of the picture, without the queue.
  *
@@ -46,64 +47,6 @@
   text-overflow: ellipsis;
 }
 
-/* The phase word, with the count beside it before the first move. */
-.lane__cue {
-  position: relative;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.lane__word {
-  margin: 0;
-  font-size: clamp(30px, 6cqh, 52px);
-  line-height: 0.9;
-  color: var(--tone);
-  text-shadow: 0 0 24px color-mix(in srgb, var(--tone) 45%, transparent);
-}
-
-.lane__count {
-  font-size: clamp(30px, 6cqh, 52px);
-  line-height: 0.9;
-  color: var(--color-gold);
-}
-
-/* One pip a beat: reach, hold, release. The lit one is the beat in play. */
-.lane__beats {
-  display: flex;
-  gap: 3px;
-  height: clamp(6px, 1cqh, 9px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.lane__beats li {
-  --pip: var(--color-cyan);
-  flex: 1;
-  max-width: 34px;
-  background: rgb(238 242 255 / 0.16);
-  transform: skewX(-24deg);
-}
-
-.lane__beats li[data-phase='hold'] {
-  --pip: var(--color-gold);
-}
-
-.lane__beats li[data-phase='release'] {
-  --pip: var(--color-white);
-}
-
-.lane__beats li[data-first='true']:not(:first-child) {
-  margin-left: 5px;
-}
-
-.lane__beats li[data-lit='true'] {
-  background: var(--pip);
-  box-shadow: 0 0 12px var(--pip);
-}
-
 /* The move's name and figure. A finished move leaves to the side; the next one docks from below. */
 .lane__dock {
   position: relative;
@@ -111,8 +54,9 @@
 
 /*
  * The name has the panel's full width, so it never breaks inside a word; the
- * figure and the grade share the row under it. The figure's column is a fixed
- * share of the panel, so a wide pose (arms out) cannot push the grade off it.
+ * figure has the row under it, with the count-in beside it before the first
+ * move. The figure's column is a fixed share of the panel, so a wide pose
+ * (arms out) cannot push the count off it.
  */
 .lane__card {
   display: grid;
@@ -140,37 +84,13 @@
   height: clamp(84px, 17cqh, 140px);
 }
 
-/* PERFECT, GOOD or MISS for the hold that just closed, through its release. */
-.lane__grade {
-  --grade: var(--color-gold);
+/* 3, 2, 1 before the first move, in gold beside its figure. */
+.lane__count {
   grid-area: 2 / 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 2px 8px;
-  min-width: 0;
-  margin: 0;
-  font-size: clamp(18px, 3.2cqh, 28px);
-  line-height: 1;
-}
-
-.lane__grade[data-label='Good'] {
-  --grade: var(--color-cyan);
-}
-
-.lane__grade[data-label='Miss'] {
-  --grade: var(--color-pink);
-}
-
-.lane__grade-word {
-  color: var(--grade);
-  text-shadow: 0 0 18px color-mix(in srgb, var(--grade) 55%, transparent);
-}
-
-.lane__grade-timing {
-  flex-basis: 100%;
-  font-size: 0.46em;
-  color: var(--color-dim);
+  justify-self: center;
+  font-size: clamp(44px, 10cqh, 84px);
+  line-height: 0.9;
+  color: var(--color-gold);
 }
 
 /* ---------- the moves to come. Hidden without rails: over the picture there is no room for it. */

@@ -44,6 +44,14 @@ export function sessionFromRow(row: { id: string; body: unknown }): SessionRecor
   return session ? { ...session, id: row.id } : null;
 }
 
+/** The join function's refusal for an account that has already joined a doctor (see the care migration). */
+const ALREADY_JOINED = /already have a doctor/i;
+
+/** That refusal with the doctor named, when their name could be read; any other message as it is. */
+export function namedRefusal(message: string, doctorName: string | null): string {
+  return ALREADY_JOINED.test(message) && doctorName ? `You already have a doctor: ${doctorName}` : message;
+}
+
 function fail(error: NonNullable<DbError>): never {
   if (isMissingTable(error)) throw new CareSetupError('The clinic tables have not been set up.');
   throw new Error(error.message ?? 'The clinic could not be reached.');
@@ -63,6 +71,14 @@ export function createSupabaseClinic(client: SupabaseClient<Database>, userId: s
       .maybeSingle();
     if (error) fail(error);
     return data;
+  };
+
+  /** The name of the doctor the signed-in user has joined, or null if they have none or it cannot be read. */
+  const myDoctorName = async (): Promise<string | null> => {
+    const row = await myPatientRow();
+    if (!row) return null;
+    const { data } = await client.from('profiles').select('display_name').eq('id', row.doctor_id).maybeSingle();
+    return data?.display_name ?? null;
   };
 
   const prescriptionsOf = async (patientIds: string[]) => {
@@ -200,7 +216,13 @@ export function createSupabaseClinic(client: SupabaseClient<Database>, userId: s
 
     async joinWithCode(code) {
       const { error } = await client.rpc('claim_care_code', { code });
-      if (error) fail(error);
+      if (!error) return;
+      if (ALREADY_JOINED.test(error.message ?? '')) {
+        // Say who: the refusal only helps if the player knows which doctor they are with.
+        const name = await myDoctorName().catch(() => null);
+        throw new Error(namedRefusal(error.message, name));
+      }
+      fail(error);
     },
   };
 }

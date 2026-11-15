@@ -1,6 +1,13 @@
 import { expect, it } from 'vitest';
 import { newPrescriptionBody } from './prescription';
-import { isDuplicate, isMissingTable, prescriptionFromRow, sessionFromRow } from './supabaseClinic';
+import { isDuplicate, isMissingTable, namedRefusal, prescriptionFromRow, sessionFromRow } from './supabaseClinic';
+
+it('names the doctor when a join is refused because the player already has one', () => {
+  expect(namedRefusal('You already have a doctor', 'Dr. Okafor')).toBe('You already have a doctor: Dr. Okafor');
+  // Without a name to give, and for any other refusal, the message is left as it is.
+  expect(namedRefusal('You already have a doctor', null)).toBe('You already have a doctor');
+  expect(namedRefusal('That code was not found', 'Dr. Okafor')).toBe('That code was not found');
+});
 
 it('recognises a missing table and a duplicate row', () => {
   expect(isMissingTable({ code: 'PGRST205' })).toBe(true);
