@@ -245,7 +245,7 @@ async function walk([width, height], first) {
     const slider = page.getByTestId('zoom-slider');
     expect('the zoom starts in the middle', (await slider.inputValue()) === '0.5', await slider.inputValue());
     const frameAt = () => page.getByTestId('camera-frame').evaluate((frame) => frame.getBoundingClientRect().toJSON());
-    const stageBox = await page.locator('.stage').evaluate((stage) => stage.getBoundingClientRect().toJSON());
+    const stageBox = await page.locator('.stage__picture').evaluate((stage) => stage.getBoundingClientRect().toJSON());
     await slider.fill('0');
     await settle(300);
     await page.screenshot({ path: path.join(outDir, `zoom-close-${tag}.png`) });
@@ -256,7 +256,7 @@ async function walk([width, height], first) {
     const full = await frameAt();
     const covers = close.left <= stageBox.left + 1 && close.right >= stageBox.right - 1 && close.top <= stageBox.top + 1 && close.bottom >= stageBox.bottom - 1;
     const inside = full.left >= stageBox.left - 1 && full.right <= stageBox.right + 1 && full.top >= stageBox.top - 1 && full.bottom <= stageBox.bottom + 1;
-    expect('closest covers the stage; full frame fits inside it', covers && inside, `stage ${Math.round(stageBox.width)}x${Math.round(stageBox.height)}, close ${Math.round(close.width)}x${Math.round(close.height)}, full ${Math.round(full.width)}x${Math.round(full.height)}`);
+    expect('closest covers the picture area; full frame fits inside it', covers && inside, `stage ${Math.round(stageBox.width)}x${Math.round(stageBox.height)}, close ${Math.round(close.width)}x${Math.round(close.height)}, full ${Math.round(full.width)}x${Math.round(full.height)}`);
     const canvasMatches = await page.evaluate(() => {
       const video = document.querySelector('.stage__video').getBoundingClientRect();
       const canvas = document.querySelector('.stage__canvas').getBoundingClientRect();

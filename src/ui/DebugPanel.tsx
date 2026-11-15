@@ -64,10 +64,6 @@ export function DebugPanel({ session, engine, songId, calibration, playRef }: De
         <dd data-testid="debug-loop">
           {engine?.loopLength != null ? `${engine.loopLength.toFixed(4)} s` : '–'}
         </dd>
-        <dt>Melody stem</dt>
-        <dd data-testid="debug-melody">
-          {engine?.mode === 'stems' ? (engine.melodyActive ? 'in' : 'out') : 'no stems'}
-        </dd>
         <dt>Beat</dt>
         <dd>{fixed(play?.beat, 2)}</dd>
         <dt>Frame / hold score</dt>

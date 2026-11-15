@@ -2,7 +2,7 @@
 
 ## What it is
 
-Rehabeat is an arcade rhythm game for home stretching and rehab exercises. You stand about two metres from a laptop, a target figure shows the pose, and you match it on the beat. The melody only plays while your form holds.
+Rehabeat is an arcade rhythm game for home stretching and rehab exercises. You stand about two metres from a laptop, a target figure shows the pose, and you match it on the beat. The song plays straight through: miss a move and you catch the next one.
 
 It should feel like the menus of a rhythm game, not like a health app.
 

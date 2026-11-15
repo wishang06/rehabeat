@@ -331,14 +331,12 @@ async function happyPath(url) {
     }
 
     if (expectHit) {
-      // The clip should land at least one hold; with stems, that brings the melody in.
+      // The clip should land at least one hold.
       const hit = await page
         .waitForFunction(() => /^(Good|Perfect)/.test(document.querySelector('[data-testid="result-label"]')?.textContent ?? ''), null, { timeout: 45_000 })
         .then(() => true, () => false);
       measured.hit = hit ? (await result.textContent())?.trim() : 'none';
       check('the camera clip lands a Good or Perfect hold', hit, measured.hit);
-      measured.melody = await page.getByTestId('debug-melody').textContent();
-      check('melody stem is in after a Good hold', measured.melody === 'in', measured.melody ?? '');
     }
     await page.screenshot({ path: path.join(outDir, '4-play-debug.png') });
 
@@ -629,7 +627,7 @@ async function fitPath(url) {
     const framing = () =>
       page.evaluate(() => {
         const box = (selector) => document.querySelector(selector).getBoundingClientRect();
-        const stage = box('.stage');
+        const stage = box('.stage__picture');
         const video = box('.stage__video');
         const canvas = box('.stage__canvas');
         return {
@@ -640,6 +638,7 @@ async function fitPath(url) {
         };
       });
     check('the camera zoom starts in the middle', (await slider.inputValue()) === '0.5', await slider.inputValue());
+    const middle = await page.getByTestId('camera-frame').evaluate((frame) => frame.getBoundingClientRect().toJSON());
     await slider.fill('0');
     const close = await framing();
     await slider.fill('1');
@@ -656,7 +655,28 @@ async function fitPath(url) {
     await page.getByTestId('calibrate-skip').click();
     await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
     const playFrame = await framing();
-    check('Play uses the zoom from Calibrate', playFrame.locked && !playFrame.covers && !playFrame.inside, JSON.stringify(playFrame));
+    const playBox = await page.getByTestId('camera-frame').evaluate((frame) => frame.getBoundingClientRect().toJSON());
+    check(
+      'Play uses the zoom from Calibrate',
+      playFrame.locked && ['left', 'top', 'width', 'height'].every((key) => Math.abs(playBox[key] - middle[key]) < 1),
+      JSON.stringify({ middle, playBox }),
+    );
+    // The screen rides in along the lane for 0.2 s; measure the HUD once it has stopped.
+    await page.waitForTimeout(500);
+    const rails = await page.evaluate(() => {
+      const stage = document.querySelector('.stage');
+      const picture = document.querySelector('.stage__picture').getBoundingClientRect();
+      const inRail = (selector, side) => {
+        const box = document.querySelector(selector)?.getBoundingClientRect();
+        return Boolean(box) && (side === 'left' ? box.right <= picture.left + 1 : box.left >= picture.right - 1);
+      };
+      return {
+        on: stage.dataset.rails === 'true',
+        left: ['.hud-stats', '.tube', '.hud-ring'].every((selector) => inRail(selector, 'left')),
+        right: ['.hud-moves', '.hud-combo'].every((selector) => inRail(selector, 'right')),
+      };
+    });
+    check('on a wide window the HUD panels sit in the rails beside the picture, not over it', rails.on && rails.left && rails.right, JSON.stringify(rails));
     const tube = await page.getByTestId('score-tube').evaluate((element) => ({
       left: element.getBoundingClientRect().left - document.querySelector('.hud').getBoundingClientRect().left,
       marks: element.querySelectorAll('.tube__mark').length,

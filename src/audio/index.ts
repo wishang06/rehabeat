@@ -18,9 +18,6 @@ export type { ClickOptions } from './clickTrack';
 export { loadStems } from './stems';
 export type { Stems } from './stems';
 
-export { GainFader } from './gainFader';
-export type { RampParam } from './gainFader';
-
 export { BeatEngine, STEM_GAIN } from './beatEngine';
 export type { BeatEngineMode, BeatEngineOptions } from './beatEngine';
 

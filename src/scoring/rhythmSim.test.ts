@@ -1,16 +1,16 @@
 /**
- * A simulated player through the whole path from pose angles to the melody:
- * AngleSmoother -> ScoringEngine -> melodyShouldPlay -> MelodyGate, on a
- * 72 BPM beat grid. The player moves like a person (minimum-jerk reaches),
- * the landmarks are noisy and the camera's frame rate is not steady, so these
- * tests check that the game hears the player on the beat.
+ * A simulated player through the whole path from pose angles to a result:
+ * AngleSmoother -> ScoringEngine, on a 72 BPM beat grid. The player moves
+ * like a person (minimum-jerk reaches), the landmarks are noisy and the
+ * camera's frame rate is not steady, so these tests check that the game hears
+ * the player on the beat. The song never waits: a move the player misses is a
+ * Miss, and the next move is scored on its own.
  */
 import { describe, expect, it } from 'vitest';
 import { AngleSmoother } from '../pose/angleSmoother';
 import type { BeatResult, Move, PoseFrame } from '../types';
-import { MELODY_HOLD_OFF_BEATS, MelodyGate } from './melodyGate';
 import { Routine } from './routine';
-import { ScoringEngine, melodyShouldPlay } from './scoringEngine';
+import { ScoringEngine } from './scoringEngine';
 
 const BPM = 72;
 const SPB = 60 / BPM;
@@ -102,10 +102,9 @@ function armAt(t: number, moves: readonly (Movement | null)[]): number {
   return REST;
 }
 
-/** When the clean arm crosses the Good line on the way up, and on the way down. */
+/** When the clean arm crosses the Good line on the way up. */
 const reachesGood = (move: Movement) =>
   move.arrive - MOVE_SEC + MOVE_SEC * minJerkAt((GOOD_ANGLE - REST) / (TARGET - REST));
-const losesGood = (move: Movement) => move.leave + MOVE_SEC * minJerkAt((TARGET - GOOD_ANGLE) / (TARGET - REST));
 
 /** Seeded uniform [0, 1) and standard normal noise, so the simulation never flakes. */
 function random(seed: number) {
@@ -129,8 +128,6 @@ interface SimOptions {
 
 interface SimRun {
   results: BeatResult[];
-  /** Every change of the melody, in time order. */
-  melody: { t: number; on: boolean }[];
   moves: (Movement | null)[];
 }
 
@@ -140,11 +137,8 @@ function simulate(plans: readonly CyclePlan[], options: SimOptions = {}): SimRun
   const moves = movements(plans);
   const smoother = new AngleSmoother();
   const engine = new ScoringEngine({ routine, timeOfBeat: (beat) => beat * SPB });
-  const gate = new MelodyGate(MELODY_HOLD_OFF_BEATS * SPB);
 
   const results: BeatResult[] = [];
-  const melody: SimRun['melody'] = [];
-  let playing = false;
   const end = plans.length * cycleBeats * SPB + 0.1;
   for (let t = 0; t < end; t += (1 / fps) * (1 + intervalJitter * (2 * uniform() - 1))) {
     const raw = {
@@ -154,21 +148,14 @@ function simulate(plans: readonly CyclePlan[], options: SimOptions = {}): SimRun
     const angles = smoother.smooth(raw, t);
     const frame: PoseFrame = { t, angles, visible: ['leftShoulder', 'rightShoulder'] };
     results.push(...engine.push(frame));
-    const on = gate.update(t, melodyShouldPlay(engine.live, engine.lastResult, true));
-    if (on !== playing) {
-      melody.push({ t, on });
-      playing = on;
-    }
   }
-  return { results, melody, moves };
+  return { results, moves };
 }
 
 const onTime: CyclePlan = { arriveBeats: 0 };
-const firstOn = (run: SimRun, after = -Infinity) => run.melody.find((change) => change.on && change.t >= after)?.t;
-const firstOff = (run: SimRun, after: number) => run.melody.find((change) => !change.on && change.t >= after)?.t;
 
-describe('rhythm simulation: a player through pose smoothing, scoring and the melody', () => {
-  it('an on-time player scores Perfect every cycle and keeps the melody on from the first hold', () => {
+describe('rhythm simulation: a player through pose smoothing and scoring', () => {
+  it('an on-time player scores Perfect every cycle', () => {
     const run = simulate([onTime, onTime, onTime, onTime]);
     expect(run.results.map((result) => result.label)).toEqual(['Perfect', 'Perfect', 'Perfect', 'Perfect']);
     // The measured arrival is within 25 ms of when the arm really crossed the Good line
@@ -177,62 +164,36 @@ describe('rhythm simulation: a player through pose smoothing, scoring and the me
       const truthMs = (reachesGood(run.moves[cycle]!) - holdStart(cycle)) * 1000;
       expect(Math.abs(result.timingOffsetMs - truthMs)).toBeLessThan(25);
     });
-    // On before the first hold starts, and never off again.
-    expect(run.melody[0]).toMatchObject({ on: true });
-    expect(run.melody[0].t).toBeLessThan(holdStart(0));
-    expect(run.melody).toHaveLength(1);
   });
 
-  it('the melody comes in within 0.25 s of a player who arrives a beat late', () => {
-    const run = simulate([{ arriveBeats: 1 }]);
-    const landed = reachesGood(run.moves[0]!);
-    const on = firstOn(run) ?? Infinity;
-    expect(on).toBeGreaterThan(landed);
-    expect(on - landed).toBeLessThan(0.25);
-  });
-
-  it('the melody drops within 0.8 s of a player who lets go half-way through the hold', () => {
-    const run = simulate([onTime, { arriveBeats: 0, leaveBeats: -2 }]);
-    const letGo = losesGood(run.moves[1]!);
-    const off = firstOff(run, holdStart(1)) ?? Infinity;
-    expect(off).toBeGreaterThan(letGo);
-    expect(off - letGo).toBeLessThan(0.8);
-    // And it is gone before the hold is over.
-    expect(off).toBeLessThan(holdEnd(1));
-  });
-
-  it('a player whose arms sag just under Good loses the melody, as the hold is a Miss', () => {
+  it('a player whose arms sag just under Good gets a Miss for that hold', () => {
     // Lands in the reach, then sags to 67.5 degrees (score 55) as the hold starts: under Good,
     // but above the line at which the lock lets go.
     const run = simulate([{ arriveBeats: -0.5, sagBeats: 0, sagDeg: 67.5 }]);
     expect(run.results[0].label).toBe('Miss');
-    expect(firstOn(run) ?? Infinity).toBeLessThan(holdStart(0));
-    const off = firstOff(run, holdStart(0)) ?? Infinity;
-    // Gone within the sag, half a beat and a frame or two, and not back for the rest of the hold.
-    expect(off - holdStart(0)).toBeLessThan(SAG_SEC + MELODY_HOLD_OFF_BEATS * SPB + 0.1);
-    expect(firstOn(run, off)).toBeUndefined();
   });
 
-  it('releasing a quarter beat early after a good hold leaves no gap in the melody', () => {
+  it('releasing a quarter beat early after a good hold is not a Miss', () => {
     const early: CyclePlan = { arriveBeats: 0, leaveBeats: -0.25 };
     const run = simulate([early, early, early]);
     expect(run.results.every((result) => result.label !== 'Miss')).toBe(true);
-    expect(run.melody).toHaveLength(1);
   });
 
-  it('a player who missed gets the melody back as soon as they land the next pose in the reach', () => {
-    const run = simulate([{ arriveBeats: null }, { arriveBeats: -1 }]);
-    expect(run.results[0].label).toBe('Miss');
-    const landed = reachesGood(run.moves[1]!);
-    const on = firstOn(run) ?? Infinity;
-    expect(on - landed).toBeLessThan(0.25);
-    expect(on).toBeLessThan(holdStart(1));
+  it('a player who sits a move out misses it and catches up on the next one', () => {
+    const run = simulate([onTime, { arriveBeats: null }, onTime, onTime]);
+    // The song carries on through the missed move: it is one Miss, and the moves after it score as usual.
+    expect(run.results.map((result) => result.label)).toEqual(['Perfect', 'Miss', 'Perfect', 'Perfect']);
+  });
+
+  it('a player who lets go half-way through a hold can still land the next one', () => {
+    const run = simulate([{ arriveBeats: 0, leaveBeats: -2 }, onTime]);
+    expect(run.results[0].label).not.toBe('Perfect');
+    expect(run.results[1].label).toBe('Perfect');
   });
 
   it('a 15 fps player (the CPU delegate on a slow laptop) still scores Perfect on time', () => {
     const run = simulate([onTime, onTime, onTime], { fps: 15, seed: 2 });
     expect(run.results.map((result) => result.label)).toEqual(['Perfect', 'Perfect', 'Perfect']);
-    expect(run.melody).toHaveLength(1);
   });
 
   it("irregular frame intervals do not change an on-time player's result", () => {

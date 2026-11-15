@@ -36,11 +36,9 @@ export {
 } from './limits';
 export { applyResult, initialStats, type Stats } from './stats';
 export type { HoldDetail, JointHold } from './holdDetail';
-export { MELODY_HOLD_OFF_BEATS, MelodyGate } from './melodyGate';
 export {
   MAX_FRAME_SPAN_SEC,
   ScoringEngine,
-  melodyShouldPlay,
   type LiveState,
   type ScoringEngineOptions,
 } from './scoringEngine';

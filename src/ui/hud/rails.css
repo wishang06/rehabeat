@@ -1,0 +1,139 @@
+/*
+ * The play HUD with rails (Stage.tsx, camera/rails.ts): on a wide window the
+ * camera picture keeps to the middle of the stage and the panels move out
+ * into the black bars either side, so the picture carries only what the
+ * player reads while moving: the phase word, the count, the result pop and
+ * the step-back banner.
+ *
+ *   left rail   run stats, the score tube, the match ring
+ *   right rail  the move cards (now, next), the combo
+ *
+ * --rail is each rail's width, set on the stage. Without rails (a narrow
+ * window) none of this applies and the HUD sits over the picture as before.
+ */
+.stage[data-rails='true'] .hud {
+  --rail-gap: clamp(14px, 1.4cqw, 22px);
+  --rail-inner: calc(var(--rail) - 2 * var(--rail-gap));
+  /* The picture between the rails. */
+  --picture: calc(100cqw - 2 * var(--rail));
+  /* The match ring's size. Not --ring: HoldRing writes the match score under that name. */
+  --ring-size: min(var(--rail-inner) - 8px, 32cqh);
+}
+
+/* ---------- over the picture, sized to it */
+.stage[data-rails='true'] :is(.hud-phase, .hud-pop, .hud-count) {
+  left: var(--rail);
+  right: var(--rail);
+}
+
+.stage[data-rails='true'] .hud-phase__word {
+  font-size: clamp(48px, calc(var(--picture) * 0.14), 140px);
+}
+
+.stage[data-rails='true'] .hud-count span {
+  font-size: clamp(110px, min(calc(var(--picture) * 0.34), 44cqh), 360px);
+}
+
+.stage[data-rails='true'] :is(.hud-banner, .hud-note) {
+  max-width: calc(var(--picture) - 2 * var(--rail-gap));
+}
+
+.stage[data-rails='true'] .hud-banner {
+  font-size: clamp(28px, calc(var(--picture) * 0.07), 64px);
+}
+
+.stage[data-rails='true'] .hud-pulse {
+  left: var(--rail);
+  right: var(--rail);
+}
+
+/* ---------- left rail: stats, a column of label and number */
+.stage[data-rails='true'] .hud-stats {
+  top: var(--rail-gap);
+  left: var(--rail-gap);
+  width: var(--rail-inner);
+  flex-direction: column;
+  gap: clamp(6px, 1.2cqh, 12px);
+}
+
+.stage[data-rails='true'] .hud-stats > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stage[data-rails='true'] .hud-stats dt {
+  font-size: clamp(12px, 1.8cqh, 15px);
+}
+
+.stage[data-rails='true'] .hud-stats dd {
+  margin: 0;
+  font-size: clamp(22px, 4cqh, 34px);
+}
+
+/* The score tube runs down the rail between the stats and the ring. */
+.stage[data-rails='true'] .tube {
+  top: clamp(150px, 24cqh, 210px);
+  bottom: calc(var(--rail-gap) + var(--ring-size) + 44px);
+  left: calc(var(--rail-gap) + 4px);
+}
+
+.stage[data-rails='true'] .hud-ring {
+  left: calc(var(--rail-gap) + (var(--rail-inner) - var(--ring-size)) / 2);
+  bottom: calc(var(--rail-gap) + 12px);
+  width: var(--ring-size);
+}
+
+/* ---------- right rail: the move cards, then the combo */
+.stage[data-rails='true'] .hud-moves {
+  top: var(--rail-gap);
+  right: calc(var(--rail-gap) + 6px);
+  width: calc(var(--rail-inner) - 6px);
+  transform: none;
+}
+
+.stage[data-rails='true'] .hud-move__tag {
+  font-size: clamp(11px, calc(var(--rail) * 0.045), 14px);
+  white-space: nowrap;
+}
+
+.stage[data-rails='true'] .hud-move__name {
+  font-size: clamp(18px, calc(var(--rail) * 0.11), 32px);
+}
+
+.stage[data-rails='true'] .hud-move .fig {
+  height: clamp(72px, 15cqh, 150px);
+}
+
+.stage[data-rails='true'] .hud-combo {
+  right: var(--rail-gap);
+  bottom: var(--rail-gap);
+  max-width: var(--rail-inner);
+}
+
+.stage[data-rails='true'] .hud-combo__n {
+  font-size: clamp(48px, calc(var(--rail) * 0.36), 110px);
+}
+
+.stage[data-rails='true'] .hud-combo__label {
+  font-size: clamp(16px, calc(var(--rail) * 0.1), 30px);
+}
+
+/* The ring's number and label scale with the ring, which is smaller in a rail. */
+.stage[data-rails='true'] .hud-ring__value {
+  font-size: calc(var(--ring-size) * 0.3);
+}
+
+.stage[data-rails='true'] .hud-ring__label {
+  font-size: clamp(11px, calc(var(--ring-size) * 0.08), 15px);
+}
+
+/* The result pop and the beat pips are over the picture too. */
+.stage[data-rails='true'] .hud-pop__word {
+  font-size: clamp(44px, calc(var(--picture) * 0.13), 130px);
+}
+
+.stage[data-rails='true'] .hud-beats li {
+  width: clamp(22px, calc(var(--picture) * 0.058), 60px);
+}

@@ -2,12 +2,9 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { FeedbackTracker, feedbackStore } from '../engine';
 import {
   GOOD_SCORE,
-  MELODY_HOLD_OFF_BEATS,
-  MelodyGate,
   Routine,
   ScoringEngine,
   initialStats,
-  melodyShouldPlay,
   pointsFor,
   type Calibration,
   type HoldDetail,
@@ -164,7 +161,6 @@ export function PlayScreen({
     });
     const feedback = new FeedbackTracker(routine);
     const overlay = new PlayOverlay();
-    const melody = new MelodyGate(MELODY_HOLD_OFF_BEATS * engine.grid.secondsPerBeat);
 
     const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now(), details: scoring.details, maxPoints };
     runRef.current = run;
@@ -188,9 +184,6 @@ export function PlayScreen({
       // Results must keep coming even if the camera stops delivering frames.
       scoring.tick(now - TICK_GRACE_SEC);
       const fresh = performance.now() - lastSampleAt < STALE_SAMPLE_MS;
-      // The "music follows you" mechanic: the melody plays while you are in the pose,
-      // and a stalled camera can't keep it playing.
-      engine.setMelodyActive(melody.update(now, melodyShouldPlay(scoring.live, scoring.lastResult, fresh)));
 
       // Award points once per newly scored move.
       if (scoring.stats.total > run.stats.total && scoring.lastResult) {
@@ -282,7 +275,6 @@ export function PlayScreen({
       cancelAnimationFrame(frame);
       unsubscribe();
       feedbackStore.publish(null);
-      engine.setMelodyActive(false);
       engine.stop();
       debugRef.current = null;
     };

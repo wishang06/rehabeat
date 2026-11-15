@@ -345,7 +345,12 @@ export function App() {
         </header>
 
         <main className="app__main">
-          <Stage videoRef={videoRef} canvasRef={canvasRef} live={session !== null}>
+          <Stage
+            videoRef={videoRef}
+            canvasRef={canvasRef}
+            live={session !== null}
+            rails={screen === 'play' || screen === 'calibrate'}
+          >
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={screen}
