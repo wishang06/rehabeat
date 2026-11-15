@@ -18,7 +18,7 @@ import {
 const run = (accuracy: number, miss = 0, moves = 12) => ({ moves, miss, accuracy });
 
 describe('gradeFor', () => {
-  it('gives an S for 90 or better with no misses', () => {
+  it('gives an S for 85 or better with no misses', () => {
     expect(gradeFor(run(S_ACCURACY))).toBe('S');
     expect(gradeFor(run(100))).toBe('S');
   });

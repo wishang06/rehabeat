@@ -144,3 +144,53 @@ describe('buildPoseSample', () => {
     expect(kept.frame.angles.leftElbow).toBeDefined();
   });
 });
+
+describe('buildPoseSample: flat angles', () => {
+  /** The left elbow pushed toward the camera in 3D; the picture (IMAGE_LANDMARKS) has the arm straight. */
+  const bentInDepth = () => withLandmarks(standingPose(), { leftElbow: point(0.15, -0.2, -0.2) });
+
+  it('adds them when it is given the aspect and a second smoother', () => {
+    const { frame } = buildPoseSample(
+      input({ worldLandmarks: bentInDepth(), aspect: 16 / 9 }),
+      new AngleSmoother(),
+      new AngleSmoother(),
+    );
+    expect(frame.angles.leftElbow).toBeLessThan(120);
+    expect(frame.flatAngles?.leftElbow).toBeCloseTo(180, 6);
+    expect(Object.keys(frame.flatAngles ?? {}).sort()).toEqual([...frame.visible].sort());
+  });
+
+  it('leaves them out without the aspect or without the second smoother', () => {
+    expect(buildPoseSample(input({ aspect: 16 / 9 }), new AngleSmoother()).frame).not.toHaveProperty('flatAngles');
+    expect(buildPoseSample(input(), new AngleSmoother(), new AngleSmoother()).frame).not.toHaveProperty('flatAngles');
+  });
+
+  it('measures them only for the joints the 3D reading counts as visible', () => {
+    const world = withLandmarks(standingPose(), { rightAnkle: point(-0.15, 0.9, 0, 0.1) });
+    const { frame } = buildPoseSample(
+      input({ worldLandmarks: world, aspect: 16 / 9 }),
+      new AngleSmoother(),
+      new AngleSmoother(),
+    );
+    expect(frame.flatAngles).not.toHaveProperty('rightKnee');
+    expect(frame.flatAngles).toHaveProperty('leftKnee');
+  });
+
+  it('starts the flat angles afresh after the pose was lost', () => {
+    const flatSmoother = new AngleSmoother();
+    const armsOut = armsOutPose();
+    buildPoseSample(input({ landmarks: armsOut, aspect: 1, filterSeconds: 3 }), new AngleSmoother(), flatSmoother);
+    buildPoseSample(
+      input({ landmarks: null, worldLandmarks: null, aspect: 1, filterSeconds: 3 + FRAME }),
+      new AngleSmoother(),
+      flatSmoother,
+    );
+    const { frame } = buildPoseSample(
+      input({ aspect: 1, filterSeconds: 3 + 2 * FRAME }),
+      new AngleSmoother(),
+      flatSmoother,
+    );
+    // Arms down again: no easing in from the arms-out reading of two frames ago.
+    expect(frame.flatAngles?.leftShoulder).toBeCloseTo(0, 6);
+  });
+});

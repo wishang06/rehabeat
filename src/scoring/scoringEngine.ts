@@ -1,6 +1,6 @@
 import type { BeatResult, FormMetrics, JointName, PoseFrame } from '../types';
 import { FormMonitor, formNoteFor } from './formRules';
-import { labelFor, scoreFrame } from './frameScore';
+import { jointReading, labelFor, scoreFrame } from './frameScore';
 import type { HoldDetail, JointHold } from './holdDetail';
 import { LimitWatcher, type JointLimits } from './limits';
 import { PoseLock } from './poseLock';
@@ -29,7 +29,7 @@ export interface LiveState {
   phase: Phase | null;
   /** Score of the latest frame against the current move. */
   frameScore: number;
-  /** Mean frame score over the hold so far; null outside the hold window. */
+  /** The hold's score so far (see HOLD_BEST_SHARE); null outside the hold window. */
   holdScore: number | null;
   /** Form guidance flagged during the current cycle, if any. */
   formNote: string | null;
@@ -58,6 +58,44 @@ const NO_FORM: FormMetrics = { trunkLeanDeg: null, shoulderEarRatio: null };
  */
 export const MAX_FRAME_SPAN_SEC = 0.2;
 
+/**
+ * The share of a hold that is scored: its best three-quarters, by time. The
+ * rest is free, so on a four-beat hold a player can land the pose a beat
+ * late, wobble out of it for a beat or let go a beat early and still score
+ * what they held. Moving between whole-body poses often takes longer than
+ * the reach allows; a hold only half kept still loses.
+ */
+export const HOLD_BEST_SHARE = 0.75;
+
+/** A stretch of a hold window at one frame score. */
+interface HoldSpan {
+  score: number;
+  seconds: number;
+}
+
+/**
+ * The time-weighted mean score of the best `share` of the spans, by time.
+ * 0 with no spans. Kept as a running mean, so spans that all share one score
+ * give exactly that score.
+ */
+export function bestShareMean(spans: readonly HoldSpan[], share: number): number {
+  let covered = 0;
+  for (const span of spans) covered += span.seconds;
+  const wanted = covered * share;
+  if (!(wanted > 0)) return 0;
+
+  const best = [...spans].sort((a, b) => b.score - a.score);
+  let mean = 0;
+  let taken = 0;
+  for (const span of best) {
+    const seconds = Math.min(span.seconds, wanted - taken);
+    if (!(seconds > 0)) break;
+    taken += seconds;
+    mean += ((span.score - mean) * seconds) / taken;
+  }
+  return mean;
+}
+
 /** A frame the engine has seen, at its offset-corrected time. */
 interface SeenFrame {
   t: number;
@@ -68,10 +106,10 @@ interface SeenFrame {
  * Turns a stream of PoseFrames into one BeatResult per move cycle.
  *
  * Every frame gets a 0-100 score against the current move. A move's score is
- * the time-weighted mean of those frame scores inside its hold window only:
- * each frame stands from its own time until the next one (at most
- * MAX_FRAME_SPAN_SEC), so the hold is judged by time on the beat grid and a
- * dip in the frame rate does not change the result.
+ * the time-weighted mean of those frame scores over the best HOLD_BEST_SHARE
+ * of its hold window: each frame stands from its own time until the next one
+ * (at most MAX_FRAME_SPAN_SEC), so the hold is judged by time on the beat
+ * grid and a dip in the frame rate does not change the result.
  */
 export class ScoringEngine {
   private readonly routine: Routine;
@@ -83,8 +121,8 @@ export class ScoringEngine {
 
   private current: CycleTimes;
   private finalized = false;
-  /** Time-weighted mean frame score over the part of the hold window covered so far. */
-  private holdAverage = 0;
+  /** The part of the hold window covered by frames so far, one span per frame. */
+  private holdSpans: HoldSpan[] = [];
   /** Seconds of the hold window covered by frames so far. */
   private holdCovered = 0;
   private previous: SeenFrame | null = null;
@@ -204,13 +242,12 @@ export class ScoringEngine {
     const overlap = Math.min(spanEnd, holdEnd) - Math.max(previous.t, holdStart);
     if (!(overlap > 0)) return;
     this.holdCovered += overlap;
-    // A running weighted mean, so a hold at a constant score stays exactly that score.
-    const score = scoreFrame(previous.frame, cycle.move);
-    this.holdAverage += ((score - this.holdAverage) * overlap) / this.holdCovered;
+    this.holdSpans.push({ score: scoreFrame(previous.frame, cycle.move), seconds: overlap });
 
     // The same span, joint by joint: where each was against its target, for the time it was in view.
+    // Over the whole hold, not its best share: this is the record of what the joint did.
     for (const [joint, target] of Object.entries(cycle.move.joints) as [JointName, number][]) {
-      const angle = previous.frame.angles[joint];
+      const angle = jointReading(previous.frame, joint, target);
       if (angle === undefined) continue;
       const held = this.jointHolds.get(joint) ?? { meanError: 0, covered: 0 };
       held.covered += overlap;
@@ -219,9 +256,9 @@ export class ScoringEngine {
     }
   }
 
-  /** The hold's time-weighted mean so far; `fallback` until any time is covered. */
+  /** The hold's score so far, over the best share of the time covered; `fallback` until any is. */
   private holdMean(fallback: number): number {
-    return this.holdCovered > 0 ? this.holdAverage : fallback;
+    return this.holdCovered > 0 ? bestShareMean(this.holdSpans, HOLD_BEST_SHARE) : fallback;
   }
 
   /**
@@ -282,7 +319,7 @@ export class ScoringEngine {
   private advance(): void {
     this.current = this.timesFor(this.current.cycle.index + 1);
     this.finalized = false;
-    this.holdAverage = 0;
+    this.holdSpans = [];
     this.holdCovered = 0;
     this.arrivedAt = null;
     this.formNote = null;

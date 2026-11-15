@@ -94,6 +94,17 @@ describe('buildFeedbackFrame: limbs', () => {
     expect(frame.limbs.leftThigh).toMatchObject({ status: 'idle', scored: false, errorDeg: null, targetDeg: null });
   });
 
+  it('reads a scored joint the way scoring does: by whichever reading is nearer its target', () => {
+    // In 3D the left arm is 40 short of overhead; in the picture it is 5 short.
+    const frame = build({
+      beat: 5,
+      frame: { ...frameOf({ ...ARMS_DOWN, leftShoulder: 130 }), flatAngles: { leftShoulder: 165, leftHip: 90 } },
+    });
+    expect(frame.limbs.leftUpperArm).toMatchObject({ status: 'green', errorDeg: 5, currentDeg: 165 });
+    // A joint the move does not score has no target to be near: it keeps its 3D angle.
+    expect(frame.limbs.leftThigh).toMatchObject({ status: 'idle', currentDeg: 178 });
+  });
+
   it('judges nothing during the count-in or a release', () => {
     for (const beat of [1, 11]) {
       const frame = build({ beat });

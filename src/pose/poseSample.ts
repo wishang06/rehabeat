@@ -1,6 +1,6 @@
 import type { JointName, Landmark, PoseSample } from '../types';
 import type { AngleSmoother } from './angleSmoother';
-import { computeJointAngles } from './angles';
+import { computeFlatAngles, computeJointAngles } from './angles';
 import { computeFormMetrics } from './formMetrics';
 
 /** A landmark as the detector returns it: visibility may be missing. */
@@ -21,6 +21,11 @@ export interface PoseSampleInput {
   filterSeconds: number;
   landmarks: Landmark[] | null;
   worldLandmarks: Landmark[] | null;
+  /**
+   * The camera frame's width over its height. With it (and a second smoother
+   * passed to buildPoseSample) the frame also carries PoseFrame.flatAngles.
+   */
+  aspect?: number;
   detectMs: number;
   fps: number;
   /**
@@ -40,14 +45,21 @@ export function normaliseLandmarks(
 
 /**
  * Turns one frame's detection into a PoseSample. Without a pose the sample is
- * empty and the smoother is reset, so the next pose does not ease in from the
- * angles of the one that was lost.
+ * empty and the smoothers are reset, so the next pose does not ease in from the
+ * angles of the one that was lost. `flatSmoother` steadies the flat angles
+ * the same way `smoother` steadies the 3D ones; without it, or without
+ * `input.aspect`, the frame has no flat angles.
  */
-export function buildPoseSample(input: PoseSampleInput, smoother: AngleSmoother): PoseSample {
+export function buildPoseSample(
+  input: PoseSampleInput,
+  smoother: AngleSmoother,
+  flatSmoother?: AngleSmoother,
+): PoseSample {
   const { t, landmarks, worldLandmarks, detectMs, fps } = input;
 
   if (!landmarks || !worldLandmarks) {
     smoother.reset();
+    flatSmoother?.reset();
     return {
       frame: { t, angles: {}, visible: [] },
       landmarks: null,
@@ -63,8 +75,15 @@ export function buildPoseSample(input: PoseSampleInput, smoother: AngleSmoother)
     undefined,
     new Set(input.previousVisible ?? []),
   );
+  const frame: PoseSample['frame'] = { t, angles: smoother.smooth(angles, input.filterSeconds), visible };
+  if (flatSmoother && input.aspect !== undefined && input.aspect > 0) {
+    frame.flatAngles = flatSmoother.smooth(
+      computeFlatAngles(landmarks, input.aspect, visible),
+      input.filterSeconds,
+    );
+  }
   return {
-    frame: { t, angles: smoother.smooth(angles, input.filterSeconds), visible },
+    frame,
     landmarks,
     worldLandmarks,
     form: computeFormMetrics(worldLandmarks),

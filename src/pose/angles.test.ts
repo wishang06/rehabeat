@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { JOINT_NAMES } from '../types';
-import { angleBetween, computeJointAngles } from './angles';
+import { angleBetween, computeFlatAngles, computeJointAngles } from './angles';
 import { KEEP_MEASURED_VISIBILITY, MIN_VISIBILITY } from './landmarks';
 import { hiddenPose, point, standingPose, withLandmarks } from './poseFixtures';
 
@@ -174,5 +174,35 @@ describe('computeJointAngles', () => {
       const { visible } = computeJointAngles(hovering(0.55), MIN_VISIBILITY, new Set(['rightElbow']));
       expect(visible).not.toContain('leftElbow');
     });
+  });
+});
+
+describe('computeFlatAngles', () => {
+  it('measures the angle a joint makes in the picture, whatever the depth says', () => {
+    // An arm hanging straight, with the elbow pushed 20 cm toward the camera by a bad depth estimate.
+    const pose = withLandmarks(standingPose(), { leftElbow: point(0.15, -0.2, -0.2) });
+    expect(computeJointAngles(pose).angles.leftElbow).toBeLessThan(120);
+    expect(computeFlatAngles(pose, 1, ['leftElbow']).leftElbow).toBeCloseTo(180, 6);
+  });
+
+  it('puts both axes on the same scale with the aspect', () => {
+    // Normalised to a frame twice as wide as it is tall: the forearm drops 0.2 of the
+    // height while going 0.1 of the width, which is 0.2 of the height too. 45 degrees.
+    const pose = withLandmarks(standingPose(), {
+      leftShoulder: point(0.5, 0.5),
+      leftElbow: point(0.6, 0.5),
+      leftWrist: point(0.7, 0.7),
+    });
+    expect(computeFlatAngles(pose, 2, ['leftElbow']).leftElbow).toBeCloseTo(135, 6);
+    expect(computeFlatAngles(pose, 1, ['leftElbow']).leftElbow).toBeCloseTo(180 - (Math.atan(2) * 180) / Math.PI, 6);
+  });
+
+  it('measures only the joints it is asked for', () => {
+    expect(Object.keys(computeFlatAngles(standingPose(), 1, ['leftKnee', 'rightHip'])).sort()).toEqual([
+      'leftKnee',
+      'rightHip',
+    ]);
+    expect(computeFlatAngles(standingPose(), 1, [])).toEqual({});
+    expect(computeFlatAngles([], 1, ['leftKnee'])).toEqual({});
   });
 });

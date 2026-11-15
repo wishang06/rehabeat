@@ -33,11 +33,17 @@ export type JointName = (typeof JOINT_NAMES)[number];
  * `t` is master-clock seconds (the AudioContext.currentTime timeline).
  * `angles` are smoothed, in degrees (0-180), and only hold joints whose
  * landmarks were all visible. `visible` lists those same joints.
+ *
+ * `flatAngles` was added later and is optional, so nothing built against the
+ * three fields above changes: the same joints measured in the camera picture
+ * instead of in 3D (see computeFlatAngles). Scoring takes whichever reading
+ * of a joint is nearer its target.
  */
 export interface PoseFrame {
   t: number;
   angles: Partial<Record<JointName, number>>;
   visible: JointName[];
+  flatAngles?: Partial<Record<JointName, number>>;
 }
 
 /**
@@ -62,7 +68,7 @@ export type BeatLabel = 'Perfect' | 'Good' | 'Miss';
 /**
  * The result of one move cycle. LOCKED.
  *
- * `score` is 0-100, the mean frame score over the hold window.
+ * `score` is 0-100, the mean frame score over the best three-quarters of the hold window.
  * `timingOffsetMs` is how late (positive) or early (negative) the player
  * arrived at the pose relative to the first hold beat.
  */

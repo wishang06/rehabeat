@@ -1,4 +1,4 @@
-import { GOOD_SCORE, type LiveState, type Routine } from '../scoring';
+import { GOOD_SCORE, jointReading, type LiveState, type Routine } from '../scoring';
 import { JOINT_NAMES, type JointName, type Landmark, type Move, type PoseFrame } from '../types';
 import type {
   FeedbackFrame,
@@ -128,7 +128,8 @@ export function buildFeedbackFrame(
 
   for (const { limb, joint } of LIMBS) {
     const target = move.joints[joint];
-    const current = angles[joint];
+    // A scored joint is read the way scoring reads it, so the colours and the hint agree with the score.
+    const current = frame && target !== undefined ? jointReading(frame, joint, target) : angles[joint];
     const scored = target !== undefined;
     const errorDeg = scored && current !== undefined ? Math.abs(current - target) : null;
 
@@ -169,8 +170,8 @@ export function buildFeedbackFrame(
   const errorSince = candidate === null ? null : newCycle ? now : (previous.errorSince ?? now);
   let hint: FeedbackFrame['hint'] = null;
   if (candidate !== null && errorSince !== null && (now - errorSince) * 1000 >= HINT_DELAY_MS) {
-    const current = angles[candidate];
     const target = move.joints[candidate];
+    const current = frame && target !== undefined ? jointReading(frame, candidate, target) : undefined;
     const status = limbs[LIMB_OF_JOINT[candidate]].status;
     if (current !== undefined && target !== undefined && (status === 'amber' || status === 'red')) {
       hint = { joint: candidate, limb: LIMB_OF_JOINT[candidate], text: hintText(candidate, current, target), status };

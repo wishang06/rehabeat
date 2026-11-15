@@ -1,10 +1,13 @@
 export {
   GOOD_SCORE,
   PERFECT_SCORE,
+  UNSEEN_JOINT_TOLERANCES,
+  jointReading,
   labelFor,
   meanAngleError,
   scoreFrame,
   scoreFromError,
+  unseenJointError,
   zeroScoreError,
 } from './frameScore';
 export { Routine, type Cycle, type Phase, type PhaseInfo } from './routine';
@@ -37,6 +40,7 @@ export {
 export { applyResult, initialStats, type Stats } from './stats';
 export type { HoldDetail, JointHold } from './holdDetail';
 export {
+  HOLD_BEST_SHARE,
   MAX_FRAME_SPAN_SEC,
   ScoringEngine,
   type LiveState,

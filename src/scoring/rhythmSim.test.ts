@@ -185,6 +185,27 @@ describe('rhythm simulation: a player through pose smoothing and scoring', () =>
     expect(run.results.map((result) => result.label)).toEqual(['Perfect', 'Miss', 'Perfect', 'Perfect']);
   });
 
+  it('a player who lands the pose a beat late scores the three beats they held', () => {
+    const beatLate: CyclePlan = { arriveBeats: 1 };
+    const run = simulate([beatLate, beatLate, beatLate]);
+    expect(run.results.map((result) => result.label)).toEqual(['Perfect', 'Perfect', 'Perfect']);
+    // The lateness is still measured: about a beat (833 ms), less the end of the reach that already reads Good.
+    run.results.forEach((result) => {
+      expect(result.timingOffsetMs).toBeGreaterThan(500);
+      expect(result.timingOffsetMs).toBeLessThan(SPB * 1000);
+    });
+  });
+
+  it('a player who lands it two beats late gets a Good, not a Miss and not a Perfect', () => {
+    const run = simulate([{ arriveBeats: 2 }, { arriveBeats: 2 }]);
+    expect(run.results.map((result) => result.label)).toEqual(['Good', 'Good']);
+  });
+
+  it('a player who only catches the last beat of the hold still misses it', () => {
+    const run = simulate([{ arriveBeats: 3 }]);
+    expect(run.results[0].label).toBe('Miss');
+  });
+
   it('a player who lets go half-way through a hold can still land the next one', () => {
     const run = simulate([{ arriveBeats: 0, leaveBeats: -2 }, onTime]);
     expect(run.results[0].label).not.toBe('Perfect');
