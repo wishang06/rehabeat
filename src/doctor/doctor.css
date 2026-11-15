@@ -99,10 +99,6 @@
   color: var(--color-dim);
 }
 
-.doc-banner b {
-  color: var(--color-white);
-}
-
 .doc-banner--warn {
   color: var(--color-pink);
 }
