@@ -13,28 +13,40 @@ export { HINT_SWITCH_MARGIN_DEG, RED_AFTER_TOLERANCES, hintText, jointStatus, pi
 export { LIMBS, LIMB_OF_JOINT, jointVisibility, type LimbSpec } from './limbs';
 export {
   LIMB_RADII,
+  PROPORTION,
   REST_POSE,
   bodyFromLandmarks,
   bodyScale,
-  buildSilhouette,
-  capsuleOutline,
-  inflateSilhouette,
   poseForMove,
-  silhouetteBounds,
   standardBody,
-  steadyBody,
-  translateSilhouette,
   type BodyFrame,
   type Bounds,
   type Capsule,
-  type CapsuleOutline,
   type Point,
   type SegmentLengths,
-  type Silhouette,
   type SilhouettePose,
 } from './silhouette';
-export { OVERLAP_FRACTION, armTorsoOverlap, figureOffset, needsOffset, type OffsetInput, type Side } from './placement';
-export { FigureEaser, POSE_EASE_MS, easeOutCubic, type FigureState } from './ease';
+export { FigureAnchor } from './anchor';
+export { LandmarkSmoother } from './landmarkSmoother';
+export {
+  BONES,
+  DEFAULT_ORDER,
+  STICK_JOINTS,
+  StickEaser,
+  pictureAngle,
+  stickFigure,
+  stickPoints,
+  viewForPose,
+  type Bone,
+  type BoneAim,
+  type FigureView,
+  type LimbChain,
+  type StickFigure,
+  type StickJoint,
+  type StickPoints,
+} from './stick';
+export { MOVE_VIEWS, REST_VIEW, viewForMove } from './moveViews';
+export { POSE_EASE_MS, easeOutCubic } from './ease';
 export {
   KEEP_VISIBILITY,
   PLAYER_WIDTH,
