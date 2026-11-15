@@ -80,7 +80,6 @@ export function Hero() {
             Play now
           </Link>
         </Button>
-        <p className="lp-note">You need a webcam and about two metres of floor. Nothing to install.</p>
 
         <div className="lp-beat" aria-hidden="true">
           <p className="lp-phase">

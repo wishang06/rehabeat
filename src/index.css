@@ -124,40 +124,11 @@
   text-decoration: none;
 }
 
-.app__steps {
-  display: flex;
-  gap: 0.625rem;
-  font: 700 0.9375rem/1 var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-faint);
-}
-
-.app__steps li + li::before {
-  content: '/';
-  margin-right: 0.625rem;
-  color: var(--color-deck-3);
-}
-
-.app__steps [aria-current='step'] {
-  color: var(--color-cyan);
-}
-
 .app__actions {
   display: flex;
   align-items: center;
   gap: 1.125rem;
   margin-left: auto;
-}
-
-.app__hint {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font: 700 0.8125rem/1 var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-faint);
 }
 
 .app__main {
@@ -643,12 +614,6 @@
   color: var(--color-cyan);
 }
 
-.menu-header__lede {
-  max-width: 56ch;
-  color: var(--color-dim);
-  line-height: 1.45;
-}
-
 /* Start-up progress, as a blinking cabinet message. */
 .menu-header__status {
   font: 900 1.125rem/1.2 var(--font-led);
@@ -833,11 +798,6 @@
 }
 
 @media (max-width: 40rem) {
-  .app__steps,
-  .app__hint {
-    display: none;
-  }
-
   .app__bar {
     gap: 0.75rem;
   }

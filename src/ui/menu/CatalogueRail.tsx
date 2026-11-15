@@ -27,7 +27,7 @@ export function CatalogueRail({ groups, shown, selectedId, weight, tabId, panelI
   const credits = groups.length;
   const marks = rodMarks(groups);
 
-  const tab = (index: number, testId: string, name: string, range: string | null, detail: string) => (
+  const tab = (index: number, testId: string, name: string, range: string | null, detail: string | null) => (
     <button
       key={testId}
       ref={(element) => {
@@ -45,10 +45,12 @@ export function CatalogueRail({ groups, shown, selectedId, weight, tabId, panelI
       onClick={() => onChoose(index)}
     >
       <span className="menu-rail__name">{name}</span>
-      <span className="menu-rail__meta">
-        {range && <span className="menu-rail__range">{range}</span>}
-        <span className="menu-rail__detail">{detail}</span>
-      </span>
+      {(range || detail) && (
+        <span className="menu-rail__meta">
+          {range && <span className="menu-rail__range">{range}</span>}
+          {detail && <span className="menu-rail__detail">{detail}</span>}
+        </span>
+      )}
     </button>
   );
 
@@ -87,10 +89,11 @@ export function CatalogueRail({ groups, shown, selectedId, weight, tabId, panelI
             `catalogue-tab-${group.catalogue.id}`,
             group.catalogue.name,
             bpmRangeLabel(definitionFor(group.catalogue.id)),
-            songCountLabel(group.songs.length),
+            // Only an empty catalogue says how many songs it has.
+            group.songs.length === 0 ? songCountLabel(0) : null,
           ),
         )}
-        {tab(credits, 'catalogue-tab-credits', 'Credits', null, 'Music, data, licences')}
+        {tab(credits, 'catalogue-tab-credits', 'Credits', null, null)}
       </div>
     </div>
   );

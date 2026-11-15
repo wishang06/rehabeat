@@ -146,12 +146,7 @@ export function TitleScreen({
               />
               <div className="title__board-foot">
                 {/* Signed in, the profile menu is in the marquee. */}
-                {auth.ready && !auth.user && (
-                  <>
-                    <p className="title__board-text">Sign in to save your points and get on the board.</p>
-                    <AccountButton auth={auth} />
-                  </>
-                )}
+                {auth.ready && !auth.user && <AccountButton auth={auth} />}
                 {onJoin && <JoinCode onJoin={onJoin} />}
               </div>
             </section>

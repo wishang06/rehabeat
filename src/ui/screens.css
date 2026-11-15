@@ -283,11 +283,6 @@
   gap: 0.625rem;
 }
 
-.title__board-text {
-  color: var(--color-dim);
-  font-size: 1rem;
-}
-
 @media (max-width: 72rem) {
   .title[data-board='true'] {
     grid-template-columns: minmax(0, 1fr) minmax(19rem, 0.8fr);
@@ -883,14 +878,9 @@
   }
 }
 
-/* Under 1280 px the marquee has no room for the meters next to the steps and buttons. */
+/* Under 1280 px the marquee has no room for the meters next to the buttons. */
 @media (min-width: 64rem) and (width < 80rem) {
   .app[data-screen='menu'] .app__bar .meters {
-    display: none;
-  }
-
-  /* The D-for-debug reminder gives way to the Play buttons (Figure, Full screen) on a narrower window. */
-  .app__hint {
     display: none;
   }
 }
