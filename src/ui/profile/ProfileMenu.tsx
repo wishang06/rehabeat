@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { signOut, type AuthState } from '../../lib/auth';
+import { JoinCode } from '../JoinCode';
 import { Avatar } from '../avatars/Avatar';
 import { AVATAR_IDS, AVATAR_NAMES, resolveAvatar, type AvatarId } from '../avatars/avatars';
 import { MAX_DISPLAY_NAME, validateDisplayName } from './displayName';
@@ -9,12 +10,19 @@ type View = 'main' | 'rename' | 'avatar';
 
 const SAVE_FAILED = "Couldn't save. Check your connection and try again.";
 
+interface ProfileMenuProps {
+  auth: AuthState;
+  /** Joins a doctor with their code. Null unless the player is in the real clinic and has no program. */
+  onJoin: ((code: string) => Promise<void>) | null;
+}
+
 /**
  * The signed-in player's avatar in the marquee. It opens a small panel: who
- * is signed in, Rename, Change avatar and Sign out. Esc steps back a view,
+ * is signed in, Rename, Change avatar and Sign out, and under them the field
+ * for a doctor's code while the player has no program. Esc steps back a view,
  * then closes; a click outside closes it.
  */
-export function ProfileMenu({ auth }: { auth: AuthState }) {
+export function ProfileMenu({ auth, onJoin }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('main');
   const root = useRef<HTMLDivElement>(null);
@@ -114,6 +122,9 @@ export function ProfileMenu({ auth }: { auth: AuthState }) {
               </button>
             </div>
           )}
+
+          {/* Joined, the program card is on the title screen, so the menu closes to show it. */}
+          {view === 'main' && onJoin && <JoinCode onJoin={(code) => onJoin(code).then(() => setOpen(false))} />}
 
           {view === 'rename' && <RenameForm name={name} auth={auth} onDone={() => setView('main')} />}
 

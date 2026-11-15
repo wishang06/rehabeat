@@ -683,41 +683,6 @@
   color: var(--color-faint);
 }
 
-/* Joining a doctor with their code, under the sign-in on the title screen's board. */
-.join {
-  display: grid;
-  gap: 0.375rem;
-  margin-top: 0.5rem;
-}
-
-.join__label,
-.join__error {
-  font-size: 1rem;
-  color: var(--color-dim);
-}
-
-.join__error {
-  color: var(--color-pink);
-}
-
-.join__row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.join__input {
-  width: 11.5rem;
-  min-height: 2.5rem;
-  padding: 0 0.625rem;
-  font: 600 1.125rem/1 var(--font-sans);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-white);
-  background: var(--color-void);
-  border: 0;
-}
-
 /* The title screen while the player's program is being read, and when it could not be. */
 .title__wait {
   min-height: 5.25rem;

@@ -57,19 +57,6 @@ function railPlacement(element: Element | null): MenuLayout['railPlacement'] {
   return getComputedStyle(element).getPropertyValue('--menu-rail').trim() === 'top' ? 'top' : 'side';
 }
 
-function SpeakerIcon({ muted }: { muted: boolean }) {
-  return (
-    <svg className="menu__hint-icon" viewBox="0 0 16 16" aria-hidden="true">
-      <path className="menu__hint-cone" d="M2.5 6h2.2L8 3.3v9.4L4.7 10H2.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5Z" />
-      {muted ? (
-        <path className="menu__hint-wave" d="m10.5 6 3 4m0-4-3 4" />
-      ) : (
-        <path className="menu__hint-wave" d="M10.6 5.6a3.4 3.4 0 0 1 0 4.8M12.4 3.8a6 6 0 0 1 0 8.4" />
-      )}
-    </svg>
-  );
-}
-
 /**
  * The song select menu: catalogues on a rail, the chosen catalogue's songs as
  * cards, and the credits. Hovering or focusing a card selects it and plays a
@@ -232,7 +219,6 @@ export function SongMenu({
       : null;
 
   const alternative = group && songs.length === 0 ? nearestStocked(groups, shown) : -1;
-  const playingSong = preview.playingId ? library.songs[preview.playingId] : undefined;
   const missing = group && songs.length > 0 ? missingNote(group) : null;
 
   return (
@@ -261,43 +247,6 @@ export function SongMenu({
           <header className="menu__lede">
             <h2 className="menu__title">{group ? group.catalogue.name : 'Credits'}</h2>
           </header>
-
-          {group && (
-            <div className="menu__status">
-              <p className="menu__hint" data-state={!preview.activated ? 'waiting' : playingSong ? 'playing' : 'ready'}>
-                <SpeakerIcon muted={!preview.activated} />
-                {!preview.activated ? (
-                  <>
-                    <span className="menu__on-pointer">Click anywhere or press a key to hear previews</span>
-                    <span className="menu__on-touch">Tap anywhere to hear previews</span>
-                  </>
-                ) : playingSong ? (
-                  <span>
-                    Previewing <span className="menu__hint-song">{playingSong.title}</span>
-                  </span>
-                ) : (
-                  <>
-                    <span className="menu__on-pointer">Hover or focus a song to hear a preview</span>
-                    <span className="menu__on-touch">Tap a song to hear it, tap again to play</span>
-                  </>
-                )}
-              </p>
-              <p className="menu__keys menu__on-pointer" aria-hidden="true">
-                <span>
-                  <kbd>←</kbd>
-                  <kbd>↑</kbd>
-                  <kbd>↓</kbd>
-                  <kbd>→</kbd> choose
-                </span>
-                <span>
-                  <kbd>Enter</kbd> play
-                </span>
-                <span>
-                  <kbd>Esc</kbd> back
-                </span>
-              </p>
-            </div>
-          )}
 
           {group && songs.length > 0 && (
             <ul className="menu__cards" data-menu-zone="content" aria-label={`${group.catalogue.name} songs`}>

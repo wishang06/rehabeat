@@ -275,6 +275,12 @@ export function App() {
     setScreen('play');
   };
 
+  // Joining a doctor with their code, from the profile menu: for a player signed in to the real clinic with no program.
+  const joinDoctor =
+    care?.kind === 'clinic' && !program && !programLoading && programError === null
+      ? (code: string) => care.joinWithCode(code).then(reloadProgram)
+      : null;
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="app" data-screen={screen}>
@@ -333,7 +339,7 @@ export function App() {
               and results screens have their own sign-in (the results one keeps the run).
             */}
             {supabase && screen !== 'play' && (auth.user || (screen !== 'title' && screen !== 'results')) && (
-              <AccountButton auth={auth} />
+              <AccountButton auth={auth} onJoin={joinDoctor} />
             )}
           </div>
         </header>
@@ -365,11 +371,6 @@ export function App() {
                     loading={programLoading}
                     programFailed={programError === 'failed'}
                     onRetryProgram={reloadProgram}
-                    onJoin={
-                      care?.kind === 'clinic' && !program && !programLoading && programError === null
-                        ? (code) => care.joinWithCode(code).then(reloadProgram)
-                        : null
-                    }
                   />
                 )}
                 {screen === 'menu' &&
