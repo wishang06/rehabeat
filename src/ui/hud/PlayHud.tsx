@@ -19,6 +19,7 @@ import type {
   StepBackBannerProps,
 } from './types';
 import { HudSounds } from './HudSounds';
+import { ScoreTube } from './ScoreTube';
 import './hud.css';
 
 const PHASE_LABEL: Record<FeedbackPhase, string> = {
@@ -325,6 +326,7 @@ export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
     <MotionConfig reducedMotion="user">
       <div className="hud" ref={ref} data-testid="play-screen">
         <RunStats points={run.points} accuracy={run.accuracy} perfectStreak={run.perfectStreak} />
+        <ScoreTube points={run.points} maxPoints={run.maxPoints} result={run.result} />
         <PhaseCue frames={frames} moves={moves} />
         <MoveCards
           frames={frames}

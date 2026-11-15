@@ -26,6 +26,21 @@ export function sessionOver(plan: PlayPlan, routine: Routine, beat: number, scor
   return scored >= total && beat >= routine.cycle(total - 1).endBeat;
 }
 
+/**
+ * How many moves the run is planned to score, which sets the most it can
+ * score (the score tube's full mark and the results' stars). A program
+ * session: its rounds of moves. Free play loops until the player stops, so
+ * it is measured against one pass of the song: the moves whose holds close
+ * within `passBeats` beats. With no song length to go by, one pass of the moves.
+ */
+export function plannedMoveCount(plan: PlayPlan, routine: Routine, passBeats: number | null): number {
+  if (plan.rounds !== null) return plan.rounds * plan.moves.length;
+  if (passBeats === null || !Number.isFinite(passBeats)) return plan.moves.length;
+  let count = 0;
+  while (routine.cycle(count).holdEndBeat <= passBeats) count++;
+  return Math.max(1, count);
+}
+
 /** The prompt for a joint that is past its limit. Guidance, worded as such: the angles are estimates. */
 export function easeOffText(joints: readonly JointName[]): string | null {
   return joints.length === 0 ? null : `Ease off your ${jointLabel(joints[0])}`;

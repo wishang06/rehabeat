@@ -1,4 +1,20 @@
-export { A_ACCURACY, B_ACCURACY, MAX_STARS, S_ACCURACY, gradeFor, starsFor, type Grade, type GradedRun } from './grade';
+export {
+  A_ACCURACY,
+  B_ACCURACY,
+  MAX_STARS,
+  STAR_THRESHOLDS,
+  S_ACCURACY,
+  gradeFor,
+  isSuperstar,
+  maxPointsFor,
+  scoreFraction,
+  starsCrossed,
+  starsFor,
+  starsForFraction,
+  type Grade,
+  type GradedRun,
+  type StarredRun,
+} from './grade';
 export {
   NO_STREAK,
   advanceStreak,

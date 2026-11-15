@@ -225,7 +225,7 @@ export function App() {
     const current = playRunRef.current;
     const stats = current?.stats ?? initialStats();
     const seconds = current ? (performance.now() - current.startedAt) / 1000 : 0;
-    const summary = summarizeRun(stats, current?.points ?? 0, seconds);
+    const summary = summarizeRun(stats, current?.points ?? 0, seconds, current?.maxPoints);
     // XP and the daily streak are banked here, once, as the run ends.
     const earned = recordRun(summary);
     // The run log and the calorie estimate are banked with it.

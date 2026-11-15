@@ -1,4 +1,4 @@
-import { useId, type Ref } from 'react';
+import { useId, type CSSProperties, type Ref } from 'react';
 import type { CatalogueGroup } from '../../songs/library';
 import { creditParts } from '../../songs/model';
 
@@ -23,7 +23,14 @@ export function CreditsView({ groups, ref }: CreditsViewProps) {
   const baseId = useId();
   const stocked = groups.filter((group) => group.songs.length > 0);
   return (
-    <div ref={ref} className="menu-credits" data-testid="credits-view" data-menu-zone="content" tabIndex={-1}>
+    <div
+      ref={ref}
+      className="menu-credits"
+      data-testid="credits-view"
+      data-menu-zone="content"
+      tabIndex={-1}
+      style={{ '--catalogues': Math.max(1, stocked.length) } as CSSProperties}
+    >
       {stocked.length === 0 && <p className="menu-credits__none">No songs have loaded, so there is nothing to credit yet.</p>}
       {stocked.map((group) => (
         <section

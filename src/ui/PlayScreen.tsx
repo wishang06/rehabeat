@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { FeedbackTracker, feedbackStore } from '../engine';
 import {
   GOOD_SCORE,
@@ -15,13 +15,14 @@ import {
   type Stats,
 } from '../scoring';
 import type { BeatEngine } from '../audio';
+import { maxPointsFor } from '../progress';
 import type { Session } from '../session';
 import type { BeatResult, Move } from '../types';
 import { prepareCanvas } from './canvas';
 import { PlayHud } from './hud/PlayHud';
 import type { HudRun } from './hud/types';
 import { PlayOverlay } from './overlay';
-import { easeOffText, roundOf, sessionOver, type PlayPlan } from './playProgram';
+import { easeOffText, plannedMoveCount, roundOf, sessionOver, type PlayPlan } from './playProgram';
 
 /** Beats of lead-in before the first move starts. */
 const COUNT_IN_BEATS = 4;
@@ -45,6 +46,8 @@ export interface PlayRun {
   startedAt: number;
   /** Every hold scored so far, in order: what a program session records. */
   details: readonly HoldDetail[];
+  /** The most this run can score (see plannedMoveCount): the score tube's full mark and the results' stars. */
+  maxPoints: number;
 }
 
 /** Live values the debug panel reads while the Play screen is up. */
@@ -140,6 +143,11 @@ export function PlayScreen({
   // The latest callback, without restarting the song when the parent re-renders.
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  // Free play is measured against one pass of the song: its loop, in beats.
+  const maxPoints = useMemo(() => {
+    const passBeats = engine.loopLength === null ? null : engine.loopLength / engine.grid.secondsPerBeat;
+    return maxPointsFor(plannedMoveCount(plan, new Routine(plan.moves, COUNT_IN_BEATS), passBeats));
+  }, [engine, plan]);
 
   useEffect(() => {
     engine.start();
@@ -158,7 +166,7 @@ export function PlayScreen({
     const overlay = new PlayOverlay();
     const melody = new MelodyGate(MELODY_HOLD_OFF_BEATS * engine.grid.secondsPerBeat);
 
-    const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now(), details: scoring.details };
+    const run: PlayRun = { stats: scoring.stats, points: 0, startedAt: performance.now(), details: scoring.details, maxPoints };
     runRef.current = run;
     let over = false;
 
@@ -278,12 +286,13 @@ export function PlayScreen({
       engine.stop();
       debugRef.current = null;
     };
-  }, [session, engine, calibration, plan, canvasRef, debugRef, runRef]);
+  }, [session, engine, calibration, plan, canvasRef, debugRef, runRef, maxPoints]);
 
   const { stats, result } = hud;
   // The scoring engine's state, in the shape the HUD takes. Per-frame values reach the HUD through feedbackStore.
   const run: HudRun = {
     points: hud.points,
+    maxPoints,
     combo: stats.combo,
     perfectStreak: stats.streak,
     accuracy: stats.total > 0 ? stats.accuracy : null,
