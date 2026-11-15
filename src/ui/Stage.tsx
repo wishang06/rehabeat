@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
+import { stageLayout } from './camera/rails';
 import { frameRect, type Size } from './camera/zoom';
 import { useCameraZoom } from './camera/zoomStore';
 
@@ -7,6 +8,8 @@ interface StageProps {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   /** True once the camera is live. */
   live: boolean;
+  /** Keep a rail each side of the picture for the HUD panels (Play and Calibrate on a wide window). */
+  rails?: boolean;
   children: ReactNode;
 }
 
@@ -17,9 +20,11 @@ const NO_SIZE: Size = { width: 0, height: 0 };
  * unmirrored HUD content above both. The video and the canvas share one frame,
  * placed by the camera zoom (see camera/zoom.ts) and always the camera's own
  * shape, so landmark coordinates line up with the picture at every zoom. What
- * the frame does not cover is the stage colour.
+ * the frame does not cover is the stage colour. With `rails`, the picture
+ * keeps to the middle of the stage and the HUD panels get the sides
+ * (--rail, see camera/rails.ts).
  */
-export function Stage({ videoRef, canvasRef, live, children }: StageProps) {
+export function Stage({ videoRef, canvasRef, live, rails = false, children }: StageProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<Size>(NO_SIZE);
   const [video, setVideo] = useState<Size>(NO_SIZE);
@@ -53,17 +58,26 @@ export function Stage({ videoRef, canvasRef, live, children }: StageProps) {
     };
   }, [videoRef]);
 
-  const frame = frameRect(stage, video, zoom);
+  const layout = stageLayout(stage, video, rails);
+  const frame = frameRect(layout.picture, video, zoom);
 
   return (
-    <div className="stage" ref={stageRef} data-live={live}>
-      <div
-        className="stage__frame"
-        data-testid="camera-frame"
-        style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
-      >
-        <video ref={videoRef} className="stage__video" playsInline muted data-testid="camera" />
-        <canvas ref={canvasRef} className="stage__canvas" />
+    <div
+      className="stage"
+      ref={stageRef}
+      data-live={live}
+      data-rails={layout.rail > 0}
+      style={{ '--rail': `${layout.rail}px` } as CSSProperties}
+    >
+      <div className="stage__picture" style={{ left: layout.picture.x, width: layout.picture.width }}>
+        <div
+          className="stage__frame"
+          data-testid="camera-frame"
+          style={{ left: frame.x, top: frame.y, width: frame.width, height: frame.height }}
+        >
+          <video ref={videoRef} className="stage__video" playsInline muted data-testid="camera" />
+          <canvas ref={canvasRef} className="stage__canvas" />
+        </div>
       </div>
       <div className="stage__overlay">{children}</div>
     </div>

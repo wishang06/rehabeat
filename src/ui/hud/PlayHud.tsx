@@ -21,6 +21,7 @@ import type {
 import { HudSounds } from './HudSounds';
 import { ScoreTube } from './ScoreTube';
 import './hud.css';
+import './rails.css';
 
 const PHASE_LABEL: Record<FeedbackPhase, string> = {
   ready: 'READY',

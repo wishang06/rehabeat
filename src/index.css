@@ -279,6 +279,29 @@
   position: absolute;
 }
 
+/* Where the picture may go: the whole stage, or with rails (Stage.tsx) the stage between them. */
+.stage__picture {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+
+/*
+ * Play and Calibrate use the whole window's width on a desktop, so the black
+ * bars either side of the camera picture become rails for the HUD panels.
+ */
+@media (min-width: 64rem) {
+  .app:is([data-screen='play'], [data-screen='calibrate']) .app__main {
+    width: 100%;
+  }
+
+  /* The bar's contents line up with the full-width stage under them. */
+  .app:is([data-screen='play'], [data-screen='calibrate']) .app__bar {
+    padding-inline: var(--gutter-page);
+  }
+}
+
 .stage__video,
 .stage__canvas {
   position: absolute;
