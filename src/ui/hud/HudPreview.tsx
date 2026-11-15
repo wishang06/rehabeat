@@ -15,6 +15,7 @@ const BEATS_PER_SECOND = 72 / 60;
  *   /hud               the scripted run, looping
  *   /hud?state=perfect one named moment, frozen (see MOCK_STATES)
  *   /hud?beat=12.5     any beat, frozen
+ *   /hud?tube=0.5      the score tube filled this far (0 to 1), on top of either
  *
  * There is no music here, so the looping preview keeps time with the display
  * clock. On the Play screen the same HUD is driven by the audio clock.
@@ -31,14 +32,27 @@ export function HudPreview() {
     return query.has('beat') && Number.isFinite(beat) ? beat : null;
   }, []);
 
-  const [run, setRun] = useState<HudRun>(() => mockRunAt(frozenBeat ?? 0));
+  // A fixed fill for the score tube, for screenshots: the points are set to that share of the maximum.
+  const tube = useMemo(() => {
+    const value = Number(new URLSearchParams(window.location.search).get('tube') ?? Number.NaN);
+    return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : null;
+  }, []);
+  const runAt = useMemo(
+    () => (beat: number) => {
+      const run = mockRunAt(beat);
+      return tube === null ? run : { ...run, points: Math.round(tube * run.maxPoints) };
+    },
+    [tube],
+  );
+
+  const [run, setRun] = useState<HudRun>(() => runAt(frozenBeat ?? 0));
 
   useEffect(() => {
     const show = (beat: number) => {
       frames.publish(mockFrameAt(beat));
       hud.current?.style.setProperty('--pulse', ((1 - (beat - Math.floor(beat))) ** 2).toFixed(3));
       setRun((shown) => {
-        const next = mockRunAt(beat);
+        const next = runAt(beat);
         const same =
           shown.points === next.points &&
           shown.moveNumber === next.moveNumber &&
@@ -61,7 +75,7 @@ export function HudPreview() {
       cancelAnimationFrame(request);
       frames.publish(null);
     };
-  }, [frames, frozenBeat]);
+  }, [frames, frozenBeat, runAt]);
 
   return (
     <div className="hud-preview">

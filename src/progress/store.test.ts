@@ -3,8 +3,8 @@ import { NEW_PROGRESS, PROGRESS_KEY, applyRun, loadProgress, parseProgress, save
 import { DAILY_BONUS, GRADE_BONUS, XP_PER_PERFECT } from './xp';
 
 /** Twelve Perfects: an S, three stars. */
-const perfectRun = { moves: 12, perfect: 12, good: 0, miss: 0, accuracy: 96 };
-const emptyRun = { moves: 0, perfect: 0, good: 0, miss: 0, accuracy: 0 };
+const perfectRun = { moves: 12, perfect: 12, good: 0, miss: 0, accuracy: 96, points: 1850, maxPoints: 1850 };
+const emptyRun = { moves: 0, perfect: 0, good: 0, miss: 0, accuracy: 0, points: 0, maxPoints: 1850 };
 const noon = (day: number) => new Date(2026, 10, day, 12);
 
 function fakeStorage(initial: Record<string, string> = {}) {
@@ -23,7 +23,7 @@ describe('applyRun', () => {
     expect(progress).toEqual({ xp: earned, streak: { count: 1, lastDay: '2026-11-14' }, runs: 1 });
     expect(gains).toMatchObject({
       grade: 'S',
-      stars: 3,
+      stars: 5,
       xpBefore: 0,
       xpAfter: earned,
       levelBefore: 1,

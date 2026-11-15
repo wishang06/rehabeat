@@ -3,7 +3,7 @@
  * here leaves the browser.
  */
 import { useSyncExternalStore } from 'react';
-import { gradeFor, starsFor, type Grade, type GradedRun } from './grade';
+import { gradeFor, starsFor, type Grade, type GradedRun, type StarredRun } from './grade';
 import { NO_STREAK, advanceStreak, currentStreak, dayKey, isDayKey, playedToday, type Streak } from './streak';
 import { levelFor, xpForRun, type XpGain, type XpRun } from './xp';
 
@@ -54,7 +54,7 @@ export function parseProgress(raw: unknown): Progress {
  */
 export function applyRun(
   progress: Progress,
-  run: GradedRun & XpRun,
+  run: GradedRun & StarredRun & XpRun,
   now: Date,
 ): { progress: Progress; gains: RunGains } {
   const today = dayKey(now);
@@ -123,7 +123,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 /** Banks a finished run: updates and saves progress, and returns what the run earned. */
-export function recordRun(run: GradedRun & XpRun, now: Date = new Date()): RunGains {
+export function recordRun(run: GradedRun & StarredRun & XpRun, now: Date = new Date()): RunGains {
   const before = snapshot();
   const { progress, gains } = applyRun(before, run, now);
   if (progress !== before) {
@@ -135,7 +135,7 @@ export function recordRun(run: GradedRun & XpRun, now: Date = new Date()): RunGa
 }
 
 /** What a run would earn against the progress as it stands, without banking it. */
-export function previewRun(run: GradedRun & XpRun, now: Date = new Date()): RunGains {
+export function previewRun(run: GradedRun & StarredRun & XpRun, now: Date = new Date()): RunGains {
   return applyRun(snapshot(), run, now).gains;
 }
 

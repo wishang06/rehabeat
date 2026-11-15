@@ -853,9 +853,11 @@
     font-size: clamp(2.5rem, min(9.4cqw, 10.5vh), 8.25rem);
   }
 
-  /* A catalogue's songs sit side by side rather than wrapping under each other. */
+  /* A catalogue's songs sit side by side in one row, sharing the width, rather than wrapping under each other. */
   .menu__cards {
-    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 1.25rem;
   }
 
@@ -868,9 +870,25 @@
     font-size: clamp(2.75rem, min(7.4cqw, 8.5vh), 6.5rem);
   }
 
+  /* Titles are sized to their own card, so three cards in a row still fit, and a long one stops at two lines. */
+  .menu .menu-card {
+    container: song-card / inline-size;
+  }
+
   .menu-card__title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    overflow-wrap: break-word;
     padding-top: clamp(0.5rem, 1.6vh, 1.25rem);
-    font-size: clamp(1.75rem, min(4.6cqw, 6vh), 4.25rem);
+    font-size: clamp(1.375rem, min(13cqi, 6vh), 4.25rem);
+  }
+
+  .menu-card__artist {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .menu-card__foot {
@@ -883,8 +901,9 @@
     font-size: clamp(2.25rem, min(6cqw, 7vh), 4.5rem);
   }
 
+  /* One column per catalogue (CreditsView sets --catalogues), however many songs each has. */
   .menu-credits {
-    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    grid-template-columns: repeat(var(--catalogues, 3), minmax(0, 1fr));
     align-items: start;
     gap: clamp(0.75rem, 2vh, 1.25rem) 1.25rem;
     max-width: none;
@@ -905,7 +924,23 @@
 
   .menu-credits__line {
     margin-top: 0;
-    font-size: 0.875rem;
-    line-height: 1.45;
+    font-size: clamp(0.8125rem, 1.7vh, 0.875rem);
+    line-height: 1.4;
+  }
+}
+
+/* A narrow card (three in a row on a smaller window): Play goes under the difficulty instead of off the edge. */
+@media (min-width: 64rem) {
+  @container song-card (max-width: 17rem) {
+    .menu-card__foot {
+      flex-wrap: wrap;
+      row-gap: 0.5rem;
+    }
+
+    .menu .menu-card__play {
+      min-height: 2.75rem;
+      padding: 0 1.25rem;
+      font-size: 1.25rem;
+    }
   }
 }

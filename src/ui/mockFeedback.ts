@@ -11,6 +11,7 @@
  */
 import { LIMBS } from '../engine';
 import { MOVES } from '../moves';
+import { maxPointsFor } from '../progress';
 import { GOOD_SCORE, labelFor, pointsFor } from '../scoring';
 import type { JointName, Move } from '../types';
 import type { FeedbackFrame, FeedbackPhase, LimbFeedback, LimbName } from '../types/ui';
@@ -144,6 +145,9 @@ export function mockFrameAt(beat: number, t = 0): FeedbackFrame {
   });
 }
 
+/** How many moves the mock run is planned for: the score tube is full at all of them Perfect. */
+export const MOCK_PLANNED_MOVES = 8;
+
 /** The run stats that go with `mockFrameAt(beat)`: one result as each hold closes. */
 export function mockRunAt(beat: number): HudRun {
   const { cycle, phase } = positionAt(beat);
@@ -165,6 +169,7 @@ export function mockRunAt(beat: number): HudRun {
   }
   return {
     points,
+    maxPoints: maxPointsFor(MOCK_PLANNED_MOVES),
     combo,
     perfectStreak,
     accuracy: scored > 0 ? total / scored : null,

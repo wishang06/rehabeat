@@ -33,10 +33,17 @@ export interface RunSummary {
   /** Mean move score, 0-100. */
   accuracy: number;
   durationSec: number;
+  /**
+   * The most the run could have scored: its planned moves, every one Perfect
+   * in one unbroken combo. The results screen's stars are read off
+   * points / maxPoints. Display only; not saved to the leaderboard.
+   */
+  maxPoints?: number;
 }
 
-export function summarizeRun(stats: Stats, points: number, durationSec: number): RunSummary {
+export function summarizeRun(stats: Stats, points: number, durationSec: number, maxPoints?: number): RunSummary {
   return {
+    ...(maxPoints !== undefined && { maxPoints }),
     points,
     moves: stats.total,
     perfect: stats.perfect,
