@@ -1,5 +1,5 @@
 // Screenshots of every /play screen at desktop sizes, signed in, with the
-// profile menu and the camera zoom at both ends. Each screen is checked to
+// profile menu open. Each screen is checked to
 // fit the window with nothing scrolling (scripts/lib/fit.mjs) and the walk
 // fails if one does not.
 //
@@ -241,35 +241,15 @@ async function walk([width, height], first) {
     if (!started) throw new CameraStalled(await page.getByTestId('start-error').textContent());
     await screen('calibrate', 1200);
 
-    // The zoom at both ends: the closest view, then the camera's full frame.
-    const slider = page.getByTestId('zoom-slider');
-    expect('the zoom starts in the middle', (await slider.inputValue()) === '0.5', await slider.inputValue());
-    const frameAt = () => page.getByTestId('camera-frame').evaluate((frame) => frame.getBoundingClientRect().toJSON());
-    const stageBox = await page.locator('.stage__picture').evaluate((stage) => stage.getBoundingClientRect().toJSON());
-    await slider.fill('0');
-    await settle(300);
-    await page.screenshot({ path: path.join(outDir, `zoom-close-${tag}.png`) });
-    const close = await frameAt();
-    await slider.fill('1');
-    await settle(300);
-    await page.screenshot({ path: path.join(outDir, `zoom-full-${tag}.png`) });
-    const full = await frameAt();
-    const covers = close.left <= stageBox.left + 1 && close.right >= stageBox.right - 1 && close.top <= stageBox.top + 1 && close.bottom >= stageBox.bottom - 1;
-    const inside = full.left >= stageBox.left - 1 && full.right <= stageBox.right + 1 && full.top >= stageBox.top - 1 && full.bottom <= stageBox.bottom + 1;
-    expect('closest covers the picture area; full frame fits inside it', covers && inside, `stage ${Math.round(stageBox.width)}x${Math.round(stageBox.height)}, close ${Math.round(close.width)}x${Math.round(close.height)}, full ${Math.round(full.width)}x${Math.round(full.height)}`);
+    // The picture and its overlay: one rectangle, with no zoom control to move it.
     const canvasMatches = await page.evaluate(() => {
       const video = document.querySelector('.stage__video').getBoundingClientRect();
       const canvas = document.querySelector('.stage__canvas').getBoundingClientRect();
       return ['left', 'top', 'width', 'height'].every((key) => Math.abs(video[key] - canvas[key]) < 0.5);
     });
     expect('the overlay canvas sits exactly on the video', canvasMatches);
-    await slider.fill('0.5');
-    if (first) {
-      await page.reload({ waitUntil: 'domcontentloaded' });
-      const kept = await page.evaluate(() => localStorage.getItem('rehabeat.cameraZoom'));
-      expect('the zoom is kept in localStorage', kept === '0.5', kept ?? 'nothing');
-      return { state, errors, reloaded: true };
-    }
+    // The first pass is for the profile menu; Play and the results are walked on the second.
+    if (first) return { state, errors };
 
     await page.getByTestId('calibrate-skip').click();
     await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
@@ -294,7 +274,7 @@ let exitCode = 0;
 try {
   console.log(`Screens of ${base} into ${path.relative(root, outDir)}/`);
   for (const [index, size] of sizes.entries()) {
-    // The first size also walks the profile menu's rename and avatar, and checks the zoom is kept.
+    // The first size also walks the profile menu's rename and avatar.
     // Then it walks again from the title for Play and the results.
     const passes = index === 0 ? [true, false] : [false];
     for (const first of passes) {

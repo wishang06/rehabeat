@@ -636,42 +636,32 @@ async function fitPath(url) {
     if (!started) throw new CameraStalled(await page.getByTestId('start-error').textContent());
     await fits('Calibrate screen');
 
-    // The zoom slider: the picture and its canvas move as one, from covering the stage to the whole frame.
-    const slider = page.getByTestId('zoom-slider');
+    // The picture and its canvas sit on one rectangle, and there is no zoom control to move it.
     const framing = () =>
       page.evaluate(() => {
         const box = (selector) => document.querySelector(selector).getBoundingClientRect();
-        const stage = box('.stage__picture');
         const video = box('.stage__video');
         const canvas = box('.stage__canvas');
         return {
           locked: ['left', 'top', 'width', 'height'].every((key) => Math.abs(video[key] - canvas[key]) < 0.5),
-          covers: video.left <= stage.left + 1 && video.right >= stage.right - 1 && video.top <= stage.top + 1 && video.bottom >= stage.bottom - 1,
-          inside: video.left >= stage.left - 1 && video.right <= stage.right + 1 && video.top >= stage.top - 1 && video.bottom <= stage.bottom + 1,
           aspect: video.width / video.height,
         };
       });
-    check('the camera zoom starts in the middle', (await slider.inputValue()) === '0.5', await slider.inputValue());
-    const middle = await page.getByTestId('camera-frame').evaluate((frame) => frame.getBoundingClientRect().toJSON());
-    await slider.fill('0');
-    const close = await framing();
-    await slider.fill('1');
-    const full = await framing();
+    check('Calibrate has no camera zoom slider', (await page.getByTestId('zoom-slider').count()) === 0);
+    const calibrateFrame = await framing();
     check(
-      'zoomed in the picture covers the stage, zoomed out it is the whole frame, and the canvas stays on the picture',
-      close.covers && full.inside && close.locked && full.locked && Math.abs(full.aspect - 4 / 3) < 0.01,
-      JSON.stringify({ close, full }),
+      'the overlay canvas sits exactly on the camera picture, which keeps its 4:3 shape',
+      calibrateFrame.locked && Math.abs(calibrateFrame.aspect - 4 / 3) < 0.01,
+      JSON.stringify(calibrateFrame),
     );
-    const kept = await page.evaluate(() => localStorage.getItem('rehabeat.cameraZoom'));
-    check('the zoom is kept for next time', kept === '1', kept ?? 'nothing stored');
-    await slider.fill('0.5');
+    const middle = await page.getByTestId('camera-frame').evaluate((frame) => frame.getBoundingClientRect().toJSON());
 
     await page.getByTestId('calibrate-skip').click();
     await page.getByTestId('play-screen').waitFor({ timeout: 10_000 });
     const playFrame = await framing();
     const playBox = await page.getByTestId('camera-frame').evaluate((frame) => frame.getBoundingClientRect().toJSON());
     check(
-      'Play uses the zoom from Calibrate',
+      'Play frames the camera picture as Calibrate does',
       playFrame.locked && ['left', 'top', 'width', 'height'].every((key) => Math.abs(playBox[key] - middle[key]) < 1),
       JSON.stringify({ middle, playBox }),
     );

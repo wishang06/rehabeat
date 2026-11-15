@@ -95,7 +95,6 @@ Libraries: GSAP (with ScrollTrigger) for the landing page loop and reveals and t
 | Avatar | A neon glyph from the cabinet (the figure, a star, the dial, LED segments) on a void square, with a soft glow in its own colour. Gold, cyan and white; pink only as an accent. Sixteen, in `src/ui/avatars/`. |
 | Profile menu | The avatar in the marquee opens a deck panel with a lit cyan top edge: the player, then Rename, Change avatar (a 4 x 4 grid, the chosen one outlined in gold) and Sign out. Under them, while the player has no program, the field for a doctor's code. Esc steps back, then closes. |
 | Demo row | A leaderboard row for a sample player: a tone down (deck, not deck-2), the name dimmed, and a small "Demo" tag on deck-3. |
-| Zoom slider | On the Calibrate strip: a cyan LED track filled up to a slanted gold thumb, "Close" to "Full frame". At full frame with the head or feet cut off, "Still too close? Step back" in pink. |
 
 ## Desk look
 

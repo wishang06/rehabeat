@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { stageLayout } from './camera/rails';
-import { frameRect, type Size } from './camera/zoom';
-import { useCameraZoom } from './camera/zoomStore';
+import { DEFAULT_ZOOM, frameRect, type Size } from './camera/zoom';
 
 interface StageProps {
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -28,7 +27,6 @@ export function Stage({ videoRef, canvasRef, live, rails = false, children }: St
   const stageRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<Size>(NO_SIZE);
   const [video, setVideo] = useState<Size>(NO_SIZE);
-  const zoom = useCameraZoom();
 
   useEffect(() => {
     const element = stageRef.current;
@@ -59,7 +57,7 @@ export function Stage({ videoRef, canvasRef, live, rails = false, children }: St
   }, [videoRef]);
 
   const layout = stageLayout(stage, video, rails);
-  const frame = frameRect(layout.picture, video, zoom);
+  const frame = frameRect(layout.picture, video, DEFAULT_ZOOM);
 
   return (
     <div
