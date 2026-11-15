@@ -71,13 +71,15 @@ export function Hero() {
       </h1>
 
       <div className="lp-hero__copy">
+        <p className="lp-lede">
+          Stand back from your laptop, match the gold figure on the beat, and keep the music playing.
+        </p>
         <Button asChild variant="gold" size="xl">
           <Link to="/play" data-testid="landing-play">
             <Play fill="currentColor" strokeWidth={0} className="size-[0.6em]" aria-hidden="true" />
             Play now
           </Link>
         </Button>
-        <p className="lp-note">You need a webcam and about two metres of floor. Nothing to install.</p>
 
         <div className="lp-beat" aria-hidden="true">
           <p className="lp-phase">
