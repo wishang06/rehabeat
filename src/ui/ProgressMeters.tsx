@@ -38,8 +38,10 @@ export function StreakLamps({ className }: { className?: string }) {
       aria-label={`${count} day streak`}
       data-testid="streak-meter"
     >
-      <span className="streak__count led">{count}</span>
-      <span className="streak__label label">day streak</span>
+      <span className="streak__head">
+        <span className="streak__count led">{count}</span>
+        <span className="streak__label label">day streak</span>
+      </span>
       <span className="streak__week">
         {week.map((lit, index) => (
           <i key={DAYS[index]} data-on={lit} title={DAYS[index]} />
