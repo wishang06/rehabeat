@@ -54,10 +54,8 @@ add, remove or move, so change the songs with that command rather than here.
 | Stealth Groover | Kevin MacLeod | Calm Stretch | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100690) |
 | Past Sadness | Kevin MacLeod | Steady Flow | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1900007) |
 | Dreamy Reverie | HoliznaCC0 | Steady Flow | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [freemusicarchive.org](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/dreamy-reverie-lofi-nostalgic-chill/) |
-| Chainsmoker Cat - Opening FULL "Nanmonee" by Wasureranneyo (Lyrics) | Jamong | Steady Flow | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [mp3-juice.fr](https://mp3-juice.fr/) |
 | Saturation | HoliznaCC0 | Active Rehab | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [freemusicarchive.org](https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/saturation-lofi-calm-relaxed/) |
 | Wallpaper | Kevin MacLeod | Active Rehab | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [incompetech.com](https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1100843) |
-| SUKI! Korean ver | d | Active Rehab | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) | [mp3-juice.fr](https://mp3-juice.fr/) |
 
 Credit lines, as the game shows them:
 
@@ -65,8 +63,6 @@ Credit lines, as the game shows them:
 - `stealth-groover`: "Stealth Groover" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
 - `past-sadness`: "Past Sadness" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
 - `dreamy-reverie`: "Dreamy Reverie" by HoliznaCC0 (freemusicarchive.org), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
-- `chainsmoker-cat-opening-full-nanmonee-by`: "Chainsmoker Cat - Opening FULL "Nanmonee" by Wasureranneyo (Lyrics)" by Jamong (mp3-juice.fr), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
 - `saturation`: "Saturation" by HoliznaCC0 (freemusicarchive.org), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
 - `wallpaper`: "Wallpaper" by Kevin MacLeod (incompetech.com), CC BY 4.0. Separated into drum and melody stems by the Rehabeat team.
-- `suki-korean-ver`: "SUKI! Korean ver" by d (mp3-juice.fr), CC0 1.0. Separated into drum and melody stems by the Rehabeat team.
 <!-- songs:end -->
