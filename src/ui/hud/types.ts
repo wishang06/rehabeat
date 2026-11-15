@@ -62,7 +62,6 @@ export interface PlayHudProps {
 export interface MoveLaneProps {
   frames: FeedbackStore;
   moveNumber: number;
-  moveCount: number;
   round: HudRun['round'];
   /** The moves being played, in order: the queue and the figures are drawn from them. */
   moves: readonly Move[];

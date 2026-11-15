@@ -201,7 +201,6 @@ export function PlayHud({ frames, run, moves = MOVES, ref }: PlayHudProps) {
         <MoveLane
           frames={frames}
           moveNumber={run.moveNumber}
-          moveCount={run.moveCount}
           round={run.round}
           moves={moves}
         />
