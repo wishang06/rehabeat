@@ -797,6 +797,12 @@
     font-size: clamp(2.5rem, min(9.4cqw, 10.5vh), 8.25rem);
   }
 
+  /* A catalogue's songs sit side by side rather than wrapping under each other. */
+  .menu__cards {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1.25rem;
+  }
+
   .menu .menu-card {
     min-height: 0;
     padding-block: clamp(1rem, 2.6vh, 1.625rem) clamp(1rem, 2.6vh, 1.75rem);
@@ -819,6 +825,11 @@
   /* Credits: a smaller heading, the catalogues side by side, and the data credit along the bottom. */
   .menu__panel:has(.menu-credits) .menu__title {
     font-size: clamp(2.25rem, min(6cqw, 7vh), 4.5rem);
+  }
+
+  /* The Credits tab already says what this is. */
+  .menu__panel:has(.menu-credits) .menu__about {
+    display: none;
   }
 
   .menu-credits {

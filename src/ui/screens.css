@@ -720,6 +720,37 @@
     overflow: visible;
   }
 
+  /* One row, the screen's height: the figure scales into it instead of making the row taller. */
+  .title {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .title__figure {
+    min-height: 0;
+  }
+
+  /* The title copy is sized by the window's height too, so Start, the meters and the links stay on screen. */
+  .title__name {
+    font-size: clamp(4rem, min(15vw, 24vh), 14rem);
+  }
+
+  .title[data-board='true'] .title__name {
+    font-size: clamp(3.5rem, min(8.4vw, 17vh), 9.5rem);
+  }
+
+  .title__copy {
+    gap: clamp(0.625rem, 2vh, 1.25rem);
+  }
+
+  .title__start {
+    min-height: clamp(4rem, 10vh, 5.25rem);
+    font-size: clamp(2rem, 5vh, 2.625rem);
+  }
+
+  .title__meters {
+    margin-top: clamp(0.25rem, 1.5vh, 1.25rem);
+  }
+
   /* The marquee keeps the level bar and the streak count; their details are on the title screen. */
   .app__bar {
     gap: 1.25rem;
