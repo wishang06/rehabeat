@@ -44,11 +44,11 @@ const HEART = ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']
 const GLYPHS: Record<AvatarId, () => ReactElement> = {
   // The target figure, arms overhead.
   figure: () => (
-    <g stroke={INK.gold} strokeWidth="6.5" strokeLinecap="round" fill="none">
-      <path d="M29 25 L21 10 M35 25 L43 10" />
-      <path d="M32 24 L32 39" strokeWidth="8.5" />
-      <path d="M30 39 L25 55 M34 39 L39 55" />
-      <circle cx="32" cy="15" r="5" fill={INK.gold} stroke="none" />
+    <g stroke={INK.gold} strokeWidth="6" strokeLinecap="round" fill="none">
+      <path d="M27 27 L15 9 M37 27 L49 9" />
+      <path d="M32 26 L32 39" strokeWidth="9" />
+      <path d="M29.5 40 L24 56 M34.5 40 L40 56" />
+      <circle cx="32" cy="15.5" r="5.5" fill={INK.gold} stroke="none" />
     </g>
   ),
 

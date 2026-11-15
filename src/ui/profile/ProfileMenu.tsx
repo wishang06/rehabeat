@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { signOut, type AuthState } from '../../lib/auth';
 import { Avatar } from '../avatars/Avatar';
 import { AVATAR_IDS, AVATAR_NAMES, resolveAvatar, type AvatarId } from '../avatars/avatars';
@@ -21,35 +21,50 @@ export function ProfileMenu({ auth }: { auth: AuthState }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const panelId = useId();
 
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const previousView = useRef<View>('main');
+
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: PointerEvent) => {
       if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
     };
+    // Esc belongs to the menu while it is open, wherever focus is: App would otherwise take it as
+    // "back to the songs". Caught on the way down, before App's listener on window hears it.
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      event.preventDefault();
+      if (viewRef.current === 'main') {
+        setOpen(false);
+        trigger.current?.focus();
+      } else setView('main');
+    };
     document.addEventListener('pointerdown', onPointer);
-    return () => document.removeEventListener('pointerdown', onPointer);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointer);
+      document.removeEventListener('keydown', onKey, true);
+    };
   }, [open]);
+
+  // Back from Rename or Change avatar, focus returns to the button that opened it.
+  useEffect(() => {
+    const from = previousView.current;
+    previousView.current = view;
+    if (open && view === 'main' && from !== 'main') {
+      root.current?.querySelector<HTMLElement>(`[data-testid="profile-${from === 'rename' ? 'rename' : 'avatar'}"]`)?.focus();
+    }
+  }, [open, view]);
 
   if (!auth.user) return null;
   const userId = auth.user.id;
   const name = auth.profile?.displayName ?? 'Player';
   const avatarId = auth.profile?.avatarId ?? null;
 
-  const close = () => {
-    setOpen(false);
-    trigger.current?.focus();
-  };
-
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape' || !open) return;
-    // Esc belongs to the menu while it is open: App would otherwise take it as "back to the songs".
-    event.stopPropagation();
-    if (view === 'main') close();
-    else setView('main');
-  };
-
   return (
-    <div className="profile" ref={root} onKeyDown={onKeyDown}>
+    <div className="profile" ref={root}>
       <button
         ref={trigger}
         type="button"
