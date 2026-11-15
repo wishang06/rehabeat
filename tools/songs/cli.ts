@@ -202,6 +202,19 @@ async function run(context: Context): Promise<number> {
 }
 
 export async function main(argv: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<number> {
+  // Existing terminals (including VS Code) can retain PATH from before winget installed FFmpeg.
+  // Add winget's command links for this process and every audio subprocess it starts.
+  if (process.platform === 'win32') {
+    const localAppData = env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local');
+    const links = path.join(localAppData, 'Microsoft', 'WinGet', 'Links');
+    if (existsSync(links)) {
+      const pathKey = Object.keys(process.env).find((key) => key.toLowerCase() === 'path') ?? 'PATH';
+      const current = process.env[pathKey] ?? '';
+      if (!current.split(';').some((entry) => entry.toLowerCase() === links.toLowerCase())) {
+        process.env[pathKey] = current ? `${current};${links}` : links;
+      }
+    }
+  }
   installCleanupHandlers();
   const recovered = recoverNpmArgs(argv, env, process.platform);
   if (recovered.warning) err(`warning: ${recovered.warning}`);
