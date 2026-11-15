@@ -584,6 +584,16 @@
   box-shadow: inset 4px 0 0 var(--color-gold);
 }
 
+/* Where rows were left out, between the top of the board and the player. */
+.board__gap {
+  display: grid;
+  place-items: center;
+  height: 1.375rem;
+  font: 900 1.125rem/1 var(--font-led);
+  letter-spacing: 0.3em;
+  color: var(--color-faint);
+}
+
 .board__rank {
   font: 900 1.125rem/1 var(--font-led);
   color: var(--color-faint);

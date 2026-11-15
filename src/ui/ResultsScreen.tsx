@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
 import { Play, Star } from 'lucide-react';
@@ -53,6 +53,8 @@ export function ResultsScreen({
   onChangeSong,
 }: ResultsScreenProps) {
   const root = useRef<HTMLElement>(null);
+  const pointsLabel = useRef<HTMLSpanElement>(null);
+  const board = useRef<HTMLDivElement>(null);
   const [save, setSave] = useState<SaveState>('idle');
   const attempted = useRef(false);
   const userId = auth.user?.id ?? null;
@@ -76,6 +78,26 @@ export function ResultsScreen({
         setSave('failed');
       });
   }, [userId, run]);
+
+  // The board starts level with the "Points" label. The column that label is in is centred and
+  // changes height with its content, so the label is measured and the board follows it.
+  useLayoutEffect(() => {
+    const scope = root.current;
+    const label = pointsLabel.current;
+    const panel = board.current;
+    if (!scope || !label || !panel) return;
+    const place = () => {
+      // Measured from where the board itself starts: inside the screen's top padding.
+      const padding = Number.parseFloat(getComputedStyle(scope).paddingTop) || 0;
+      const top = label.getBoundingClientRect().top - scope.getBoundingClientRect().top + scope.scrollTop - padding;
+      panel.style.setProperty('--board-top', `${Math.max(0, top).toFixed(1)}px`);
+    };
+    place();
+    const watcher = new ResizeObserver(place);
+    watcher.observe(scope);
+    if (label.parentElement?.parentElement) watcher.observe(label.parentElement.parentElement);
+    return () => watcher.disconnect();
+  }, []);
 
   useGSAP(
     () => {
@@ -140,7 +162,9 @@ export function ResultsScreen({
         <h1 className="res__title display">{run.moves > 0 ? 'Routine complete' : 'No moves scored'}</h1>
 
         <div className="res__score">
-          <span className="res__label label">Points</span>
+          <span className="res__label label" ref={pointsLabel}>
+            Points
+          </span>
           <span className="res__num led" data-testid="run-points" data-count={run.points}>
             {run.points.toLocaleString()}
           </span>
@@ -207,9 +231,9 @@ export function ResultsScreen({
       </div>
 
       {supabase && (
-        <div className="res__board">
+        <div className="res__board" ref={board}>
           <h2 className="res__label label">Leaderboard</h2>
-          <Leaderboard userId={userId} refreshKey={save} limit={5} />
+          <Leaderboard userId={userId} refreshKey={save} limit={5} around />
         </div>
       )}
     </section>

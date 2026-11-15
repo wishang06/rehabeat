@@ -520,6 +520,19 @@
   min-width: 0;
 }
 
+/*
+ * Beside the score (three columns), the board starts level with the "Points"
+ * label: ResultsScreen measures the label and writes --board-top, the
+ * distance down from where the board's column starts.
+ */
+@media (min-width: 64.01rem) {
+  .res[data-board='true'] .res__board {
+    align-self: start;
+    align-content: start;
+    margin-top: var(--board-top, 0px);
+  }
+}
+
 @media (max-width: 64rem) {
   .res,
   .res[data-board='true'] {
