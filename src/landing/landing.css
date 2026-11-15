@@ -227,6 +227,11 @@
   padding: clamp(80px, 11vw, 160px) var(--gutter-page) 0;
 }
 
+/* The song lanes are the last thing on the page, so they keep the same room below as above. */
+.lp-songs {
+  padding-bottom: clamp(80px, 11vw, 160px);
+}
+
 .lp-how h2,
 .lp-songs h2 {
   font-size: var(--text-section);
@@ -500,55 +505,6 @@
   color: var(--tone);
 }
 
-/* ---------- footer: the credits */
-.lp-foot {
-  margin-top: clamp(96px, 12vw, 180px);
-  padding: 40px var(--gutter-page) 0;
-  background: var(--color-deck);
-  overflow: hidden;
-}
-
-.lp-foot__cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.6fr;
-  gap: 40px;
-}
-
-.lp-foot h2 {
-  margin-bottom: 10px;
-  font-size: 26px;
-  color: var(--color-cyan);
-}
-
-.lp-foot p,
-.lp-foot li {
-  font-size: 16px;
-  color: var(--color-dim);
-}
-
-.lp-foot ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-
-.lp-credit__tag {
-  margin-right: 6px;
-  font: 700 0.95em/1 var(--font-display);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-cyan);
-}
-
-.lp-foot .lp-foot__wordmark {
-  margin: 44px 0 -0.08em;
-  font: italic 800 clamp(84px, 24.6vw, 410px) / 0.78 var(--font-display);
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: var(--color-gold);
-  text-shadow: 0 0 70px rgb(255 210 63 / 0.45);
-}
-
 /* ---------- narrow screens: one column */
 @media (max-width: 820px) {
   .lp-nav nav,
@@ -563,8 +519,7 @@
   .lp-hero,
   .lp-steps,
   .lp-why,
-  .lp-lanes3,
-  .lp-foot__cols {
+  .lp-lanes3 {
     grid-template-columns: 1fr;
   }
 

@@ -183,7 +183,6 @@ function WeightField({ weightKg, unit }: { weightKg: number | null; unit: Weight
           value={field.draft}
           onChange={(event) => setField(typeInField(field, event.target.value))}
           aria-invalid={field.refused}
-          aria-describedby="stats-weight-note"
           data-testid="stats-weight"
         />
         <div className="stats__switch" role="group" aria-label="Weight unit">
@@ -210,10 +209,6 @@ function WeightField({ weightKg, unit }: { weightKg: number | null; unit: Weight
             Enter a weight between {low} and {high} {unit}.
           </span>
         )}
-      </p>
-      <p className="stats__note" id="stats-weight-note">
-        Optional. Calories are an estimate from time played and body weight, using {showWeight(DEFAULT_WEIGHT_KG, unit)}{' '}
-        {unit} until you enter yours. Your weight stays in this browser.
       </p>
     </form>
   );
